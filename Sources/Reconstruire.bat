@@ -1,6 +1,7 @@
 @echo off
 setlocal EnableExtensions
 set "ROOT=%~dp0.."
+if not exist "%ROOT%\Dist" mkdir "%ROOT%\Dist"
 set "CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 set "WPF=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\WPF"
 if not exist "%CSC%" set "CSC=%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe"
@@ -18,7 +19,7 @@ set "RSP=%TEMP%\lyarantv-build-%RANDOM%-%RANDOM%.rsp"
 >>"%RSP%" echo /target:winexe
 >>"%RSP%" echo /codepage:65001
 >>"%RSP%" echo /optimize+
->>"%RSP%" echo /out:"%ROOT%\LyaranTV.exe"
+>>"%RSP%" echo /out:"%ROOT%\Dist\LyaranTV.exe"
 >>"%RSP%" echo /win32icon:"%~dp0LyaranTV.ico"
 >>"%RSP%" echo /win32manifest:"%~dp0LyaranTV.manifest"
 >>"%RSP%" echo /reference:"%WPF%\PresentationFramework.dll"
@@ -46,5 +47,5 @@ if not "%RESULT%"=="0" (
   echo Echec de la compilation.
   exit /b %RESULT%
 )
-echo Application generee : %ROOT%\LyaranTV.exe
+echo Application generee : %ROOT%\Dist\LyaranTV.exe
 exit /b 0

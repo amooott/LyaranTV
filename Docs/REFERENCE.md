@@ -231,16 +231,19 @@ Attribution affichée dans l'application :
 Sources\Reconstruire.bat
 ```
 
+- Sortie : `Dist\LyaranTV.exe`.
 - Compilateur : `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe`.
 - Cible : `winexe`, .NET Framework 4.x, WPF.
 - Langage : C# 5 (pas d'interpolation, `?.`, `nameof`, tuples, correspondance de motifs).
 - Aucun SDK .NET, NuGet, MSBuild ou ffmpeg requis.
 - Manifeste DPI `LyaranTV.manifest`, icône `LyaranTV.ico`.
+- Installateur : `Installer\Construire-Installateur.bat` → `Dist\setup-LyaranTV-<version>.exe` (version lue dans `AppInfo.cs`).
+- Équivalents Git Bash : `Tools/build.sh` et `Tools/setup.sh`.
 
 ## Auto-tests
 
 ```bat
-LyaranTV.exe --selftest
+Dist\LyaranTV.exe --selftest
 ```
 
 Journal : `%TEMP%\LyaranTV-selftest.log`.

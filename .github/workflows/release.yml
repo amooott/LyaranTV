@@ -62,9 +62,13 @@ jobs:
       - name: Empreintes SHA-256
         shell: pwsh
         run: |
-          foreach ($file in @("setup-LyaranTV.exe", "LyaranTV.exe")) {
+          $info = Get-Content Sources/App/AppInfo.cs -Raw
+          if ($info -notmatch 'Version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') { throw "Version introuvable" }
+          $setup = "setup-LyaranTV-$($Matches[1]).exe"
+          foreach ($name in @($setup, "LyaranTV.exe")) {
+            $file = "Dist/$name"
             $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
-            "$hash  $file" | Out-File "$file.sha256" -Encoding ascii -NoNewline
+            "$hash  $name" | Out-File "$file.sha256" -Encoding ascii -NoNewline
             Write-Host "$file $hash"
           }
 
@@ -79,5 +83,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             gh release create $tag --title "LyaranTV $tag" --notes-file Docs/RELEASE-NOTES.md
           }
-          gh release upload $tag setup-LyaranTV.exe setup-LyaranTV.exe.sha256 LyaranTV.exe LyaranTV.exe.sha256 --clobber
+          $files = @(Get-ChildItem Dist -File | ForEach-Object { $_.FullName })
+          gh release upload $tag $files --clobber
           if ($LASTEXITCODE -ne 0) { throw "Echec de l'envoi des fichiers" }

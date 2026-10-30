@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Compile LyaranTV vers build/LyaranTV.exe (copie non verrouillée), avec les
-# mêmes références et le même manifeste que le script officiel.
+# Compile LyaranTV dans Dist/LyaranTV.exe, avec les mêmes références et le même
+# manifeste que Sources/Reconstruire.bat.
 set -u
-cd "$(dirname "$0")"
-mkdir -p build
-cat > _build-temp.bat <<'EOF'
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+mkdir -p Dist
+BAT="$ROOT/_build-temp.bat"
+cat > "$BAT" <<'EOF'
 @echo off
 setlocal EnableExtensions
 set "ROOT=%~dp0"
@@ -16,7 +18,7 @@ set "RSP=%TEMP%\lyarantv-build-%RANDOM%-%RANDOM%.rsp"
 >>"%RSP%" echo /target:winexe
 >>"%RSP%" echo /codepage:65001
 >>"%RSP%" echo /optimize+
->>"%RSP%" echo /out:"%ROOT%build\LyaranTV.exe"
+>>"%RSP%" echo /out:"%ROOT%Dist\LyaranTV.exe"
 >>"%RSP%" echo /win32icon:"%ROOT%Sources\LyaranTV.ico"
 >>"%RSP%" echo /win32manifest:"%ROOT%Sources\LyaranTV.manifest"
 >>"%RSP%" echo /reference:"%WPF%\PresentationFramework.dll"
@@ -41,12 +43,12 @@ if not "%RESULT%"=="0" exit /b %RESULT%
 echo BUILD_OK
 exit /b 0
 EOF
-rm -f build/LyaranTV.exe
-LOG=$(cmd //c "$(cygpath -w "$PWD/_build-temp.bat")" 2>&1 | grep -v "only supports language versions" | grep -v '^$')
-rm -f _build-temp.bat
+rm -f Dist/LyaranTV.exe
+LOG=$(cmd //c "$(cygpath -w "$BAT")" 2>&1 | grep -v "only supports language versions" | grep -v '^$')
+rm -f "$BAT"
 echo "$LOG"
-if echo "$LOG" | grep -q "BUILD_OK" && [ -f build/LyaranTV.exe ]; then
-  echo "BINAIRE: $(stat -c %s build/LyaranTV.exe) octets"
+if echo "$LOG" | grep -q "BUILD_OK" && [ -f Dist/LyaranTV.exe ]; then
+  echo "BINAIRE: $(stat -c %s Dist/LyaranTV.exe) octets -> Dist/LyaranTV.exe"
 else
   echo "BUILD_FAILED"; exit 1
 fi

@@ -31,14 +31,14 @@ Prérequis : Windows 10/11 avec .NET Framework 4.x (fourni avec Windows) et le c
 
 ```bat
 Sources\Reconstruire.bat
-LyaranTV.exe
+Dist\LyaranTV.exe
 ```
 
 Pour découvrir l'application sans compte ni fournisseur :
 
 ```bat
-LyaranTV.exe --example
-LyaranTV.exe --example --page "Guide EPG"
+Dist\LyaranTV.exe --example
+Dist\LyaranTV.exe --example --page "Guide EPG"
 ```
 
 L'exemple fictif se trouve dans `Examples\` et utilise une vidéo locale. Il ne contient aucun contenu réel.
@@ -64,37 +64,62 @@ Sources\Reconstruire.bat
 
 Le script compile tous les fichiers `.cs` de `Sources\` avec le `csc.exe` de .NET Framework 4.x, les assemblies WPF, le manifeste DPI et l'icône LyaranTV. Aucun SDK .NET, aucun NuGet et aucun outil externe ne sont nécessaires.
 
-L'exécutable est produit à la racine :
+L'exécutable est produit dans `Dist\` :
 
 ```text
-LyaranTV.exe
+Dist\LyaranTV.exe
 ```
+
+Pour construire l'installateur (application + libVLC embarqués) :
+
+```bat
+Installer\Construire-Installateur.bat
+```
+
+Le résultat est écrit dans `Dist\setup-LyaranTV-1.1.0.exe` : le nom reprend la
+version exacte de `Sources\App\AppInfo.cs`. Pour changer de version partout
+(application, installateur, assembly), une seule commande :
+
+```bat
+bash Tools\version.sh 1.2.0
+```
+
+Sous Git Bash, les deux
+étapes sont aussi disponibles avec `Tools/build.sh` et `Tools/setup.sh`, qui
+génèrent en plus les empreintes SHA-256 de la Release.
 
 ## Organisation du dossier
 
 ```text
 appiptv\
-├─ LyaranTV.exe            application compilée
 ├─ README.md               présentation et démarrage
 ├─ Sources\                code C# 5, manifeste, icône, script de compilation
 ├─ Examples\               playlist M3U, guide XMLTV et vidéo fictifs
+├─ Installer\              source de l'installateur et script de packaging
+├─ Tools\                  compilation et packaging en Git Bash
+├─ VLC\                    libVLC embarqué (non versionné, reconstitué au build)
+├─ Dist\                   sorties : LyaranTV.exe, setup-LyaranTV-<version>.exe, SHA-256
+├─ build\                  fichiers intermédiaires (ignorent le versionnement)
 ├─ Docs\
 │  ├─ REFERENCE.md         CLI, raccourcis, formats, données
 │  ├─ DESIGN.md            identité, thèmes, composants, accessibilité
 │  ├─ BUGS.md              corrections, limites, diagnostic
 │  ├─ FEATURES.md          état des fonctions P0/P1/P2
+│  ├─ RELEASE-NOTES.md     notes publiées avec chaque Release
 │  └─ Screenshots\         captures de référence
 └─ Assets\
-   ├─ Logos\               pistes de logo (archive, piste 17 retenue)
-   └─ logo-proposals\      esquisses SVG
+   └─ Logos\              pistes de logo (17 retenue) et esquisses SVG
 ```
 
-Les dossiers `Docs\` et `Assets\` ne sont pas nécessaires à l'exécution : seul `LyaranTV.exe` et, pour l'exemple, `Examples\` sont utilisés au lancement.
+Les dossiers `Docs\`, `Assets\`, `Installer\`, `Tools\`, `build\` et `VLC\` ne
+sont pas nécessaires à l'exécution : seul `Dist\LyaranTV.exe` et, pour
+l'exemple, `Examples\` sont utilisés au lancement. L'installateur copie lui-même
+libVLC à côté de l'application installée.
 
 ## Tests
 
 ```bat
-LyaranTV.exe --selftest
+Dist\LyaranTV.exe --selftest
 ```
 
 Le rapport est écrit dans `%TEMP%\LyaranTV-selftest.log`. Les **30 auto-tests** couvrent : chemins de données, utilitaires texte, priorité des flux, erreurs réseau lisibles, proxy de lecture et User-Agent, chiffrement DPAPI, réglages, playlists, favoris et positions, suppression de l’historique d’une playlist, bibliothèque de démonstration, analyse M3U, en-têtes de flux M3U, analyse Xtream, conversion M3U vers Xtream, analyse XMLTV, nettoyage des titres (`IT -`, `FR |`, crochets…), nettoyage des titres TMDb, pistes audio et sous-titres en ligne, pistes audio universelles, affiches et aperçus de secours, cache TMDb, profils et code PIN, état séparé par profil, export portable JSON, sous-titres SRT/WebVTT, pistes embarquées MKV/MP4, thèmes/champs de saisie/scrollbars, décodage des images en mémoire et lecture du cache disque d'affiches, et sauvegarde ZIP.

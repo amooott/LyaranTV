@@ -25,4 +25,6 @@ Vingt pistes originales, toutes en **512 × 512 px RGBA**. La planche de compara
 | 19 | Boucle | [`lyaran-logo-19.png`](lyaran-logo-19.png) |
 | 20 | LY | [`lyaran-logo-20.png`](lyaran-logo-20.png) |
 
+Les esquisses vectorielles qui ont servi à ces pistes sont rangées dans [`propositions/`](propositions/), avec leur planche d'aperçu.
+
 La piste **17 · Égaliseur** est retenue. Elle est intégrée au dessin vectoriel de l'application, à la fenêtre, à l'icône `.ico` multi-résolutions et à la page À propos. Les autres pistes restent disponibles dans ce dossier comme archives.

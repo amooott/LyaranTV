@@ -1,8 +1,9 @@
 @echo off
 setlocal EnableExtensions
-rem Construit setup-LyaranTV.exe : application + libVLC embarqués.
+rem Construit Dist\setup-LyaranTV-<version>.exe : application + libVLC embarqués.
+rem La version est lue dans Sources\App\AppInfo.cs.
 rem Usage : Construire-Installateur.bat [chemin\LyaranTV.exe]
-rem Sans argument, utilise le LyaranTV.exe de la racine (compilez d'abord).
+rem Sans argument, utilise Dist\LyaranTV.exe (compilez d'abord).
 
 set "ROOT=%~dp0.."
 set "WORK=%~dp0build"
@@ -10,7 +11,7 @@ set "CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 if not exist "%CSC%" set "CSC=%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe"
 
 set "APP=%~1"
-if "%APP%"=="" set "APP=%ROOT%\LyaranTV.exe"
+if "%APP%"=="" set "APP=%ROOT%\Dist\LyaranTV.exe"
 if not exist "%APP%" (
   echo Application introuvable : %APP%
   echo Compilez d'abord Sources\Reconstruire.bat.
@@ -21,7 +22,22 @@ if not exist "%ROOT%\VLC\libvlc.dll" (
   exit /b 1
 )
 
+rem Version exacte, lue dans AppInfo.cs (source unique de vérité).
+set "VERSION="
+for /f "tokens=6 delims= " %%V in ('findstr /c:"public const string Version" "%ROOT%\Sources\App\AppInfo.cs"') do set "VERSION=%%V"
+set "VERSION=%VERSION:"=%"
+set "VERSION=%VERSION:;=%"
+if "%VERSION%"=="" (
+  echo Version introuvable dans Sources\App\AppInfo.cs
+  exit /b 1
+)
+set "SETUP_NAME=setup-LyaranTV-%VERSION%.exe"
+echo Version : %VERSION%
+
 if exist "%WORK%" rmdir /s /q "%WORK%"
+if not exist "%ROOT%\Dist" mkdir "%ROOT%\Dist"
+del /q "%ROOT%\Dist\setup-LyaranTV*.exe" >nul 2>&1
+del /q "%ROOT%\Dist\setup-LyaranTV*.exe.sha256" >nul 2>&1
 mkdir "%WORK%\stage\VLC"
 copy /y "%APP%" "%WORK%\stage\LyaranTV.exe" >nul
 xcopy /e /i /q /y "%ROOT%\VLC" "%WORK%\stage\VLC" >nul
@@ -39,7 +55,7 @@ set "RSP=%WORK%\setup.rsp"
 >>"%RSP%" echo /target:winexe
 >>"%RSP%" echo /codepage:65001
 >>"%RSP%" echo /optimize+
->>"%RSP%" echo /out:"%ROOT%\setup-LyaranTV.exe"
+>>"%RSP%" echo /out:"%ROOT%\Dist\%SETUP_NAME%"
 >>"%RSP%" echo /win32icon:"%ROOT%\Sources\LyaranTV.ico"
 >>"%RSP%" echo /win32manifest:"%ROOT%\Sources\LyaranTV.manifest"
 >>"%RSP%" echo /resource:"%WORK%\payload.zip",payload.zip
@@ -58,5 +74,5 @@ if errorlevel 1 (
   exit /b 1
 )
 del "%RSP%" >nul 2>&1
-echo Installateur genere : %ROOT%\setup-LyaranTV.exe
+echo Installateur genere : %ROOT%\Dist\%SETUP_NAME%
 exit /b 0

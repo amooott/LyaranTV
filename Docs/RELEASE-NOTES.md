@@ -1,25 +1,31 @@
-# LyaranTV 1.0.0
+# LyaranTV 1.1.0
 
-Première version publiée et version de référence du système de mise à jour.
+Installateur entièrement redessiné, binaires versionnés et dépôt réorganisé.
 
 ## Nouveautés
 
-- **Installateur** `setup-LyaranTV.exe` : français, anglais, espagnol et russe
-  (langue de l'ordinateur par défaut), raccourci Bureau coché, installation par
-  utilisateur dans `%LocalAppData%\LyaranTV\app` sans droits administrateur.
-  Les données existantes de `%AppData%\LyaranTV` ne sont jamais modifiées.
+- **Nouvel installateur** : assistant en quatre étapes (bienvenue, dossier,
+  installation, fin) avec barre latérale d'étapes, contrôles dessinés dans le
+  thème du programme et barre de titre sombre. Cinq langues (français, anglais,
+  espagnol, russe, portugais), détection de la langue de Windows, choix du
+  dossier avec contrôle de l'espace disque, raccourci Bureau optionnel,
+  progression détaillée par opération avec temps écoulé et temps restant, écran
+  final avec lancement de l'application et reprise en cas d'échec.
+- **Installateur versionné** : `setup-LyaranTV-1.1.0.exe`, accompagné de son
+  empreinte SHA-256. Le numéro vient de `Sources/App/AppInfo.cs` et se change
+  partout avec `Tools/version.sh`.
+- **Dépôt rangé** : sorties dans `Dist\`, scripts dans `Tools\`, données de test
+  dans `build\tmp\`, esquisses de logo avec les logos.
 - **libVLC embarqué** : plus besoin d'installer VLC à part, la lecture des pistes
   AC-3, E-AC-3, DTS et TrueHD est assurée par le moteur livré avec l'application.
 - **Cinq langues d'interface** : français, anglais, espagnol, russe et portugais,
   avec détection de la langue de Windows et sélecteur en bas de la barre latérale.
 - **Mises à jour** : vérification des Releases GitHub, jeton du dépôt privé
   stocké chiffré, empreinte SHA-256 contrôlée avant exécution.
-- **Fondations** : version 1.0.0 dans l'assembly (description, éditeur, icône),
-  TLS 1.2 forcé, instance unique, page À propos avec attribution TMDb.
 
 ## Installation
 
-1. Lancer `setup-LyaranTV.exe`.
+1. Lancer `setup-LyaranTV-1.1.0.exe`.
 2. Choisir la langue et le dossier si nécessaire.
 3. Cocher ou décocher le raccourci Bureau, puis installer.
 
