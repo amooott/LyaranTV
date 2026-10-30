@@ -16,3 +16,4 @@ Installer/build/
 *.log
 *.rar
 *.sha256.tmp
+*.exe.sha256
