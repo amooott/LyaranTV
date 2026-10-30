@@ -7,6 +7,8 @@ on:
   push:
     tags:
       - "v*"
+  # Permet de relancer la construction sans créer un nouveau tag.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -37,15 +39,16 @@ jobs:
           $url = "https://get.videolan.org/vlc/$env:VLC_VERSION/win64/vlc-$env:VLC_VERSION-win64.zip"
           Invoke-WebRequest -Uri $url -OutFile $zip
           Expand-Archive $zip -DestinationPath vlc-dist
-          $root = Get-ChildItem vlc-dist | Select-Object -First 1
-          New-Item -ItemType Directory -Path VLC | Out-Null
-          Copy-Item "$($root.FullName)\libvlc.dll" VLC\
-          Copy-Item "$($root.FullName)\libvlccore.dll" VLC\
-          Copy-Item "$($root.FullName)\COPYING.txt" VLC\
-          Copy-Item "$($root.FullName)\AUTHORS.txt" VLC\
-          Copy-Item "$($root.FullName)\plugins" VLC\plugins -Recurse
+          $root = (Get-ChildItem vlc-dist -Directory | Select-Object -First 1).FullName
+          New-Item -ItemType Directory -Path VLC -Force | Out-Null
+          Copy-Item "$root\libvlc.dll" "VLC\" -Force
+          Copy-Item "$root\libvlccore.dll" "VLC\" -Force
+          Copy-Item "$root\COPYING.txt" "VLC\" -Force
+          Copy-Item "$root\AUTHORS.txt" "VLC\" -Force
+          Copy-Item "$root\plugins" "VLC\plugins" -Recurse -Force
           Remove-Item "VLC\plugins\gui" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item "VLC\plugins\stream_out" -Recurse -Force -ErrorAction SilentlyContinue
+          Get-ChildItem VLC | Select-Object Name
 
       - name: Compiler l'application
         shell: cmd
