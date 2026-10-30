@@ -36,20 +36,50 @@ jobs:
       - name: Récupérer libVLC
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
+          $archiveName = "vlc-$env:VLC_VERSION-win64.zip"
+          $baseUrl = "https://download.videolan.org/pub/videolan/vlc/$env:VLC_VERSION/win64"
           $zip = "vlc.zip"
-          $url = "https://get.videolan.org/vlc/$env:VLC_VERSION/win64/vlc-$env:VLC_VERSION-win64.zip"
-          Invoke-WebRequest -Uri $url -OutFile $zip
-          Expand-Archive $zip -DestinationPath vlc-dist
-          $root = (Get-ChildItem vlc-dist -Directory | Select-Object -First 1).FullName
-          New-Item -ItemType Directory -Path VLC -Force | Out-Null
-          Copy-Item "$root\libvlc.dll" "VLC\" -Force
-          Copy-Item "$root\libvlccore.dll" "VLC\" -Force
-          Copy-Item "$root\COPYING.txt" "VLC\" -Force
-          Copy-Item "$root\AUTHORS.txt" "VLC\" -Force
-          Copy-Item "$root\plugins" "VLC\plugins" -Recurse -Force
-          Remove-Item "VLC\plugins\gui" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item "VLC\plugins\stream_out" -Recurse -Force -ErrorAction SilentlyContinue
-          Get-ChildItem VLC | Select-Object Name
+          $checksumFile = "vlc.zip.sha256"
+          $stage = "download"
+          try {
+            Write-Host "Downloading VLC archive from the official mirror..."
+            Invoke-WebRequest -Uri "$baseUrl/$archiveName" -OutFile $zip -TimeoutSec 300
+            Invoke-WebRequest -Uri "$baseUrl/$archiveName.sha256" -OutFile $checksumFile -TimeoutSec 60
+
+            $stage = "checksum"
+            $checksumText = Get-Content $checksumFile -Raw
+            if ($checksumText -notmatch "(?i)\b([0-9a-f]{64})\b") { throw "The official SHA-256 file is invalid." }
+            $expectedHash = $Matches[1].ToLowerInvariant()
+            $actualHash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actualHash -ne $expectedHash) { throw "VLC archive SHA-256 does not match the official checksum." }
+
+            $stage = "extract"
+            Expand-Archive -Path $zip -DestinationPath "vlc-dist" -Force
+            $library = Get-ChildItem -Path "vlc-dist" -Filter "libvlc.dll" -File -Recurse | Select-Object -First 1
+            if (-not $library) { throw "libvlc.dll was not found in the official VLC archive." }
+            $root = $library.Directory.FullName
+            foreach ($name in @("libvlccore.dll", "COPYING.txt", "AUTHORS.txt", "plugins")) {
+              if (-not (Test-Path (Join-Path $root $name))) { throw "Required VLC payload is missing: $name" }
+            }
+
+            $stage = "copy"
+            New-Item -ItemType Directory -Path "VLC" -Force | Out-Null
+            foreach ($name in @("libvlc.dll", "libvlccore.dll", "COPYING.txt", "AUTHORS.txt")) {
+              Copy-Item -LiteralPath (Join-Path $root $name) -Destination "VLC" -Force
+            }
+            $pluginDestination = "VLC\plugins"
+            New-Item -ItemType Directory -Path $pluginDestination -Force | Out-Null
+            Copy-Item -Path (Join-Path $root "plugins\*") -Destination $pluginDestination -Recurse -Force
+            Remove-Item "VLC\plugins\gui" -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item "VLC\plugins\stream_out" -Recurse -Force -ErrorAction SilentlyContinue
+            if (-not (Test-Path "VLC\libvlc.dll") -or -not (Test-Path "VLC\plugins")) { throw "The VLC payload copy is incomplete." }
+            Get-ChildItem -Path "VLC" -Name
+            Write-Host "VLC archive SHA-256 verified: $actualHash"
+          } catch {
+            Write-Error "VLC preparation failed during '$stage': $($_.Exception.Message)"
+            throw
+          }
 
       - name: Compiler l'application
         shell: cmd
