@@ -57,6 +57,8 @@ jobs:
 
       - name: Construire l'installateur
         shell: cmd
+        env:
+          LYARANTV_UPDATE_TOKEN: ${{ secrets.LYARANTV_UPDATE_TOKEN }}
         run: Installer\Construire-Installateur.bat
 
       - name: Empreintes SHA-256

@@ -14,6 +14,13 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
+[assembly: AssemblyTitle("LyaranTV Setup")]
+[assembly: AssemblyDescription("Installateur de LyaranTV")]
+[assembly: AssemblyProduct("LyaranTV")]
+[assembly: AssemblyCompany("Amooott")]
+[assembly: AssemblyVersion(LyaranTV.Setup.SetupProgram.Version + ".0")]
+[assembly: AssemblyFileVersion(LyaranTV.Setup.SetupProgram.Version + ".0")]
+
 namespace LyaranTV.Setup
 {
     /// <summary>
@@ -26,7 +33,7 @@ namespace LyaranTV.Setup
     internal static class SetupProgram
     {
         public const string ProductName = "LyaranTV";
-        public const string Version = "1.1.1";
+        public const string Version = "1.1.2";
         public const string Publisher = "Amooott";
         public const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\LyaranTV";
 

@@ -47,5 +47,11 @@ if not "%RESULT%"=="0" (
   echo Echec de la compilation.
   exit /b %RESULT%
 )
+copy /y "%ROOT%\Dist\LyaranTV.exe" "%ROOT%\LyaranTV.exe" >nul
+if errorlevel 1 (
+  echo Echec de la copie de LyaranTV.exe a la racine du depot.
+  exit /b 1
+)
 echo Application generee : %ROOT%\Dist\LyaranTV.exe
+echo Copie du depot generee : %ROOT%\LyaranTV.exe
 exit /b 0

@@ -40,6 +40,8 @@ echo Compilation de LyaranTV...
 set "RESULT=%ERRORLEVEL%"
 del "%RSP%" >nul 2>&1
 if not "%RESULT%"=="0" exit /b %RESULT%
+copy /y "%ROOT%Dist\LyaranTV.exe" "%ROOT%LyaranTV.exe" >nul
+if errorlevel 1 exit /b 1
 echo BUILD_OK
 exit /b 0
 EOF

@@ -35,6 +35,8 @@ Sources\Reconstruire.bat
 Dist\LyaranTV.exe
 ```
 
+La compilation place aussi une copie de `LyaranTV.exe` à la racine du dépôt.
+
 Pour découvrir l'application sans compte ni fournisseur :
 
 ```bat
@@ -77,7 +79,7 @@ Pour construire l'installateur (application + libVLC embarqués) :
 Installer\Construire-Installateur.bat
 ```
 
-Le résultat est écrit dans `Dist\setup-LyaranTV-1.1.0.exe` : le nom reprend la
+Le résultat est écrit dans `Dist\setup-LyaranTV-<version>.exe` : le nom reprend la
 version exacte de `Sources\App\AppInfo.cs`. Pour changer de version partout
 (application, installateur, assembly), une seule commande :
 
@@ -94,12 +96,13 @@ génèrent en plus les empreintes SHA-256 de la Release.
 ```text
 appiptv\
 ├─ README.md               présentation et démarrage
+├─ LyaranTV.exe            exécutable compilé de la dernière version
 ├─ Sources\                code C# 5, manifeste, icône, script de compilation
 ├─ Examples\               playlist M3U, guide XMLTV et vidéo fictifs
 ├─ Installer\              source de l'installateur et script de packaging
 ├─ Tools\                  compilation et packaging en Git Bash
 ├─ VLC\                    libVLC embarqué (non versionné, reconstitué au build)
-├─ Dist\                   sorties : LyaranTV.exe, setup-LyaranTV-<version>.exe, SHA-256
+├─ Dist\                   sorties : application, setup et empreintes SHA-256
 ├─ build\                  fichiers intermédiaires (ignorent le versionnement)
 ├─ Docs\
 │  ├─ REFERENCE.md         CLI, raccourcis, formats, données

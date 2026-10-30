@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions
-rem Construit Dist\setup-LyaranTV-<version>.exe : application + libVLC embarqués.
+rem Construit l'installateur versionne avec l'application et libVLC embarques.
 rem La version est lue dans Sources\App\AppInfo.cs.
 rem Usage : Construire-Installateur.bat [chemin\LyaranTV.exe]
 rem Sans argument, utilise Dist\LyaranTV.exe (compilez d'abord).
