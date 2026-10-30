@@ -50,6 +50,20 @@ if not exist "%WORK%\payload.zip" (
   exit /b 1
 )
 
+rem Jeton GitHub injecte a l'installation : variable d'environnement ou
+rem fichier build\update-token.txt (jamais versionne).
+set "TOKEN="
+if exist "%ROOT%\build\update-token.txt" set /p TOKEN=<"%ROOT%\build\update-token.txt"
+if defined LYARANTV_UPDATE_TOKEN set "TOKEN=%LYARANTV_UPDATE_TOKEN%"
+> "%WORK%\UpdateToken.cs" echo namespace LyaranTV.Setup
+>>"%WORK%\UpdateToken.cs" echo {
+>>"%WORK%\UpdateToken.cs" echo     internal static class UpdateToken
+>>"%WORK%\UpdateToken.cs" echo     {
+>>"%WORK%\UpdateToken.cs" echo         public const string Value = "%TOKEN%";
+>>"%WORK%\UpdateToken.cs" echo     }
+>>"%WORK%\UpdateToken.cs" echo }
+if defined TOKEN (echo Jeton de mise a jour : integre) else (echo Jeton de mise a jour : absent)
+
 set "RSP=%WORK%\setup.rsp"
 > "%RSP%" echo /nologo
 >>"%RSP%" echo /target:winexe
@@ -65,6 +79,9 @@ set "RSP=%WORK%\setup.rsp"
 >>"%RSP%" echo /reference:"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\System.Drawing.dll"
 >>"%RSP%" echo /reference:"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\System.IO.Compression.dll"
 >>"%RSP%" echo /reference:"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\System.IO.Compression.FileSystem.dll"
+>>"%RSP%" echo /reference:"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\System.Security.dll"
+>>"%RSP%" echo /reference:"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\System.Web.Extensions.dll"
+>>"%RSP%" echo "%WORK%\UpdateToken.cs"
 >>"%RSP%" echo "%~dp0Setup.cs"
 
 echo Compilation de l'installateur...

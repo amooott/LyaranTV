@@ -8,6 +8,9 @@ using System.IO.Compression;
 using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
+using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
@@ -23,12 +26,16 @@ namespace LyaranTV.Setup
     internal static class SetupProgram
     {
         public const string ProductName = "LyaranTV";
-        public const string Version = "1.1.0";
+        public const string Version = "1.1.1";
         public const string Publisher = "Amooott";
         public const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\LyaranTV";
 
         public const string PayloadResource = "payload.zip";
         const string DotNet480Url = "https://go.microsoft.com/fwlink/?linkid=2088631";
+
+        // Même entropie que CredentialVault dans l'application : le jeton
+        // enregistré ici est relu tel quel par Updates.Token().
+        static readonly byte[] TokenEntropy = Encoding.UTF8.GetBytes("LyaranTV.credentials.v1");
 
         /// <summary>Vrai pendant une installation silencieuse : aucune fenêtre.</summary>
         public static bool IsSilent;
@@ -144,6 +151,7 @@ namespace LyaranTV.Setup
                 if (progress != null) progress(90, Strings.Get(Strings.StepShortcut), 3);
                 if (createShortcut) CreateShortcut(target);
                 WriteUninstallEntry(target);
+                SeedUpdateToken();
 
                 if (progress != null) progress(96, Strings.Get(Strings.StepCleanup), 4);
                 try { Directory.Delete(staging, true); } catch { }
@@ -255,6 +263,55 @@ namespace LyaranTV.Setup
                 }
             }
             catch { }
+        }
+
+        /// <summary>
+        /// Enregistre le jeton GitHub fourni au build dans les réglages de
+        /// l'application, chiffré par DPAPI comme le fait CredentialVault :
+        /// les mises à jour fonctionnent donc dès l'installation, sans saisie.
+        /// Un jeton déjà enregistré par l'utilisateur n'est jamais remplacé.
+        /// </summary>
+        static void SeedUpdateToken()
+        {
+            try
+            {
+                string token = UpdateToken.Value;
+                if (String.IsNullOrWhiteSpace(token)) return;
+
+                string overridden = Environment.GetEnvironmentVariable("LYARANTV_DATA_DIR");
+                string dataDir = String.IsNullOrWhiteSpace(overridden)
+                    ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), ProductName)
+                    : overridden;
+                Directory.CreateDirectory(dataDir);
+                string file = Path.Combine(dataDir, "settings.json");
+
+                var serializer = new JavaScriptSerializer();
+                var settings = new Dictionary<string, object>();
+                if (File.Exists(file))
+                {
+                    string json = File.ReadAllText(file, Encoding.UTF8);
+                    if (!String.IsNullOrWhiteSpace(json))
+                    {
+                        var parsed = serializer.Deserialize<Dictionary<string, object>>(json);
+                        if (parsed != null) settings = parsed;
+                    }
+                }
+
+                object existing;
+                if (settings.TryGetValue("UpdateTokenProtected", out existing) && existing != null
+                    && Convert.ToString(existing).Length > 0)
+                    return;
+
+                byte[] encrypted = ProtectedData.Protect(Encoding.UTF8.GetBytes(token), TokenEntropy, DataProtectionScope.CurrentUser);
+                settings["UpdateTokenProtected"] = Convert.ToBase64String(encrypted);
+                File.WriteAllText(file, serializer.Serialize(settings), new UTF8Encoding(false));
+                Log("Jeton de mise à jour enregistré dans " + file);
+            }
+            catch (Exception ex)
+            {
+                // Un jeton absent n'empêche jamais l'installation.
+                Log("SeedUpdateToken: " + ex.Message);
+            }
         }
 
         static int EstimateSize(string target)

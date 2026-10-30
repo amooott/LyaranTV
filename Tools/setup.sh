@@ -16,6 +16,24 @@ fi
 SETUP="setup-LyaranTV-$VERSION.exe"
 echo "Version : $VERSION"
 
+# Jeton GitHub injecté à l'installation : variable d'environnement ou fichier
+# local build/update-token.txt (jamais versionné).
+TOKEN_VALUE="${LYARANTV_UPDATE_TOKEN:-}"
+if [ -z "$TOKEN_VALUE" ] && [ -f build/update-token.txt ]; then
+  TOKEN_VALUE="$(tr -d '\r\n' < build/update-token.txt)"
+fi
+mkdir -p build
+cat > build/UpdateToken.cs <<EOF
+namespace LyaranTV.Setup
+{
+    internal static class UpdateToken
+    {
+        public const string Value = "$TOKEN_VALUE";
+    }
+}
+EOF
+echo "Jeton de mise à jour : $([ -n "$TOKEN_VALUE" ] && echo intégré || echo absent)"
+
 bash Tools/build.sh >/dev/null
 rm -rf build/stage build/payload.zip
 rm -f Dist/setup-LyaranTV*.exe Dist/setup-LyaranTV*.exe.sha256
@@ -45,6 +63,9 @@ cat > build/setup.rsp <<EOF
 /reference:"$FWW\\System.Drawing.dll"
 /reference:"$FWW\\System.IO.Compression.dll"
 /reference:"$FWW\\System.IO.Compression.FileSystem.dll"
+/reference:"$FWW\\System.Security.dll"
+/reference:"$FWW\\System.Web.Extensions.dll"
+"$ROOTW\\build\\UpdateToken.cs"
 "$ROOTW\\Installer\\Setup.cs"
 EOF
 
