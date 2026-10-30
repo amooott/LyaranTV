@@ -17,13 +17,21 @@ namespace LyaranTV
         public string TmdbId = "";
         public string MediaType = "movie";
         public string Title = "";
+        public string OriginalTitle = "";
         public string PosterUrl = "";
         public string BackdropUrl = "";
         public string Overview = "";
         public string Genres = "";
         public string Year = "";
+        public string Runtime = "";
+        public string Certification = "";
+        public string TrailerUrl = "";
+        public string Cast = "";
+        public string Director = "";
+        public string Countries = "";
         public double Rating;
         public int VoteCount;
+        public bool DetailsLoaded;
         public bool IsSeries { get { return MediaType == "tv"; } }
     }
 
@@ -92,11 +100,19 @@ namespace LyaranTV
         [DataMember] public string TmdbId = "";
         [DataMember] public string MediaType = "movie";
         [DataMember] public string Title = "";
+        [DataMember] public string OriginalTitle = "";
         [DataMember] public string PosterPath = "";
         [DataMember] public string BackdropPath = "";
         [DataMember] public string Overview = "";
         [DataMember] public string Genres = "";
         [DataMember] public string Year = "";
+        [DataMember] public string Runtime = "";
+        [DataMember] public string Certification = "";
+        [DataMember] public string TrailerUrl = "";
+        [DataMember] public string Cast = "";
+        [DataMember] public string Director = "";
+        [DataMember] public string Countries = "";
+        [DataMember] public bool DetailsLoaded;
         [DataMember] public double Rating;
         [DataMember] public int VoteCount;
         [DataMember] public string Updated = "";
@@ -105,10 +121,12 @@ namespace LyaranTV
         {
             return new TmdbResult
             {
-                TmdbId = TmdbId ?? "", MediaType = MediaType ?? "movie", Title = Title ?? "",
+                TmdbId = TmdbId ?? "", MediaType = MediaType ?? "movie", Title = Title ?? "", OriginalTitle = OriginalTitle ?? "",
                 PosterUrl = String.IsNullOrWhiteSpace(PosterPath) ? "" : TmdbClient.ImageBase + "w500" + PosterPath,
                 BackdropUrl = String.IsNullOrWhiteSpace(BackdropPath) ? "" : TmdbClient.ImageBase + "w780" + BackdropPath,
-                Overview = Overview ?? "", Genres = Genres ?? "", Year = Year ?? "",
+                Overview = Overview ?? "", Genres = Genres ?? "", Year = Year ?? "", Runtime = Runtime ?? "",
+                Certification = Certification ?? "", TrailerUrl = TrailerUrl ?? "", Cast = Cast ?? "",
+                Director = Director ?? "", Countries = Countries ?? "", DetailsLoaded = DetailsLoaded,
                 Rating = Rating, VoteCount = VoteCount
             };
         }
@@ -117,10 +135,12 @@ namespace LyaranTV
         {
             return new TmdbCacheEntry
             {
-                Key = key, TmdbId = result.TmdbId, MediaType = result.MediaType, Title = result.Title,
+                Key = key, TmdbId = result.TmdbId, MediaType = result.MediaType, Title = result.Title, OriginalTitle = result.OriginalTitle,
                 PosterPath = PathFromUrl(result.PosterUrl, "w500"), BackdropPath = PathFromUrl(result.BackdropUrl, "w780"),
                 Overview = result.Overview, Genres = result.Genres, Year = result.Year,
-                Rating = result.Rating, VoteCount = result.VoteCount, Updated = DateTime.Now.ToString("s")
+                Runtime = result.Runtime, Certification = result.Certification, TrailerUrl = result.TrailerUrl,
+                Cast = result.Cast, Director = result.Director, Countries = result.Countries,
+                DetailsLoaded = result.DetailsLoaded, Rating = result.Rating, VoteCount = result.VoteCount, Updated = DateTime.Now.ToString("s")
             };
         }
 
@@ -147,7 +167,9 @@ namespace LyaranTV
         {
             if (channel == null) return "";
             bool series = channel.Kind == "Séries" || channel.IsSeries;
-            return CacheKey(TmdbTitleCleaner.CleanTitle(channel.Name), series);
+            int year = TmdbTitleCleaner.ExtractYear(channel.Name);
+            string key = CacheKey(TmdbTitleCleaner.CleanTitle(channel.Name), series);
+            return year > 0 ? key + "|" + year.ToString(CultureInfo.InvariantCulture) : key;
         }
 
         static void EnsureLoaded()
@@ -180,6 +202,20 @@ namespace LyaranTV
             }
         }
 
+        public static TmdbResult GetForChannel(Channel channel)
+        {
+            if (channel == null) return null;
+            bool series = channel.Kind == "Séries" || channel.IsSeries;
+            string key = CacheKey(channel);
+            TmdbResult result = Get(key);
+            if (result != null) return result;
+            int year = TmdbTitleCleaner.ExtractYear(channel.Name);
+            if (year == 0) Int32.TryParse(channel.Year, out year);
+            if (year == 0) return Get(CacheKey(TmdbTitleCleaner.CleanTitle(channel.Name), series));
+            result = Get(CacheKey(TmdbTitleCleaner.CleanTitle(channel.Name), series));
+            return result != null && (String.IsNullOrWhiteSpace(result.Year) || result.Year == year.ToString(CultureInfo.InvariantCulture)) ? result : null;
+        }
+
         public static void Put(string key, TmdbResult result)
         {
             if (String.IsNullOrWhiteSpace(key) || result == null || String.IsNullOrWhiteSpace(result.TmdbId)) return;
@@ -187,6 +223,24 @@ namespace LyaranTV
             {
                 EnsureLoaded();
                 entries[key] = TmdbCacheEntry.FromResult(key, result);
+            }
+        }
+
+        public static void Remove(string key)
+        {
+            if (String.IsNullOrWhiteSpace(key)) return;
+            lock (Gate)
+            {
+                EnsureLoaded();
+                if (!entries.Remove(key)) return;
+                try
+                {
+                    AppPaths.EnsureDataDir();
+                    var serializer = new DataContractJsonSerializer(typeof(List<TmdbCacheEntry>));
+                    using (var stream = File.Create(AppPaths.File("tmdb-cache.json")))
+                        serializer.WriteObject(stream, entries.Values.OrderBy(entry => entry.Key).ToList());
+                }
+                catch { }
             }
         }
 
@@ -229,6 +283,101 @@ namespace LyaranTV
                 entries = new Dictionary<string, TmdbCacheEntry>(StringComparer.OrdinalIgnoreCase);
                 try { if (File.Exists(AppPaths.File("tmdb-cache.json"))) File.Delete(AppPaths.File("tmdb-cache.json")); } catch { }
             }
+        }
+    }
+
+    internal static class TmdbMatchStore
+    {
+        static readonly object Gate = new object();
+        static readonly Dictionary<string, Dictionary<string, TmdbCacheEntry>> Profiles = new Dictionary<string, Dictionary<string, TmdbCacheEntry>>(StringComparer.OrdinalIgnoreCase);
+
+        static Dictionary<string, TmdbCacheEntry> Entries()
+        {
+            string profile = ProfileScope.Sanitize(ProfileScope.Current);
+            Dictionary<string, TmdbCacheEntry> entries;
+            if (Profiles.TryGetValue(profile, out entries)) return entries;
+            entries = new Dictionary<string, TmdbCacheEntry>(StringComparer.OrdinalIgnoreCase);
+            string path = StateStore.ScopedFile("tmdb-matches.json");
+            if (File.Exists(path))
+            {
+                try
+                {
+                    var serializer = new DataContractJsonSerializer(typeof(List<TmdbCacheEntry>));
+                    using (var stream = File.OpenRead(path))
+                    {
+                        var loaded = serializer.ReadObject(stream) as List<TmdbCacheEntry>;
+                        if (loaded != null)
+                            foreach (var entry in loaded)
+                                if (entry != null && !String.IsNullOrWhiteSpace(entry.Key)) entries[entry.Key] = entry;
+                    }
+                }
+                catch { }
+            }
+            Profiles[profile] = entries;
+            return entries;
+        }
+
+        static string Key(Channel channel)
+        {
+            string key = TmdbCacheStore.CacheKey(channel);
+            if (!String.IsNullOrWhiteSpace(channel.SourceName)) key += "|source:" + TextUtil.NormalizeKey(channel.SourceName);
+            string identity = !String.IsNullOrWhiteSpace(channel.Id) ? channel.Id : channel.StreamId;
+            if (!String.IsNullOrWhiteSpace(identity)) key += "|id:" + TextUtil.NormalizeKey(identity);
+            return key;
+        }
+
+        public static TmdbResult Get(Channel channel)
+        {
+            if (channel == null) return null;
+            lock (Gate)
+            {
+                TmdbCacheEntry entry;
+                return Entries().TryGetValue(Key(channel), out entry) ? entry.ToResult() : null;
+            }
+        }
+
+        public static void Put(Channel channel, TmdbResult result)
+        {
+            if (channel == null || result == null || String.IsNullOrWhiteSpace(result.TmdbId)) return;
+            lock (Gate)
+            {
+                var entries = Entries();
+                string key = Key(channel);
+                entries[key] = TmdbCacheEntry.FromResult(key, result);
+                Save(entries);
+            }
+        }
+
+        public static void Remove(Channel channel)
+        {
+            if (channel == null) return;
+            lock (Gate)
+            {
+                var entries = Entries();
+                if (entries.Remove(Key(channel))) Save(entries);
+            }
+        }
+
+        public static void Forget(string profile)
+        {
+            lock (Gate) Profiles.Remove(ProfileScope.Sanitize(profile));
+        }
+
+        public static void ForgetAll()
+        {
+            lock (Gate) Profiles.Clear();
+        }
+
+        static void Save(Dictionary<string, TmdbCacheEntry> entries)
+        {
+            try
+            {
+                AppPaths.EnsureDataDir();
+                var serializer = new DataContractJsonSerializer(typeof(List<TmdbCacheEntry>));
+                using (var stream = File.Create(StateStore.ScopedFile("tmdb-matches.json")))
+                    serializer.WriteObject(stream, entries.Values.OrderBy(entry => entry.Key).ToList());
+            }
+            catch { }
         }
     }
 
@@ -306,24 +455,72 @@ namespace LyaranTV
             return PickBest(results, title, year);
         }
 
-        static TmdbResult PickBest(List<TmdbResult> results, string title, int year)
+        public static TmdbResult PickBest(List<TmdbResult> results, string title, int year)
         {
             if (results == null || results.Count == 0) return null;
-            string wanted = TextUtil.NormalizeKey(title);
-            TmdbResult best = null;
-            int bestScore = Int32.MinValue;
-            foreach (var candidate in results)
+            var ranked = results.Where(candidate => candidate != null)
+                .Select(candidate => new { Result = candidate, Score = MatchScore(title, year, candidate) })
+                .OrderByDescending(item => item.Score).ToList();
+            if (ranked.Count == 0 || ranked[0].Score < 86) return null;
+            if (ranked.Count > 1 && ranked[0].Score - ranked[1].Score < 8) return null;
+            return ranked[0].Result;
+        }
+
+        public static int MatchScore(string title, int year, TmdbResult candidate)
+        {
+            if (candidate == null) return 0;
+            string wanted = ComparableTitle(title);
+            string localized = ComparableTitle(candidate.Title);
+            string original = ComparableTitle(candidate.OriginalTitle);
+            if (wanted.Length == 0 || (localized.Length == 0 && original.Length == 0)) return 0;
+            int titleScore = Math.Max(TitleSimilarity(wanted, localized), TitleSimilarity(wanted, original));
+            int score = titleScore;
+            int candidateYear = TextUtil.ParseInt(candidate.Year, 0);
+            if (year > 0 && candidateYear > 0)
+                score += year == candidateYear ? 10 : -28;
+            return Math.Max(0, Math.Min(100, score));
+        }
+
+        public static string MatchConfidence(int score)
+        {
+            if (score >= 90) return "Forte";
+            if (score >= 76) return "À vérifier";
+            return "Faible · vérifiez avant de choisir";
+        }
+
+        static string ComparableTitle(string value)
+        {
+            string normalized = TextUtil.NormalizeKey(TmdbTitleCleaner.CleanTitle(value));
+            normalized = Regex.Replace(normalized, @"^(the|le|la|les|un|une|a|an)\s+", "", RegexOptions.IgnoreCase);
+            return Regex.Replace(normalized, @"\s+", " ").Trim();
+        }
+
+        static int TitleSimilarity(string wanted, string candidate)
+        {
+            if (wanted.Length == 0 || candidate.Length == 0) return 0;
+            if (wanted == candidate) return 90;
+            string[] wantedWords = wanted.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] candidateWords = candidate.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (wantedWords.OrderBy(word => word).SequenceEqual(candidateWords.OrderBy(word => word))) return 82;
+            int distance = EditDistance(wanted, candidate);
+            double similarity = 1.0 - (double)distance / Math.Max(wanted.Length, candidate.Length);
+            if (wanted.Contains(candidate) || candidate.Contains(wanted)) similarity = Math.Max(similarity, (double)Math.Min(wanted.Length, candidate.Length) / Math.Max(wanted.Length, candidate.Length) * 0.92);
+            return Math.Max(0, (int)Math.Round(similarity * 78));
+        }
+
+        static int EditDistance(string left, string right)
+        {
+            var previous = new int[right.Length + 1];
+            var current = new int[right.Length + 1];
+            for (int j = 0; j <= right.Length; j++) previous[j] = j;
+            for (int i = 1; i <= left.Length; i++)
             {
-                int score = 0;
-                string candidateTitle = TextUtil.NormalizeKey(candidate.Title);
-                if (candidateTitle == wanted) score += 12;
-                else if (candidateTitle.StartsWith(wanted, StringComparison.Ordinal) || wanted.StartsWith(candidateTitle, StringComparison.Ordinal)) score += 5;
-                else if (candidateTitle.Contains(wanted) || wanted.Contains(candidateTitle)) score += 2;
-                if (year > 0 && candidate.Year == year.ToString(CultureInfo.InvariantCulture)) score += 6;
-                if (candidate.VoteCount > 200) score += 1;
-                if (score > bestScore) { bestScore = score; best = candidate; }
+                current[0] = i;
+                for (int j = 1; j <= right.Length; j++)
+                    current[j] = Math.Min(Math.Min(current[j - 1] + 1, previous[j] + 1), previous[j - 1] + (left[i - 1] == right[j - 1] ? 0 : 1));
+                var swap = previous; previous = current; current = swap;
             }
-            return best;
+            return previous[right.Length];
         }
 
         static TmdbResult FromJson(Dictionary<string, object> obj, bool series)
@@ -335,6 +532,7 @@ namespace LyaranTV
                 TmdbId = id,
                 MediaType = series ? "tv" : "movie",
                 Title = series ? Val(obj, "name") : Val(obj, "title"),
+                OriginalTitle = series ? Val(obj, "original_name") : Val(obj, "original_title"),
                 PosterUrl = Image(Val(obj, "poster_path"), "w500"),
                 BackdropUrl = Image(Val(obj, "backdrop_path"), "w780"),
                 Overview = Val(obj, "overview"),
@@ -356,12 +554,19 @@ namespace LyaranTV
         static string GenreNames(Dictionary<string, object> obj)
         {
             object raw;
-            if (!obj.TryGetValue("genre_ids", out raw)) return "";
+            if (!obj.TryGetValue("genres", out raw) && !obj.TryGetValue("genre_ids", out raw)) return "";
             var ids = raw as object[];
             if (ids == null) return "";
             var names = new List<string>();
             foreach (object id in ids)
             {
+                var genre = id as Dictionary<string, object>;
+                if (genre != null)
+                {
+                    string genreName = Val(genre, "name");
+                    if (!String.IsNullOrWhiteSpace(genreName) && !names.Contains(genreName)) names.Add(genreName);
+                    continue;
+                }
                 int value;
                 if (Int32.TryParse(Convert.ToString(id, CultureInfo.InvariantCulture), out value))
                 {
@@ -372,16 +577,131 @@ namespace LyaranTV
             return String.Join(", ", names.ToArray());
         }
 
+        public static TmdbResult LoadDetails(AppSettings settings, TmdbResult result)
+        {
+            if (settings == null || result == null || String.IsNullOrWhiteSpace(result.TmdbId)) return result;
+            string endpoint = result.IsSeries ? "tv/" : "movie/";
+            string url = "https://api.themoviedb.org/3/" + endpoint + Uri.EscapeDataString(result.TmdbId) +
+                "?api_key=" + Uri.EscapeDataString(ResolveKey(settings)) +
+                "&language=" + Uri.EscapeDataString(String.IsNullOrWhiteSpace(settings.TmdbLanguage) ? "fr-FR" : settings.TmdbLanguage) +
+                "&append_to_response=credits,videos,release_dates,content_ratings";
+            var obj = JsonObject(HttpUtil.GetString(url, 15000, "LyaranTV/2.0"));
+            if (obj == null) return result;
+            TmdbResult detailed = FromJson(obj, result.IsSeries);
+            detailed.TmdbId = result.TmdbId;
+            detailed.MediaType = result.MediaType;
+            detailed.DetailsLoaded = true;
+            if (String.IsNullOrWhiteSpace(detailed.Title)) detailed.Title = result.Title;
+            if (String.IsNullOrWhiteSpace(detailed.OriginalTitle)) detailed.OriginalTitle = result.OriginalTitle;
+            if (String.IsNullOrWhiteSpace(detailed.PosterUrl)) detailed.PosterUrl = result.PosterUrl;
+            if (String.IsNullOrWhiteSpace(detailed.BackdropUrl)) detailed.BackdropUrl = result.BackdropUrl;
+            if (String.IsNullOrWhiteSpace(detailed.Overview)) detailed.Overview = result.Overview;
+            if (String.IsNullOrWhiteSpace(detailed.Genres)) detailed.Genres = result.Genres;
+            if (String.IsNullOrWhiteSpace(detailed.Year)) detailed.Year = result.Year;
+            detailed.Runtime = Runtime(obj, result.IsSeries);
+            detailed.Countries = Countries(obj);
+            var credits = Object(obj, "credits");
+            var cast = Array(credits, "cast");
+            detailed.Cast = String.Join(", ", cast.Select(item => Val(item, "name")).Where(name => name.Length > 0).Take(8).ToArray());
+            if (result.IsSeries)
+            {
+                var creators = Array(obj, "created_by");
+                detailed.Director = String.Join(", ", creators.Select(item => Val(item, "name")).Where(name => name.Length > 0).Take(3).ToArray());
+                if (String.IsNullOrWhiteSpace(detailed.Director)) detailed.Director = CrewNames(credits, "Director", 3);
+                detailed.Certification = Certification(obj, true);
+            }
+            else
+            {
+                detailed.Director = CrewNames(credits, "Director", 3);
+                detailed.Certification = Certification(obj, false);
+            }
+            var videos = Object(obj, "videos");
+            var videoItems = Array(videos, "results");
+            var trailer = videoItems.FirstOrDefault(item => String.Equals(Val(item, "site"), "YouTube", StringComparison.OrdinalIgnoreCase)
+                && String.Equals(Val(item, "type"), "Trailer", StringComparison.OrdinalIgnoreCase));
+            if (trailer == null) trailer = videoItems.FirstOrDefault(item => String.Equals(Val(item, "site"), "YouTube", StringComparison.OrdinalIgnoreCase));
+            if (trailer != null && !String.IsNullOrWhiteSpace(Val(trailer, "key"))) detailed.TrailerUrl = "https://www.youtube.com/watch?v=" + Val(trailer, "key");
+            if (detailed.Rating <= 0) detailed.Rating = result.Rating;
+            if (detailed.VoteCount <= 0) detailed.VoteCount = result.VoteCount;
+            return detailed;
+        }
+
+        static Dictionary<string, object> Object(Dictionary<string, object> source, string key)
+        {
+            object value;
+            return source != null && source.TryGetValue(key, out value) ? value as Dictionary<string, object> : null;
+        }
+
+        static List<Dictionary<string, object>> Array(Dictionary<string, object> source, string key)
+        {
+            object value;
+            var array = source != null && source.TryGetValue(key, out value) ? value as object[] : null;
+            return array == null ? new List<Dictionary<string, object>>() : array.OfType<Dictionary<string, object>>().ToList();
+        }
+
+        static string CrewNames(Dictionary<string, object> credits, string job, int limit)
+        {
+            return String.Join(", ", Array(credits, "crew").Where(item => String.Equals(Val(item, "job"), job, StringComparison.OrdinalIgnoreCase))
+                .Select(item => Val(item, "name")).Where(name => name.Length > 0).Distinct().Take(limit).ToArray());
+        }
+
+        static string Runtime(Dictionary<string, object> obj, bool series)
+        {
+            int minutes = (int)Num(obj, "runtime");
+            if (series)
+            {
+                object value;
+                var runtimes = obj != null && obj.TryGetValue("episode_run_time", out value) ? value as object[] : null;
+                if (runtimes != null && runtimes.Length > 0) Int32.TryParse(Convert.ToString(runtimes[0], CultureInfo.InvariantCulture), out minutes);
+            }
+            return minutes > 0 ? minutes.ToString(CultureInfo.InvariantCulture) + " min" : "";
+        }
+
+        static string Countries(Dictionary<string, object> obj)
+        {
+            var countries = Array(obj, "production_countries").Select(item => Val(item, "name")).Where(name => name.Length > 0).Distinct().ToList();
+            if (countries.Count == 0)
+            {
+                object raw;
+                var values = obj != null && obj.TryGetValue("origin_country", out raw) ? raw as object[] : null;
+                if (values != null) countries = values.Select(item => Convert.ToString(item, CultureInfo.InvariantCulture)).Where(name => name.Length > 0).Distinct().ToList();
+            }
+            return String.Join(", ", countries.Take(5).ToArray());
+        }
+
+        static string Certification(Dictionary<string, object> obj, bool series)
+        {
+            string key = series ? "content_ratings" : "release_dates";
+            var envelope = Object(obj, key);
+            var rows = Array(envelope, "results");
+            var preferred = rows.FirstOrDefault(item => String.Equals(Val(item, "iso_3166_1"), "FR", StringComparison.OrdinalIgnoreCase));
+            if (preferred == null) preferred = rows.FirstOrDefault(item => String.Equals(Val(item, "iso_3166_1"), "US", StringComparison.OrdinalIgnoreCase));
+            if (preferred == null && rows.Count > 0) preferred = rows[0];
+            if (preferred == null) return "";
+            if (series) return Val(preferred, "rating");
+            var releases = Array(preferred, "release_dates");
+            var rated = releases.Select(item => Val(item, "certification")).FirstOrDefault(value => !String.IsNullOrWhiteSpace(value));
+            return rated ?? "";
+        }
+
         public static void Apply(Channel channel, TmdbResult result)
         {
             if (channel == null || result == null) return;
             channel.TmdbId = result.TmdbId;
+            if (!String.IsNullOrWhiteSpace(result.OriginalTitle)) channel.OriginalTitle = result.OriginalTitle;
             channel.PosterUrl = result.PosterUrl;
             channel.BackdropUrl = result.BackdropUrl;
             channel.Overview = result.Overview;
             channel.Genres = result.Genres;
             channel.TmdbRating = result.Rating;
             channel.VoteCount = result.VoteCount;
+            channel.TmdbDetailsLoaded = channel.TmdbDetailsLoaded || result.DetailsLoaded;
+            channel.Runtime = String.IsNullOrWhiteSpace(result.Runtime) ? channel.Runtime : result.Runtime;
+            channel.Certification = String.IsNullOrWhiteSpace(result.Certification) ? channel.Certification : result.Certification;
+            channel.TrailerUrl = String.IsNullOrWhiteSpace(result.TrailerUrl) ? channel.TrailerUrl : result.TrailerUrl;
+            channel.Cast = String.IsNullOrWhiteSpace(result.Cast) ? channel.Cast : result.Cast;
+            channel.Director = String.IsNullOrWhiteSpace(result.Director) ? channel.Director : result.Director;
+            channel.Countries = String.IsNullOrWhiteSpace(result.Countries) ? channel.Countries : result.Countries;
             channel.TmdbChecked = true;
             if (String.IsNullOrWhiteSpace(channel.Year) && !String.IsNullOrWhiteSpace(result.Year)) channel.Year = result.Year;
             if (String.IsNullOrWhiteSpace(channel.Description) && !String.IsNullOrWhiteSpace(result.Overview)) channel.Description = result.Overview;
@@ -397,7 +717,7 @@ namespace LyaranTV
             {
                 if (!IsEligible(channel)) continue;
                 string key = TmdbCacheStore.CacheKey(channel);
-                var result = TmdbCacheStore.Get(key);
+                var result = TmdbMatchStore.Get(channel) ?? TmdbCacheStore.GetForChannel(channel);
                 if (result == null) continue;
                 Apply(channel, result);
                 applied++;
@@ -427,36 +747,40 @@ namespace LyaranTV
             foreach (var group in groups)
             {
                 if (cancelled != null && cancelled()) break;
-                TmdbResult result = TmdbCacheStore.Get(group.Key);
-                bool fromCache = result != null;
-                if (result == null)
+                // Automatic metadata is shared by title/year. Manual choices are scoped to
+                // an individual playlist item and must never leak to its title peers.
+                TmdbResult automaticResult = TmdbCacheStore.GetForChannel(group.Items[0]);
+                bool fromCache = automaticResult != null;
+                bool lookedUp = false;
+                bool needsLookup = automaticResult == null && group.Items.Any(channel =>
+                    !channel.TmdbChecked && TmdbMatchStore.Get(channel) == null);
+                if (needsLookup)
                 {
+                    lookedUp = true;
                     try
                     {
-                        result = Lookup(settings, group.Title, group.Year, group.Series);
-                        if (result != null)
+                        automaticResult = Lookup(settings, group.Title, group.Year, group.Series);
+                        if (automaticResult != null)
                         {
-                            TmdbCacheStore.Put(group.Key, result);
+                            TmdbCacheStore.Put(group.Key, automaticResult);
                             TmdbCacheStore.Trim(settings.TmdbCacheLimit);
                         }
                     }
-                    catch { result = null; }
+                    catch { automaticResult = null; }
                 }
-                if (result != null)
+                foreach (var channel in group.Items)
                 {
-                    foreach (var channel in group.Items)
+                    TmdbResult result = TmdbMatchStore.Get(channel) ?? automaticResult;
+                    if (result != null)
                     {
                         Apply(channel, result);
                         if (applied != null) applied(channel, result);
                     }
-                }
-                else
-                {
-                    foreach (var channel in group.Items) channel.TmdbChecked = true;
+                    else channel.TmdbChecked = true;
                 }
                 done++;
                 if (progress != null) progress(done, groups.Count, group.Title);
-                if (!fromCache) { try { Thread.Sleep(120); } catch { } }
+                if (lookedUp && !fromCache) { try { Thread.Sleep(120); } catch { } }
             }
             TmdbCacheStore.Save();
         }
@@ -464,8 +788,7 @@ namespace LyaranTV
         public static void ApplyOverride(Channel channel, TmdbResult result)
         {
             if (channel == null || result == null) return;
-            TmdbCacheStore.Put(TmdbCacheStore.CacheKey(channel), result);
-            TmdbCacheStore.Save();
+            TmdbMatchStore.Put(channel, result);
             Apply(channel, result);
         }
 

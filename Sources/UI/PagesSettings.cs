@@ -20,7 +20,7 @@ namespace LyaranTV
             page = "Paramètres";
             RebuildSidebar();
             UpdateStatusBar();
-            var root = PageRoot("Paramètres", "Apparence, lecture, profils, métadonnées et données LyaranTV.");
+            var root = PageRoot("Paramètres", "Apparence, lecture, profils, services connectés et données LyaranTV.");
 
             root.Children.Add(SettingsCard("Apparence", "Un thème, une couleur d’accent et des animations discrètes.",
                 BuildAppearanceSettings()));
@@ -30,6 +30,8 @@ namespace LyaranTV
                 BuildProfileSettings()));
             root.Children.Add(SettingsCard("Métadonnées et sous-titres", "Affiches, notes et synopsis (TMDb), recherche de sous-titres (OpenSubtitles). Facultatif.",
                 BuildTmdbSettings()));
+            root.Children.Add(SettingsCard("API Letterboxd", "État de l’accès API, profils publics et activité importée.",
+                BuildLetterboxdApiSettings()));
             root.Children.Add(SettingsCard("Démarrage", "Ce que LyaranTV ouvre au lancement.",
                 BuildStartupSettings()));
             root.Children.Add(SettingsCard("Lecteur externe", "Une solution de repli pour les flux et codecs non pris en charge par Windows.",
@@ -536,6 +538,104 @@ namespace LyaranTV
             var attribution = Text(TmdbClient.Attribution + " Affiches et synopsis de secours : TVmaze, IMDb et Wikipédia (" + ArtworkStore.Count + " fiche(s) en cache). Les métadonnées restent facultatives : sans réseau, chaque contenu garde une vignette dessinée à partir de son titre.", 9.8, Brush(Muted), false);
             attribution.Margin = new Thickness(0, 10, 0, 0);
             stack.Children.Add(attribution);
+            return stack;
+        }
+
+        StackPanel BuildLetterboxdApiSettings()
+        {
+            var stack = new StackPanel();
+            stack.Children.Add(Text("ÉTAT · API NON CONNECTÉE", 10, Brush(Accent), true));
+            var apiNotice = Text("L’API Letterboxd est accessible sur demande. Letterboxd indique ne pas accorder actuellement l’accès aux projets privés ou personnels. LyaranTV ne peut donc pas activer une connexion OAuth ni lire des données privées. Les flux RSS publics et l’import CSV ci-dessous restent disponibles sans mot de passe.", 11, Brush(Muted), false);
+            apiNotice.TextWrapping = TextWrapping.Wrap;
+            apiNotice.Margin = new Thickness(0, 4, 0, 8);
+            stack.Children.Add(apiNotice);
+            var apiLinks = new StackPanel { Orientation = Orientation.Horizontal };
+            apiLinks.Children.Add(Button(Glyphs.External, "Documentation de l’API", delegate
+            {
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://api-docs.letterboxd.com/") { UseShellExecute = true }); }
+                catch { ShowError("Impossible d’ouvrir la documentation Letterboxd."); }
+            }, false));
+            var access = Button(Glyphs.External, "Accès développeur Letterboxd", delegate
+            {
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://letterboxd.com/api-beta/access/") { UseShellExecute = true }); }
+                catch { ShowError("Impossible d’ouvrir la page d’accès développeur Letterboxd."); }
+            }, false);
+            access.Margin = new Thickness(7, 0, 0, 0);
+            apiLinks.Children.Add(access);
+            stack.Children.Add(apiLinks);
+
+            var accountHeader = Text("PROFIL ET ACTIVITÉ PUBLIQUE", 10, Brush(Accent), true);
+            accountHeader.Margin = new Thickness(0, 17, 0, 4);
+            stack.Children.Add(accountHeader);
+            var letterboxdUser = StyledTextBox();
+            letterboxdUser.Width = 220;
+            letterboxdUser.Text = LetterboxdActivityStore.Username;
+            letterboxdUser.ToolTip = "Nom d’utilisateur public, sans mot de passe ni connexion dans LyaranTV.";
+            var letterboxdRow = new StackPanel { Orientation = Orientation.Horizontal };
+            letterboxdRow.Children.Add(letterboxdUser);
+            var saveLetterboxd = Button(Glyphs.Save, "Enregistrer", delegate
+            {
+                LetterboxdActivityStore.SetUsername(letterboxdUser.Text);
+                Notice("Nom Letterboxd enregistré dans le profil « " + ProfileScope.Current + " ».");
+            }, false);
+            saveLetterboxd.Margin = new Thickness(7, 0, 0, 0);
+            letterboxdRow.Children.Add(saveLetterboxd);
+            var importLetterboxd = Button(Glyphs.OpenFile, "Importer mes CSV", delegate
+            {
+                var picker = new OpenFileDialog
+                {
+                    Title = "Importer un export personnel Letterboxd",
+                    Filter = "Fichiers CSV Letterboxd (*.csv)|*.csv|Fichiers CSV (*.csv)|*.csv",
+                    Multiselect = true,
+                    CheckFileExists = true
+                };
+                if (picker.ShowDialog(this) != true) return;
+                int count = LetterboxdActivityStore.ImportFiles(picker.FileNames);
+                ShowToast(count + " ligne(s) importée(s) dans le profil « " + ProfileScope.Current + " ».", false, true);
+            }, false);
+            importLetterboxd.Margin = new Thickness(7, 0, 0, 0);
+            letterboxdRow.Children.Add(importLetterboxd);
+            stack.Children.Add(SettingsRow("Nom d’utilisateur Letterboxd", "Utilisé pour ouvrir votre profil public et lire son flux RSS.", letterboxdRow));
+
+            var letterboxdProfiles = StyledTextBox();
+            letterboxdProfiles.Width = 350;
+            letterboxdProfiles.Text = LetterboxdActivityStore.PublicUsernames;
+            letterboxdProfiles.ToolTip = "Noms publics séparés par des virgules. Maximum : 8 profils.";
+            var letterboxdProfilesRow = new StackPanel { Orientation = Orientation.Horizontal };
+            letterboxdProfilesRow.Children.Add(letterboxdProfiles);
+            var saveLetterboxdProfiles = Button(Glyphs.Save, "Enregistrer", delegate
+            {
+                LetterboxdActivityStore.SetPublicUsernames(letterboxdProfiles.Text);
+                letterboxdProfiles.Text = LetterboxdActivityStore.PublicUsernames;
+                Notice("Profils Letterboxd publics enregistrés dans le profil « " + ProfileScope.Current + " ».");
+            }, false);
+            saveLetterboxdProfiles.Margin = new Thickness(7, 0, 0, 0);
+            letterboxdProfilesRow.Children.Add(saveLetterboxdProfiles);
+            stack.Children.Add(SettingsRow("Profils publics à consulter", "Votre nom et ceux de vos amis, séparés par des virgules. Les avis publics récents sont lus via RSS ; 8 profils maximum.", letterboxdProfilesRow));
+
+            var letterboxdActions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+            letterboxdActions.Children.Add(Button(Glyphs.External, "Ouvrir mon profil", delegate
+            {
+                string username = (letterboxdUser.Text ?? LetterboxdActivityStore.Username ?? "").Trim().TrimStart('@');
+                if (username.Length == 0) { ShowError("Saisissez d’abord votre nom d’utilisateur Letterboxd."); return; }
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://letterboxd.com/" + Uri.EscapeDataString(username) + "/") { UseShellExecute = true }); }
+                catch { ShowError("Impossible d’ouvrir Letterboxd dans le navigateur."); }
+            }, false));
+            var clearLetterboxd = Button(Glyphs.Delete, "Supprimer mes données Letterboxd", delegate
+            {
+                if (!AskConfirmation("Supprimer les données Letterboxd", "L’activité importée, les noms de profils et le cache RSS du profil « " + ProfileScope.Current + " » seront supprimés.", "Supprimer")) return;
+                LetterboxdActivityStore.Clear();
+                ShowSettings();
+                Notice("Données Letterboxd locales supprimées pour ce profil.");
+            }, false);
+            clearLetterboxd.Margin = new Thickness(7, 0, 0, 0);
+            letterboxdActions.Children.Add(clearLetterboxd);
+            stack.Children.Add(letterboxdActions);
+
+            var privacy = Text("Les noms et les données importées sont conservés localement, séparés par profil. Aucun mot de passe Letterboxd ni identifiant IPTV n’est envoyé. Les flux publics sont mis en cache six heures ; les données privées et l’écriture sur Letterboxd nécessitent un accès API approuvé.", 9.8, Brush(Muted), false);
+            privacy.TextWrapping = TextWrapping.Wrap;
+            privacy.Margin = new Thickness(0, 9, 0, 0);
+            stack.Children.Add(privacy);
             return stack;
         }
 

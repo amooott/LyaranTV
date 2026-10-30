@@ -44,29 +44,39 @@ namespace LyaranTV
 
     internal sealed class Channel
     {
-        public string Name, Group, Url, AlternateUrl, Logo, Id, TvgId, Kind, StreamId, Number;
+        public string Name, Group, Url, AlternateUrl, Logo, Id, TvgId, Kind, StreamId, Number, SourceName;
         public string Description, Rating, Year, SeriesId, Season, Episode;
         public string TmdbId, PosterUrl, BackdropUrl, Overview, Genres, Runtime, Certification, TrailerUrl, Cast, StillUrl;
+        public string OriginalTitle, Director, Countries;
         public string HttpUserAgent, HttpReferer, HttpOrigin, HttpCookie;
         public double TmdbRating;
         public int VoteCount;
-        public bool TmdbChecked;
+        public bool TmdbChecked, TmdbDetailsLoaded;
         /// <summary>Une recherche d'affiche de secours a déjà été demandée pour ce contenu.</summary>
         public bool ArtworkRequested;
         public bool IsSeries;
         public int Order;
         public bool IsPlayable { get { return IsSeries || !String.IsNullOrWhiteSpace(Url); } }
         public string DisplayNumber { get { return String.IsNullOrWhiteSpace(Number) ? "" : Number; } }
+        public bool MatchesSearch(string query)
+        {
+            return TextUtil.Contains(Name, query) || TextUtil.Contains(OriginalTitle, query)
+                || TextUtil.Contains(Group, query) || TextUtil.Contains(TvgId, query)
+                || TextUtil.Contains(Description, query) || TextUtil.Contains(Overview, query)
+                || TextUtil.Contains(Genres, query) || TextUtil.Contains(Cast, query)
+                || TextUtil.Contains(Director, query);
+        }
         public Channel CopyWithUrl(string url)
         {
             return new Channel
             {
                 Name = Name, Group = Group, Url = url, AlternateUrl = AlternateUrl, Logo = Logo, Id = Id,
-                TvgId = TvgId, Kind = Kind, StreamId = StreamId, Number = Number, Description = Description,
+                TvgId = TvgId, Kind = Kind, StreamId = StreamId, Number = Number, SourceName = SourceName, Description = Description,
                 Rating = Rating, Year = Year, SeriesId = SeriesId, Season = Season, Episode = Episode,
                 TmdbId = TmdbId, PosterUrl = PosterUrl, BackdropUrl = BackdropUrl, Overview = Overview,
                 Genres = Genres, Runtime = Runtime, Certification = Certification, TrailerUrl = TrailerUrl,
-                Cast = Cast, StillUrl = StillUrl, TmdbRating = TmdbRating, VoteCount = VoteCount, TmdbChecked = TmdbChecked,
+                Cast = Cast, StillUrl = StillUrl, OriginalTitle = OriginalTitle, Director = Director, Countries = Countries,
+                TmdbRating = TmdbRating, VoteCount = VoteCount, TmdbChecked = TmdbChecked, TmdbDetailsLoaded = TmdbDetailsLoaded,
                 IsSeries = false, Order = Order,
                 HttpUserAgent = HttpUserAgent, HttpReferer = HttpReferer, HttpOrigin = HttpOrigin, HttpCookie = HttpCookie
             };
@@ -234,7 +244,11 @@ namespace LyaranTV
         {
             return String.Equals(name, "favorites.txt", StringComparison.OrdinalIgnoreCase)
                 || String.Equals(name, "recent.txt", StringComparison.OrdinalIgnoreCase)
-                || String.Equals(name, "positions.json", StringComparison.OrdinalIgnoreCase);
+                || String.Equals(name, "positions.json", StringComparison.OrdinalIgnoreCase)
+                || String.Equals(name, "letterboxd-activity.json", StringComparison.OrdinalIgnoreCase)
+                || String.Equals(name, "letterboxd-profile.json", StringComparison.OrdinalIgnoreCase)
+                || String.Equals(name, "letterboxd-rss.json", StringComparison.OrdinalIgnoreCase)
+                || String.Equals(name, "tmdb-matches.json", StringComparison.OrdinalIgnoreCase);
         }
 
         public static string FileName(string name)
@@ -603,7 +617,7 @@ namespace LyaranTV
         public static void RenameProfile(string oldName, string newName)
         {
             if (String.IsNullOrWhiteSpace(oldName) || String.IsNullOrWhiteSpace(newName)) return;
-            foreach (string name in new[] { "favorites.txt", "recent.txt", "positions.json", "durations.json", "episodes.json" })
+            foreach (string name in new[] { "favorites.txt", "recent.txt", "positions.json", "durations.json", "episodes.json", "letterboxd-activity.json", "letterboxd-profile.json", "letterboxd-rss.json", "tmdb-matches.json" })
             {
                 try
                 {
@@ -613,12 +627,14 @@ namespace LyaranTV
                 }
                 catch { }
             }
+            TmdbMatchStore.Forget(oldName);
+            TmdbMatchStore.Forget(newName);
         }
 
         public static void DeleteProfile(string profile)
         {
             if (String.IsNullOrWhiteSpace(profile)) return;
-            foreach (string name in new[] { "favorites.txt", "recent.txt", "positions.json", "durations.json", "episodes.json" })
+            foreach (string name in new[] { "favorites.txt", "recent.txt", "positions.json", "durations.json", "episodes.json", "letterboxd-activity.json", "letterboxd-profile.json", "letterboxd-rss.json", "tmdb-matches.json" })
             {
                 try
                 {
@@ -627,6 +643,7 @@ namespace LyaranTV
                 }
                 catch { }
             }
+            TmdbMatchStore.Forget(profile);
         }
 
         /// <summary>
@@ -1022,6 +1039,7 @@ namespace LyaranTV
                 if (Directory.Exists(AppPaths.ImageCacheDir)) Directory.Delete(AppPaths.ImageCacheDir, true);
             }
             catch { }
+            TmdbMatchStore.ForgetAll();
         }
 
         public static void CreateBackup(string destination)

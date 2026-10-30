@@ -125,7 +125,7 @@ namespace LyaranTV
             if (activeKind != "Tous") view = view.Where(c => c.Kind == activeKind);
             if (activeGroup != AllGroups) view = view.Where(c => String.Equals(c.Group, activeGroup, StringComparison.OrdinalIgnoreCase));
             string query = String.IsNullOrWhiteSpace(searchQuery) ? "" : searchQuery.Trim();
-            if (query.Length > 0) view = view.Where(c => TextUtil.Contains(c.Name, query) || TextUtil.Contains(c.Group, query) || TextUtil.Contains(c.TvgId, query) || TextUtil.Contains(c.Description, query));
+            if (query.Length > 0) view = view.Where(c => c.MatchesSearch(query));
             return SortChannels(view).ToList();
         }
 

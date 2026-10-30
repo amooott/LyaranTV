@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -54,6 +56,15 @@ namespace LyaranTV
             var watchlist = BuildHomeCardShelf("Ma liste", "Vos films, séries et chaînes enregistrés, prêts à être lancés.",
                 VisibleChannels.Where(c => favorites.Contains(c.Id)), "Favoris");
             if (watchlist != null) root.Children.Add(watchlist);
+
+            var letterboxdWatchlist = BuildHomeCardShelf("À voir · Letterboxd", "Les films de votre liste Letterboxd présents dans cette playlist.",
+                LetterboxdActivityStore.WatchlistChannels(VisibleChannels), "Bibliothèque");
+            if (letterboxdWatchlist != null) root.Children.Add(letterboxdWatchlist);
+
+            int letterboxdReviewShelfIndex = root.Children.Count;
+            FrameworkElement letterboxdReviewShelf = BuildHomeCardShelf("Avis récents de vos profils", "Des films de votre playlist récemment commentés sur Letterboxd.",
+                LetterboxdActivityStore.RecentPublicReviewChannels(VisibleChannels, 12), "Bibliothèque");
+            if (letterboxdReviewShelf != null) root.Children.Add(letterboxdReviewShelf);
 
             var topTen = BuildTopTenShelf();
             if (topTen != null) root.Children.Add(topTen);
@@ -129,6 +140,21 @@ namespace LyaranTV
             }
             SetContent(shellRoot);
             StartHomeHeroTimer();
+            if (LetterboxdActivityStore.NeedsRssRefresh)
+            {
+                string homeProfile = ProfileScope.Current;
+                var refresh = new BackgroundWorker();
+                refresh.DoWork += delegate(object sender, DoWorkEventArgs e) { e.Result = LetterboxdActivityStore.RefreshPublicReviewsIfNeeded(); };
+                refresh.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs e)
+                {
+                    if (page != "Accueil" || ProfileScope.Current != homeProfile || e.Cancelled || e.Error != null || !(e.Result is bool) || !(bool)e.Result) return;
+                    if (letterboxdReviewShelf != null) root.Children.Remove(letterboxdReviewShelf);
+                    letterboxdReviewShelf = BuildHomeCardShelf("Avis récents de vos profils", "Des films de votre playlist récemment commentés sur Letterboxd.",
+                        LetterboxdActivityStore.RecentPublicReviewChannels(VisibleChannels, 12), "Bibliothèque");
+                    if (letterboxdReviewShelf != null) root.Children.Insert(Math.Min(letterboxdReviewShelfIndex, root.Children.Count), letterboxdReviewShelf);
+                };
+                refresh.RunWorkerAsync();
+            }
         }
 
         Border BuildSourceCard(PlaylistSource source)
@@ -222,7 +248,7 @@ namespace LyaranTV
             page = "Recherche"; RebuildSidebar(); UpdateStatusBar();
             SetPageStatus();
             string query = searchQuery;
-            var root = PageRoot(query.Length == 0 ? "Recherche" : "Résultats pour « " + query + " »", "Recherchez dans toutes les chaînes, films et séries de la playlist active.");
+            var root = PageRoot(query.Length == 0 ? "Recherche" : "Résultats pour « " + query + " »", "Titres, synopsis, personnes, crédits et activité Letterboxd de la playlist active.");
             if (activeSource == null || channels.Count == 0)
             {
                 root.Children.Add(EmptyState(Glyphs.Search, "Aucune bibliothèque chargée", "Ajoutez ou chargez une playlist pour lancer une recherche.", Button(Glyphs.Add, "Ajouter une playlist", AddPlaylist, true)));
@@ -278,17 +304,38 @@ namespace LyaranTV
             if (activeKind != "Tous") view = view.Where(c => c.Kind == activeKind);
             if (activeGroup != AllGroups) view = view.Where(c => String.Equals(c.Group, activeGroup, StringComparison.OrdinalIgnoreCase));
             string query = String.IsNullOrWhiteSpace(searchQuery) ? "" : searchQuery.Trim();
-            if (query.Length > 0) view = view.Where(c => TextUtil.Contains(c.Name, query) || TextUtil.Contains(c.Group, query) || TextUtil.Contains(c.TvgId, query) || TextUtil.Contains(c.Description, query));
+            HashSet<string> letterboxdMatches = page == "Recherche" && query.Length > 0
+                ? LetterboxdActivityStore.SearchMatches(baseView, query) : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (query.Length > 0) view = view.Where(c => c.MatchesSearch(query) || letterboxdMatches.Contains(c.Id));
             currentView = SortChannels(view).ToList();
+            bool groupedSearch = page == "Recherche" && query.Length > 0 && activeKind == "Tous" && activeGroup == AllGroups;
+            List<Tuple<string, string, Channel>> people = groupedSearch ? SearchPeople(query, currentView) : new List<Tuple<string, string, Channel>>();
             if (resultCountText != null)
             {
                 string suffix = activeGroup != AllGroups ? " dans « " + activeGroup + " »" : "";
                 if (query.Length > 0) suffix += " pour « " + query + " »";
-                resultCountText.Text = TextUtil.HumanCount(currentView.Count) + (currentView.Count == 1 ? " résultat" : " résultats") + suffix;
+                if (groupedSearch)
+                {
+                    int activityCount = currentView.Count(channel => letterboxdMatches.Contains(channel.Id) && !channel.MatchesSearch(query));
+                    var counts = currentView.Where(channel => !letterboxdMatches.Contains(channel.Id) || channel.MatchesSearch(query))
+                        .GroupBy(SearchSectionKind).ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
+                    var summary = new List<string>();
+                    if (activityCount > 0) summary.Add("Avis et activité " + activityCount.ToString(CultureInfo.InvariantCulture));
+                    foreach (string kind in new[] { "Films", "Séries", "Épisodes", "Chaînes", "Autres" })
+                    {
+                        int count;
+                        if (counts.TryGetValue(kind, out count) && count > 0) summary.Add(kind + " " + count.ToString(CultureInfo.InvariantCulture));
+                    }
+                    if (people.Count > 0) summary.Add("Personnes " + people.Count.ToString(CultureInfo.InvariantCulture));
+                    resultCountText.Text = TextUtil.HumanCount(currentView.Count) + " contenus" + (summary.Count == 0 ? "" : " · " + String.Join(" · ", summary.ToArray())) + suffix;
+                }
+                else resultCountText.Text = TextUtil.HumanCount(currentView.Count) + (currentView.Count == 1 ? " résultat" : " résultats") + suffix;
             }
             channelList.Children.Clear();
             int limit = Math.Min(renderLimit, currentView.Count);
-            if (gridView)
+            if (groupedSearch)
+                RenderGroupedSearchResults(query, currentView, letterboxdMatches, people, limit);
+            else if (gridView)
             {
                 var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
                 for (int i = 0; i < limit; i++) wrap.Children.Add(RenderChannelCard(currentView[i]));
@@ -324,6 +371,99 @@ namespace LyaranTV
             {
                 Dispatcher.BeginInvoke(new Action(delegate { try { resultsScroll.ScrollToVerticalOffset(offset); } catch { } }), DispatcherPriority.Background);
             }
+        }
+
+        List<Tuple<string, string, Channel>> SearchPeople(string query, IEnumerable<Channel> source)
+        {
+            var hits = new List<Tuple<string, string, Channel>>();
+            foreach (var channel in source ?? Enumerable.Empty<Channel>())
+            {
+                if (channel == null || hiddenChannels.Contains(channel.Id) || !IsChannelAllowed(channel)) continue;
+                foreach (string name in (channel.Cast ?? "").Split(new[] { ',', ';', '|', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(value => value.Trim()).Where(value => value.Length > 1))
+                    if (TextUtil.Contains(name, query)) hits.Add(Tuple.Create(name, "Acteur", channel));
+                foreach (string name in (channel.Director ?? "").Split(new[] { ',', ';', '|', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(value => value.Trim()).Where(value => value.Length > 1))
+                    if (TextUtil.Contains(name, query)) hits.Add(Tuple.Create(name, "Réalisation", channel));
+            }
+            return hits.GroupBy(hit => TextUtil.NormalizeKey(hit.Item1), StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.OrderBy(hit => hit.Item1, StringComparer.CurrentCultureIgnoreCase).First()).Take(12).ToList();
+        }
+
+        static string SearchSectionKind(Channel channel)
+        {
+            if (channel == null) return "Autres";
+            if (channel.Kind == "Séries" && (!String.IsNullOrWhiteSpace(channel.Season) || !String.IsNullOrWhiteSpace(channel.Episode))) return "Épisodes";
+            if (channel.Kind == "Films" || channel.Kind == "Séries" || channel.Kind == "Chaînes") return channel.Kind;
+            return "Autres";
+        }
+
+        void RenderGroupedSearchResults(string query, List<Channel> results, HashSet<string> letterboxdMatches,
+            List<Tuple<string, string, Channel>> people, int limit)
+        {
+            int remaining = limit;
+            var activityResults = results.Where(channel => letterboxdMatches.Contains(channel.Id) && !channel.MatchesSearch(query)).ToList();
+            if (activityResults.Count > 0 && remaining > 0)
+            {
+                channelList.Children.Add(SectionHeader("Avis et activité", TextUtil.HumanCount(activityResults.Count) + " correspondance(s) dans vos données Letterboxd.", null));
+                int take = Math.Min(remaining, activityResults.Count);
+                if (gridView)
+                {
+                    var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
+                    for (int index = 0; index < take; index++) wrap.Children.Add(RenderChannelCard(activityResults[index]));
+                    channelList.Children.Add(wrap);
+                }
+                else for (int index = 0; index < take; index++) channelList.Children.Add(RenderChannelRow(activityResults[index]));
+                remaining -= take;
+            }
+            if (people.Count > 0)
+            {
+                channelList.Children.Add(SectionHeader("Personnes", TextUtil.HumanCount(people.Count) + " personne(s) dans les crédits chargés.", null));
+                var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
+                foreach (var person in people)
+                {
+                    var content = new StackPanel();
+                    content.Children.Add(Text(person.Item1, 14, Brush(TextPrimary), true));
+                    content.Children.Add(Text(person.Item2 + " · " + person.Item3.Name, 10.5, Brush(Muted), false));
+                    var card = Card(content, 13);
+                    card.Width = 240;
+                    card.Margin = new Thickness(0, 0, 10, 9);
+                    card.Cursor = Cursors.Hand;
+                    card.Focusable = true;
+                    card.KeyDown += delegate(object sender, KeyEventArgs e)
+                    {
+                        if (e.Key == Key.Enter || e.Key == Key.Space) { ShowChannelInfo(person.Item3); e.Handled = true; }
+                    };
+                    card.MouseLeftButtonUp += delegate { ShowChannelInfo(person.Item3); };
+                    wrap.Children.Add(card);
+                }
+                channelList.Children.Add(wrap);
+            }
+            var contentResults = results.Where(channel => !activityResults.Contains(channel)).ToList();
+            var groups = contentResults.GroupBy(SearchSectionKind)
+                .OrderBy(group => SearchSectionOrder(group.Key)).ToList();
+            foreach (var group in groups)
+            {
+                if (remaining <= 0) break;
+                channelList.Children.Add(SectionHeader(group.Key, TextUtil.HumanCount(group.Count()) + " résultat(s)", null));
+                int take = Math.Min(remaining, group.Count());
+                if (gridView)
+                {
+                    var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
+                    foreach (var channel in group.Take(take)) wrap.Children.Add(RenderChannelCard(channel));
+                    channelList.Children.Add(wrap);
+                }
+                else foreach (var channel in group.Take(take)) channelList.Children.Add(RenderChannelRow(channel));
+                remaining -= take;
+            }
+            renderedCount = limit - remaining;
+        }
+
+        static int SearchSectionOrder(string kind)
+        {
+            if (kind == "Films") return 0;
+            if (kind == "Séries") return 1;
+            if (kind == "Épisodes") return 2;
+            if (kind == "Chaînes") return 3;
+            return 4;
         }
 
         string FirstVisibleLetter(ScrollViewer viewer, Panel list)

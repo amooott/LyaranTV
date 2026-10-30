@@ -227,7 +227,10 @@ namespace LyaranTV
         static void RunSelfTest()
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "lyarantv-selftest-" + Guid.NewGuid().ToString("N"));
-            string logPath = Path.Combine(Path.GetTempPath(), "LyaranTV-selftest.log");
+            string requestedLogPath = Environment.GetEnvironmentVariable("LYARANTV_SELFTEST_LOG");
+            string logPath = String.IsNullOrWhiteSpace(requestedLogPath)
+                ? Path.Combine(Path.GetTempPath(), "LyaranTV-selftest.log")
+                : Path.GetFullPath(requestedLogPath);
             var log = new StringBuilder();
             int failures = 0;
             try
@@ -575,6 +578,74 @@ namespace LyaranTV
                     Assert(TmdbTitleCleaner.CleanTitle("Série S01E01") == "Série", "Nettoyage des numéros d’épisode incorrect.");
                     Assert(TmdbTitleCleaner.ExtractYear("Inception.2010.1080p") == 2010, "Année non extraite.");
                     Assert(TmdbTitleCleaner.LooksLikeSeries("Ma série S02E04", "Films"), "Détection de série incorrecte.");
+                    var correct = new TmdbResult { TmdbId = "603", Title = "The Matrix", OriginalTitle = "The Matrix", Year = "1999" };
+                    var wrongYear = new TmdbResult { TmdbId = "999", Title = "The Matrix", OriginalTitle = "The Matrix", Year = "2021" };
+                    Assert(TmdbClient.MatchScore("The.Matrix.1999.1080p", 1999, correct) == 100, "Le score exact titre/année est incorrect.");
+                    Assert(TmdbClient.PickBest(new List<TmdbResult> { wrongYear, correct }, "The Matrix", 1999).TmdbId == "603",
+                        "La correspondance exacte n'est pas prioritaire sur une année différente.");
+                    Assert(TmdbClient.PickBest(new List<TmdbResult> { correct, new TmdbResult { TmdbId = "604", Title = "The Matrix", OriginalTitle = "The Matrix", Year = "1999" } }, "The Matrix", 1999) == null,
+                        "Une correspondance ambiguë a été choisie automatiquement.");
+                });
+
+                test("Import Letterboxd local", delegate
+                {
+                    string oldRoot = Environment.GetEnvironmentVariable("LYARANTV_DATA_DIR");
+                    string oldProfile = ProfileScope.Current;
+                    string testRoot = Path.Combine(Path.GetTempPath(), "lyarantv-letterboxd-test-" + Guid.NewGuid().ToString("N"));
+                    try
+                    {
+                        Directory.CreateDirectory(testRoot);
+                        Environment.SetEnvironmentVariable("LYARANTV_DATA_DIR", testRoot);
+                        ProfileScope.Current = "LetterboxdTest";
+                        string csv = "Date,Name,Year,Letterboxd URI,Rating,Rewatch,Tags,Watched Date,Review\r\n" +
+                            "2025-01-01,The Matrix,1999,https://letterboxd.com/film/the-matrix/,4.5,,,2025-01-01,\"Très bon, visuellement.\nÀ revoir.\"\r\n";
+                        string export = Path.Combine(testRoot, "reviews.csv");
+                        File.WriteAllText(export, csv, new UTF8Encoding(true));
+                        Assert(LetterboxdActivityStore.ImportFiles(new[] { export }) == 1, "La ligne CSV Letterboxd n'a pas été importée.");
+                        LetterboxdActivityStore.SetUsername(" @cinephile ");
+                        Assert(LetterboxdActivityStore.Username == "cinephile", "Le nom d’utilisateur Letterboxd n’est pas normalisé.");
+                        var activity = LetterboxdActivityStore.Find(new Channel { Name = "The.Matrix.1999.1080p", Kind = "Films" });
+                        Assert(activity != null && activity.Watched && activity.Rating == 4.5, "L'activité Letterboxd n'a pas été associée au bon film.");
+                        Assert(activity.Review.Contains("visuellement") && activity.Review.Contains("À revoir."), "Les virgules ou retours à la ligne du CSV sont mal lus.");
+                        Assert(LetterboxdActivityStore.FilmUrl(new Channel { Name = "The Matrix (1999)", Kind = "Films" }) == "https://letterboxd.com/film/the-matrix/",
+                            "Le lien du film Letterboxd importé n'est pas conservé.");
+                        LetterboxdActivityStore.SetPublicUsernames("@cinephile, friend_one; friend_two");
+                        Assert(LetterboxdActivityStore.GetPublicUsernames().SequenceEqual(new[] { "cinephile", "friend_one", "friend_two" }),
+                            "Les profils publics suivis ne sont pas normalisés ou dédupliqués.");
+                        var publicReviews = LetterboxdActivityStore.ParseRss(
+                            "<rss version=\"2.0\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><channel><item>" +
+                            "<title>The Matrix, 1999 - ★★★★½</title><link>https://letterboxd.com/friend_one/film/the-matrix/</link>" +
+                            "<pubDate>Wed, 01 Jan 2025 12:00:00 GMT</pubDate><dc:creator>friend_one</dc:creator>" +
+                            "<description><![CDATA[<p>Visuellement superbe &amp; toujours marquant.</p>]]></description></item></channel></rss>", "cinephile");
+                        Assert(publicReviews.Count == 1 && publicReviews[0].Title == "The Matrix" && publicReviews[0].Year == "1999",
+                            "Le titre et l'année du flux RSS public n'ont pas été extraits.");
+                        Assert(publicReviews[0].Rating == 4.5 && publicReviews[0].Review.Contains("superbe") && publicReviews[0].Username == "friend_one",
+                            "La note, l'avis ou l'auteur du flux RSS public est incorrect.");
+                        var matrix = new Channel { Id = "matrix-profile-test", Name = "The.Matrix.1999.1080p", Kind = "Films" };
+                        Assert(LetterboxdActivityStore.FindPublicReviews(matrix, publicReviews).Count == 1,
+                            "L’avis RSS n’est pas associé au film IPTV correspondant.");
+                        Assert(LetterboxdActivityStore.SearchMatches(new[] { matrix }, "visuellement").Contains(matrix.Id),
+                            "La recherche ne trouve pas le texte d’une critique personnelle importée.");
+                        Assert(!LetterboxdActivityStore.SearchMatches(new[] { matrix }, "superbe").Contains(matrix.Id),
+                            "Un flux RSS analysé mais non enregistré ne doit pas apparaître dans l’index local.");
+                        LetterboxdActivityStore.ToggleWatchlist(matrix);
+                        Assert(LetterboxdActivityStore.WatchlistChannels(new[] { matrix }).Count == 1,
+                            "La liste à voir importée/localisée n’alimente pas la rangée d’accueil.");
+                        var ambiguousReviews = publicReviews.Concat(new[] { new LetterboxdPublicReview { Username = "friend_two", ProfileUsername = "friend_two", Title = "The Matrix", Year = "2003" } }).ToList();
+                        Assert(LetterboxdActivityStore.FindPublicReviews(new Channel { Name = "The Matrix", Kind = "Films" }, ambiguousReviews).Count == 0,
+                            "Un avis d’un titre homonyme sans année ne doit pas être affiché comme une correspondance certaine.");
+                        ProfileScope.Current = "AutreProfil";
+                        Assert(LetterboxdActivityStore.Find(new Channel { Name = "The Matrix (1999)", Kind = "Films" }) == null,
+                            "Les données Letterboxd sont visibles dans un autre profil.");
+                        Assert(String.IsNullOrWhiteSpace(LetterboxdActivityStore.Username), "Le compte Letterboxd fuit vers un autre profil.");
+                        Assert(LetterboxdActivityStore.GetPublicUsernames().Count == 0, "Les profils Letterboxd suivis fuient vers un autre profil.");
+                    }
+                    finally
+                    {
+                        ProfileScope.Current = oldProfile;
+                        Environment.SetEnvironmentVariable("LYARANTV_DATA_DIR", oldRoot);
+                        try { if (Directory.Exists(testRoot)) Directory.Delete(testRoot, true); } catch { }
+                    }
                 });
 
                 test("Pistes audio et sous-titres en ligne", delegate
@@ -714,6 +785,41 @@ namespace LyaranTV
                     Assert(TmdbCacheStore.Get(key) == null, "Le cache TMDb n’a pas été vidé.");
                 });
 
+                test("Correspondances TMDb par profil et source", delegate
+                {
+                    string previous = ProfileScope.Current;
+                    try
+                    {
+                        ProfileScope.Current = "Principal";
+                        var channel = new Channel { Name = "The Matrix (1999)", Kind = "Films", SourceName = "Playlist A", Id = "matrix-cut-a" };
+                        var match = new TmdbResult { TmdbId = "603", MediaType = "movie", Title = "The Matrix", Year = "1999" };
+                        TmdbClient.ApplyOverride(channel, match);
+                        Assert(TmdbMatchStore.Get(channel) != null, "La correspondance manuelle n'est pas mémorisée.");
+                        Assert(TmdbMatchStore.Get(new Channel { Name = channel.Name, Kind = channel.Kind, SourceName = "Playlist B" }) == null,
+                            "Une correspondance est partagée entre deux sources.");
+                        Assert(TmdbMatchStore.Get(new Channel { Name = channel.Name, Kind = channel.Kind, SourceName = channel.SourceName, Id = "matrix-cut-b" }) == null,
+                            "Une correspondance est partagée entre deux entrées distinctes d'une même source.");
+                        ProfileScope.Current = "AutreProfil";
+                        Assert(TmdbMatchStore.Get(channel) == null, "Une correspondance est visible depuis un autre profil.");
+                        ProfileScope.Current = "Principal";
+                        TmdbMatchStore.Remove(channel);
+                        Assert(TmdbMatchStore.Get(channel) == null, "La suppression de correspondance n'est pas appliquée.");
+                    }
+                    finally { ProfileScope.Current = previous; }
+                });
+
+                test("Recherche dans les métadonnées", delegate
+                {
+                    var item = new Channel
+                    {
+                        Name = "Film de test", OriginalTitle = "Original Title", Overview = "Synopsis de démonstration",
+                        Genres = "Science-fiction", Cast = "Acteur Exemple", Director = "Réalisatrice Exemple"
+                    };
+                    Assert(item.MatchesSearch("original title"), "Le titre original n'est pas indexé dans la recherche.");
+                    Assert(item.MatchesSearch("acteur exemple") && item.MatchesSearch("réalisatrice exemple"), "Casting ou réalisation introuvable dans la recherche.");
+                    Assert(item.MatchesSearch("science-fiction") && item.MatchesSearch("démonstration"), "Genres ou synopsis introuvables dans la recherche.");
+                });
+
                 test("Profils et code PIN", delegate
                 {
                     var list = new List<UserProfile>
@@ -740,7 +846,9 @@ namespace LyaranTV
                     Assert(File.Exists(AppPaths.File("favorites.txt")), "Favoris du profil Principal non enregistrés au format hérité.");
                     Assert(StateStore.ReadSet("favorites.txt").Contains("principal-1"), "Favoris Principal incorrects.");
                     StateStore.RenameProfile("Enfant", "Junior");
-                    Assert(File.Exists(AppPaths.File("favorites.Junior.txt")) && !File.Exists(AppPaths.File("favorites.Enfant.txt")), "Renommage des données de profil incorrect.");
+                    Assert(File.Exists(AppPaths.File("favorites.Junior.txt")) && !File.Exists(AppPaths.File("favorites.Enfant.txt")),
+                        "Renommage des données de profil incorrect (enfant=" + File.Exists(AppPaths.File("favorites.Enfant.txt"))
+                        + ", junior=" + File.Exists(AppPaths.File("favorites.Junior.txt")) + ", dossier=" + AppPaths.DataDir + ").");
                     StateStore.DeleteProfile("Junior");
                     Assert(!File.Exists(AppPaths.File("favorites.Junior.txt")), "Suppression des données de profil incorrecte.");
                 });

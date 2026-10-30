@@ -1848,6 +1848,7 @@ namespace LyaranTV
                 dialog.Report(1, 66, "Indexation des catégories et des groupes…", false);
                 channels.Clear();
                 channels.AddRange(restored.Channels);
+                foreach (var channel in channels) channel.SourceName = source.Name;
                 loadedEpg.Clear();
                 if (restored.Guide != null && restored.Guide.Count > 0) loadedEpg.AddRange(restored.Guide);
                 RebuildEpgIndex();
@@ -1921,6 +1922,7 @@ namespace LyaranTV
         void ApplyLoadResult(PlaylistSource source, PlaylistLoadResult result, bool silent)
         {
             channels.Clear(); channels.AddRange(result.Items);
+            foreach (var channel in channels) channel.SourceName = source == null ? "" : source.Name;
             loadedEpg.Clear(); loadedEpg.AddRange(result.Guide);
             TmdbClient.ApplyCache(channels);
             RebuildEpgIndex();
