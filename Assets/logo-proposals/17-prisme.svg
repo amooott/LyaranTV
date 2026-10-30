@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="LyaranTV — Prisme">
+      <defs>
+        <linearGradient id="g17a" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#8B5CF6"/></linearGradient>
+        <linearGradient id="g17b" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#8B5CF6"/><stop offset="1" stop-color="#EC4899"/></linearGradient>
+      </defs>
+      <rect width="128" height="128" rx="30" fill="#0D0D16"/>
+      <path d="M64 22L106 98H22z" fill="url(#g17a)"/>
+      <path d="M64 22l21 38-21 38-21-38z" fill="url(#g17b)" opacity=".9"/>
+      <path d="M56 52l24 12-24 12z" fill="#fff"/>
+    </svg>

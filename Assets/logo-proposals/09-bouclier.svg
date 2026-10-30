@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="LyaranTV — Bouclier">
+      <defs><linearGradient id="g09" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6D28D9"/><stop offset="1" stop-color="#111827"/></linearGradient></defs>
+      <rect width="128" height="128" rx="30" fill="url(#g09)"/>
+      <path d="M64 20l34 13v30c0 22-14 36-34 45-20-9-34-23-34-45V33z" fill="none" stroke="#fff" stroke-width="8" stroke-linejoin="round"/>
+      <path d="M52 44v38h26" fill="none" stroke="#22D3EE" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>

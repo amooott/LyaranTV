@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="LyaranTV — Pastille pulsée">
+      <defs><linearGradient id="g13" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4C1D95"/><stop offset="1" stop-color="#8B5CF6"/></linearGradient></defs>
+      <rect width="128" height="128" rx="30" fill="url(#g13)"/>
+      <circle cx="64" cy="64" r="44" fill="none" stroke="#fff" stroke-width="4" opacity=".25"/>
+      <circle cx="64" cy="64" r="30" fill="#fff"/>
+      <path d="M56 50l24 14-24 14z" fill="#8B5CF6"/>
+      <circle cx="64" cy="64" r="52" fill="none" stroke="#22D3EE" stroke-width="3" opacity=".5"/>
+    </svg>

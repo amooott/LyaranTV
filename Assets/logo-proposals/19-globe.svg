@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="LyaranTV — Globe">
+      <defs><linearGradient id="g19" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1E1B4B"/><stop offset="1" stop-color="#7C3AED"/></linearGradient></defs>
+      <rect width="128" height="128" rx="30" fill="url(#g19)"/>
+      <circle cx="64" cy="62" r="32" fill="none" stroke="#fff" stroke-width="7"/>
+      <ellipse cx="64" cy="62" rx="14" ry="32" fill="none" stroke="#fff" stroke-width="5" opacity=".7"/>
+      <path d="M32 62h64M37 44h54M37 80h54" stroke="#fff" stroke-width="5" opacity=".5"/>
+      <path d="M56 52l22 10-22 10z" fill="#22D3EE"/>
+    </svg>

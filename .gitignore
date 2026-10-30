@@ -1,0 +1,17 @@
+# Binaires générés
+LyaranTV.exe
+setup-LyaranTV.exe
+build/
+dist/
+
+# libVLC embarqué (114 Mo) : reconstitué au build depuis l'installation VLC
+# ou téléchargé par le workflow de release.
+VLC/
+
+# Dossiers de travail et de test
+tmp-*/
+Installer/build/
+
+# Données locales éventuelles
+*.log
+*.rar

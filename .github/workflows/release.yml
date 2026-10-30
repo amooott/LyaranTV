@@ -1,0 +1,76 @@
+name: Release
+
+# Publie une Release à chaque tag v* (v1.0.0, v1.0.1…). Le tag doit
+# correspondre à AppInfo.Version dans Sources/App/AppInfo.cs : l'application
+# compare sa version compilée à celle de la Release pour proposer la mise à jour.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      VLC_VERSION: "3.0.21"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier la cohérence de version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}".TrimStart('v')
+          $info = Get-Content Sources/App/AppInfo.cs -Raw
+          if ($info -notmatch 'Version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') { throw "Version introuvable" }
+          $app = $Matches[1]
+          if ($app -ne $tag) { throw "Le tag v$tag ne correspond pas à AppInfo.Version $app" }
+          Write-Host "Version $app confirmée"
+
+      - name: Récupérer libVLC
+        shell: pwsh
+        run: |
+          $zip = "vlc.zip"
+          $url = "https://get.videolan.org/vlc/$env:VLC_VERSION/win64/vlc-$env:VLC_VERSION-win64.zip"
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          Expand-Archive $zip -DestinationPath vlc-dist
+          $root = Get-ChildItem vlc-dist | Select-Object -First 1
+          New-Item -ItemType Directory -Path VLC | Out-Null
+          Copy-Item "$($root.FullName)\libvlc.dll" VLC\
+          Copy-Item "$($root.FullName)\libvlccore.dll" VLC\
+          Copy-Item "$($root.FullName)\COPYING.txt" VLC\
+          Copy-Item "$($root.FullName)\AUTHORS.txt" VLC\
+          Copy-Item "$($root.FullName)\plugins" VLC\plugins -Recurse
+          Remove-Item "VLC\plugins\gui" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item "VLC\plugins\stream_out" -Recurse -Force -ErrorAction SilentlyContinue
+
+      - name: Compiler l'application
+        shell: cmd
+        run: Sources\Reconstruire.bat
+
+      - name: Construire l'installateur
+        shell: cmd
+        run: Installer\Construire-Installateur.bat
+
+      - name: Empreintes SHA-256
+        shell: pwsh
+        run: |
+          foreach ($file in @("setup-LyaranTV.exe", "LyaranTV.exe")) {
+            $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
+            "$hash  $file" | Out-File "$file.sha256" -Encoding ascii -NoNewline
+            Write-Host "$file $hash"
+          }
+
+      - name: Publier la Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            --title "LyaranTV ${{ github.ref_name }}" `
+            --notes-file Docs/RELEASE-NOTES.md `
+            setup-LyaranTV.exe setup-LyaranTV.exe.sha256 `
+            LyaranTV.exe LyaranTV.exe.sha256

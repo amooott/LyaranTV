@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="LyaranTV — Orbe et anneau">
+      <defs><linearGradient id="g08" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0E7490"/><stop offset="1" stop-color="#312E81"/></linearGradient></defs>
+      <rect width="128" height="128" rx="30" fill="url(#g08)"/>
+      <circle cx="64" cy="64" r="27" fill="#22D3EE"/>
+      <ellipse cx="64" cy="64" rx="50" ry="17" fill="none" stroke="#fff" stroke-width="6" transform="rotate(-20 64 64)"/>
+      <path d="M56 52l24 12-24 12z" fill="#0A0A12"/>
+    </svg>

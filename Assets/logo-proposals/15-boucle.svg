@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="LyaranTV — Boucle">
+      <defs><linearGradient id="g15" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0E7490"/><stop offset="1" stop-color="#4C1D95"/></linearGradient></defs>
+      <rect width="128" height="128" rx="30" fill="url(#g15)"/>
+      <circle cx="50" cy="64" r="26" fill="none" stroke="#fff" stroke-width="8"/>
+      <circle cx="78" cy="64" r="26" fill="none" stroke="#fff" stroke-width="8" opacity=".55"/>
+      <path d="M58 52l22 12-22 12z" fill="#22D3EE"/>
+    </svg>

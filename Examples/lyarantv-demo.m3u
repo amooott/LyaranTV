@@ -1,0 +1,19 @@
+#EXTM3U x-tvg-url="lyarantv-guide.xml"
+#EXTINF:-1 tvg-id="lyaran.cinema" tvg-name="Lyaran Cinéma" group-title="Chaînes · Cinéma",Lyaran Cinéma
+Media/lyarantv-demo.mp4
+#EXTINF:-1 tvg-id="lyaran.decouverte" tvg-name="Lyaran Découverte" group-title="Chaînes · Découverte",Lyaran Découverte
+Media/lyarantv-demo.mp4
+#EXTINF:-1 tvg-id="lyaran.kids" tvg-name="Lyaran Kids" group-title="Chaînes · Jeunesse",Lyaran Kids
+Media/lyarantv-demo.mp4
+#EXTINF:-1 tvg-id="lyaran.musique" tvg-name="Lyaran Musique" group-title="Chaînes · Musique",Lyaran Musique
+Media/lyarantv-demo.mp4
+#EXTINF:-1 tvg-id="lyaran.film.aube" group-title="Films · Drame",Les Lueurs de l'Aube (2024)
+Media/lyarantv-demo.mp4
+#EXTINF:-1 tvg-id="lyaran.film.signal" group-title="Films · Science-fiction",Le Dernier Signal (2022)
+Media/lyarantv-demo.mp4
+#EXTINF:-1 tvg-id="lyaran.film.carnet" group-title="Films · Aventure",Carnet de Voyage (2025)
+Media/lyarantv-demo.mp4
+#EXTINF:-1 tvg-id="lyaran.serie.veilleurs" group-title="Séries · Les Veilleurs",Les Veilleurs S01E01
+Media/lyarantv-demo.mp4
+#EXTINF:-1 tvg-id="lyaran.serie.veilleurs" group-title="Séries · Les Veilleurs",Les Veilleurs S01E02
+Media/lyarantv-demo.mp4

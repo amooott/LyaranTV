@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="LyaranTV — Signal">
+      <defs><linearGradient id="g04" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5B21B6"/><stop offset="1" stop-color="#0E7490"/></linearGradient></defs>
+      <rect width="128" height="128" rx="30" fill="url(#g04)"/>
+      <circle cx="42" cy="64" r="9" fill="#22D3EE"/>
+      <path d="M56 44a28 28 0 0 1 0 40M68 34a42 42 0 0 1 0 60" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".92"/>
+      <path d="M88 48l22 16-22 16z" fill="#fff" opacity=".9"/>
+    </svg>
