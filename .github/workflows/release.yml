@@ -23,6 +23,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Vérifier la cohérence de version
+        if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}".TrimStart('v')
@@ -68,6 +69,7 @@ jobs:
           }
 
       - name: Publier la Release
+        if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
