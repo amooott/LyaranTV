@@ -69,8 +69,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ github.ref_name }}" `
-            --title "LyaranTV ${{ github.ref_name }}" `
-            --notes-file Docs/RELEASE-NOTES.md `
-            setup-LyaranTV.exe setup-LyaranTV.exe.sha256 `
-            LyaranTV.exe LyaranTV.exe.sha256
+          $tag = "${{ github.ref_name }}"
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title "LyaranTV $tag" --notes-file Docs/RELEASE-NOTES.md
+          }
+          gh release upload $tag setup-LyaranTV.exe setup-LyaranTV.exe.sha256 LyaranTV.exe LyaranTV.exe.sha256 --clobber
+          if ($LASTEXITCODE -ne 0) { throw "Echec de l'envoi des fichiers" }
