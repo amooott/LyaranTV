@@ -97,17 +97,16 @@ namespace LyaranTV
                     {
                         // Le chargement d'une source est asynchrone : on laisse la
                         // bibliothèque s'ouvrir avant de rejoindre la page demandée.
-                        if (demo || example)
+                        // Une source enregistrée peut demander plusieurs secondes
+                        // (cache volumineux) : on vise après la restauration.
+                        double navDelay = (demo || example) ? 2.5 : 4.8;
+                        var navTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(navDelay) };
+                        navTimer.Tick += delegate
                         {
-                            var navTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
-                            navTimer.Tick += delegate
-                            {
-                                navTimer.Stop();
-                                window.NavigateForTest(pageName);
-                            };
-                            navTimer.Start();
-                        }
-                        else window.NavigateForTest(pageName);
+                            navTimer.Stop();
+                            window.NavigateForTest(pageName);
+                        };
+                        navTimer.Start();
                     }
                     if (!String.IsNullOrWhiteSpace(detailTarget))
                     {
@@ -149,6 +148,13 @@ namespace LyaranTV
                     }
                 };
                 window.Show();
+                // Prépare libVLC pendant que l'accueil s'affiche : le premier film
+                // s'ouvre sans attendre le chargement des greffons.
+                ThreadPool.QueueUserWorkItem(delegate
+                {
+                    try { Thread.Sleep(1200); } catch { }
+                    try { VlcPlayback.WarmUp(); } catch { }
+                });
             }
             catch (Exception ex)
             {

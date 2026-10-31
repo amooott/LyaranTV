@@ -155,6 +155,25 @@ namespace LyaranTV
             Background = Brush(Back); Foreground = Brush(TextPrimary);
             searchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(280) };
             searchTimer.Tick += delegate { searchTimer.Stop(); ApplySearch(); };
+            // Diagnostic (LYARANTV_UIPROBE=1) : mesure les interruptions du fil
+            // d'interface pour localiser un gel à l'ouverture du lecteur.
+            if (Environment.GetEnvironmentVariable("LYARANTV_UIPROBE") == "1")
+            {
+                var gapWatch = Stopwatch.StartNew();
+                long lastTick = 0;
+                var gapTimer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = TimeSpan.FromMilliseconds(50) };
+                gapTimer.Tick += delegate
+                {
+                    long now = gapWatch.ElapsedMilliseconds;
+                    long gap = now - lastTick;
+                    lastTick = now;
+                    if (gap >= 350)
+                    {
+                        try { HttpUtil.AppendLog("UI gel @" + DateTime.Now.ToString("HH:mm:ss.fff") + " · " + gap + " ms"); } catch { }
+                    }
+                };
+                gapTimer.Start();
+            }
             BuildShell();
             try { HttpUtil.AppendLog("Perf démarrage · interface " + bootPerf.ElapsedMilliseconds + " ms"); } catch { }
             UpdateBackButton();
@@ -208,6 +227,7 @@ namespace LyaranTV
                 Microsoft.Win32.SystemEvents.UserPreferenceChanged -= SystemThemePreferenceChanged;
                 ArtworkStore.Save();
                 SaveState();
+                StateStore.FlushHistorySources();
             };
         }
 
@@ -730,7 +750,7 @@ namespace LyaranTV
             else ShowHome();
         }
 
-        void SetContent(UIElement element)
+        void SetContent(UIElement element, bool animate = true)
         {
             if (page != "Accueil") StopHomeHeroTimer();
             StopLibraryHeroTimer();
@@ -774,7 +794,7 @@ namespace LyaranTV
                 // Entrée de page : fondu et léger glissement, coupés si
                 // l'utilisateur a demandé moins d'animations.
                 var pageElement = element as FrameworkElement;
-                if (pageElement != null && !UiMotion.Reduced)
+                if (pageElement != null && animate && !UiMotion.Reduced)
                 {
                     pageElement.Opacity = 0;
                     var slide = new TranslateTransform(0, 12);
@@ -1097,10 +1117,49 @@ namespace LyaranTV
             return null;
         }
 
+        // Index du catalogue : FindChannel et SeriesForEpisode étaient des
+        // parcours linéaires du demi-million d'entrées. Sur un gros compte,
+        // chaque carte de l'accueil les appelait, d'où une page d'accueil qui
+        // figeait la fenêtre deux secondes. L'index est construit une fois et
+        // invalidé à chaque remplacement de bibliothèque.
+        Dictionary<string, Channel> channelLookup;
+        Dictionary<string, Channel> seriesLookup;
+        int channelLookupVersion = -1;
+        int channelIndexGeneration;
+
+        internal void InvalidateChannelIndex()
+        {
+            channelLookup = null;
+            seriesLookup = null;
+            channelLookupVersion = -1;
+            channelIndexGeneration++;
+        }
+
+        void EnsureChannelIndex()
+        {
+            if (channelLookup != null && channelLookupVersion == channelIndexGeneration) return;
+            var byId = new Dictionary<string, Channel>(channels.Count, StringComparer.OrdinalIgnoreCase);
+            var byStream = new Dictionary<string, Channel>(Math.Max(16, channels.Count / 4), StringComparer.OrdinalIgnoreCase);
+            foreach (Channel channel in channels)
+            {
+                if (channel == null) continue;
+                if (!String.IsNullOrWhiteSpace(channel.Id) && !byId.ContainsKey(channel.Id)) byId[channel.Id] = channel;
+                if (!String.IsNullOrWhiteSpace(channel.StreamId)
+                    && (channel.Kind == "Séries" || channel.IsSeries)
+                    && !byStream.ContainsKey(channel.StreamId)) byStream[channel.StreamId] = channel;
+            }
+            channelLookup = byId;
+            seriesLookup = byStream;
+            channelLookupVersion = channelIndexGeneration;
+        }
+
         Channel FindChannel(string id)
         {
             if (String.IsNullOrWhiteSpace(id)) return null;
-            return channels.FirstOrDefault(c => String.Equals(c.Id, id, StringComparison.OrdinalIgnoreCase));
+            EnsureChannelIndex();
+            Channel found;
+            if (channelLookup != null && channelLookup.TryGetValue(id, out found)) return found;
+            return null;
         }
 
         void AddRecent(Channel channel)
@@ -1901,6 +1960,7 @@ namespace LyaranTV
                 finished = true;
                 var uiPerf = Stopwatch.StartNew();
                 dialog.Report(1, 66, "Indexation des catégories et des groupes…", false);
+                InvalidateChannelIndex();
                 channels.Clear();
                 channels.AddRange(restored.Channels);
                 foreach (var channel in channels) channel.SourceName = source.Name;
@@ -1977,6 +2037,7 @@ namespace LyaranTV
 
         void ApplyLoadResult(PlaylistSource source, PlaylistLoadResult result, bool silent)
         {
+            InvalidateChannelIndex();
             channels.Clear(); channels.AddRange(result.Items);
             foreach (var channel in channels) channel.SourceName = source == null ? "" : source.Name;
             loadedEpg.Clear(); loadedEpg.AddRange(result.Guide);
@@ -2156,7 +2217,7 @@ namespace LyaranTV
             LibraryCache.Delete(source);
             if (activeSource == source)
             {
-                activeSource = null; channels.Clear(); loadedEpg.Clear(); RebuildEpgIndex();
+                activeSource = null; InvalidateChannelIndex(); channels.Clear(); loadedEpg.Clear(); RebuildEpgIndex();
                 settings.LastSourceName = ""; SaveSettings();
             }
             LoadProfileState();
@@ -2262,6 +2323,7 @@ namespace LyaranTV
         void ReloadEverything()
         {
             LoadState();
+            InvalidateChannelIndex();
             channels.Clear();
             loadedEpg.Clear();
             currentPlaying = null;
@@ -2286,7 +2348,7 @@ namespace LyaranTV
             LibraryCache.ClearAll();
             settings = new AppSettings();
             themeName = settings.Theme; accentHex = settings.Accent;
-            sources.Clear(); channels.Clear(); loadedEpg.Clear(); favorites.Clear(); hiddenChannels.Clear(); hiddenGroups.Clear();
+            sources.Clear(); InvalidateChannelIndex(); channels.Clear(); loadedEpg.Clear(); favorites.Clear(); hiddenChannels.Clear(); hiddenGroups.Clear();
             recentIds.Clear(); positions.Clear(); durations.Clear(); episodeHistory.Clear(); activeSource = null; currentPlaying = null;
             navHistory.Clear();
             RebuildEpgIndex();

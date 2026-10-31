@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Threading;
 
 namespace LyaranTV
 {
@@ -345,12 +346,14 @@ namespace LyaranTV
 
         bool StartVlc(Uri media)
         {
+            var engineWatch = System.Diagnostics.Stopwatch.StartNew();
             try { if (vlc == null) vlc = new VlcPlayback(); }
             catch (Exception ex)
             {
                 try { HttpUtil.AppendLog("VLC indisponible : " + ex.GetBaseException().Message); } catch { }
                 return false;
             }
+            long engineMs = engineWatch.ElapsedMilliseconds;
             try
             {
                 element.Stop();
@@ -364,6 +367,15 @@ namespace LyaranTV
                     surface.Visibility = Visibility.Collapsed;
                     element.Visibility = Visibility.Visible;
                     return false;
+                }
+                if (engineWatch.ElapsedMilliseconds > 150)
+                {
+                    try
+                    {
+                        HttpUtil.AppendLog("Perf moteur · création " + engineMs + " ms · ouverture "
+                            + (engineWatch.ElapsedMilliseconds - engineMs) + " ms");
+                    }
+                    catch { }
                 }
                 vlc.Volume = volume;
                 vlc.Rate = speed;
@@ -590,26 +602,36 @@ namespace LyaranTV
             try { HttpUtil.AppendLog("Son : aucune sortie audio au démarrage, bascule sur « " + used + " »."); } catch { }
         }
 
-        /// <summary>Trace le moteur et les pistes réellement décodées, pour le diagnostic.</summary>
+        /// <summary>
+        /// Trace le moteur et les pistes réellement décodées. L'inventaire est
+        /// demandé à libVLC hors du fil d'interface : au démarrage d'un flux,
+        /// l'énumération des sorties audio peut attendre l'initialisation du
+        /// périphérique (plusieurs secondes), ce qui figeait la fenêtre juste
+        /// après l'ouverture d'un film.
+        /// </summary>
         void LogVlcStart()
         {
             if (loggedOpen || vlc == null) return;
             loggedOpen = true;
-            try
+            VlcPlayback captured = vlc;
+            ThreadPool.QueueUserWorkItem(delegate
             {
-                List<AudioStream> audio = vlc.AudioStreams();
-                string tracks = "";
-                foreach (AudioStream stream in audio)
-                    tracks += (tracks.Length == 0 ? "" : " | ") + stream.Id + ":" + stream.Label;
-                string outputs = "";
-                foreach (string name in vlc.AudioOutputs()) outputs += (outputs.Length == 0 ? "" : "/") + name;
-                HttpUtil.AppendLog("Lecture VLC · " + audio.Count + " piste(s) audio · "
-                    + (vlc.HasVideo ? vlc.VideoWidth + "×" + vlc.VideoHeight : "audio seul") + " · volume " + vlc.Volume.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)
-                    + (tracks.Length == 0 ? "" : " · " + tracks)
-                    + (vlc.AudioOutputMissing ? " · SORTIE AUDIO INDISPONIBLE" : " · sortie audio active")
-                    + (outputs.Length == 0 ? "" : " · sorties " + outputs));
-            }
-            catch { }
+                try
+                {
+                    List<AudioStream> audio = captured.AudioStreams();
+                    string tracks = "";
+                    foreach (AudioStream stream in audio)
+                        tracks += (tracks.Length == 0 ? "" : " | ") + stream.Id + ":" + stream.Label;
+                    string outputs = "";
+                    foreach (string name in captured.AudioOutputs()) outputs += (outputs.Length == 0 ? "" : "/") + name;
+                    HttpUtil.AppendLog("Lecture VLC · " + audio.Count + " piste(s) audio · "
+                        + (captured.HasVideo ? captured.VideoWidth + "×" + captured.VideoHeight : "audio seul") + " · volume " + captured.Volume.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)
+                        + (tracks.Length == 0 ? "" : " · " + tracks)
+                        + (captured.AudioOutputMissing ? " · SORTIE AUDIO INDISPONIBLE" : " · sortie audio active")
+                        + (outputs.Length == 0 ? "" : " · sorties " + outputs));
+                }
+                catch { }
+            });
         }
 
         /// <summary>
@@ -621,25 +643,33 @@ namespace LyaranTV
         {
             if (!usingVlc || vlc == null || audioLanguageApplied) return;
             audioLanguageApplied = true;
-            string code = "";
-            try
+            VlcPlayback captured = vlc;
+            ThreadPool.QueueUserWorkItem(delegate
             {
-                AppSettings settings = SettingsStore.Load();
-                code = settings == null ? "" : (settings.PreferredAudioLanguage ?? "");
-            }
-            catch { }
-            code = (code ?? "").Trim().ToLowerInvariant();
-            if (code.Length == 0 || code == "auto") return;
-            List<AudioStream> audioTracks = vlc.AudioStreams();
-            if (audioTracks.Count < 2) return;
-            foreach (AudioStream audioTrack in audioTracks)
-            {
-                if (!audioTrack.MatchesLanguage(code)) continue;
-                if (audioTrack.Id == vlc.CurrentAudioTrack) return;
-                if (!vlc.SelectAudioTrack(audioTrack.Id)) return;
-                try { HttpUtil.AppendLog("Son : piste « " + audioTrack.Label + " » retenue pour la langue préférée (" + code + ")."); } catch { }
-                return;
-            }
+                try
+                {
+                    string code = "";
+                    try
+                    {
+                        AppSettings settings = SettingsStore.Load();
+                        code = settings == null ? "" : (settings.PreferredAudioLanguage ?? "");
+                    }
+                    catch { }
+                    code = (code ?? "").Trim().ToLowerInvariant();
+                    if (code.Length == 0 || code == "auto") return;
+                    List<AudioStream> audioTracks = captured.AudioStreams();
+                    if (audioTracks.Count < 2) return;
+                    foreach (AudioStream audioTrack in audioTracks)
+                    {
+                        if (!audioTrack.MatchesLanguage(code)) continue;
+                        if (audioTrack.Id == captured.CurrentAudioTrack) return;
+                        if (!captured.SelectAudioTrack(audioTrack.Id)) return;
+                        try { HttpUtil.AppendLog("Son : piste « " + audioTrack.Label + " » retenue pour la langue préférée (" + code + ")."); } catch { }
+                        return;
+                    }
+                }
+                catch { }
+            });
         }
 
         void DrawVlcFrame()

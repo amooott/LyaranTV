@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
@@ -22,6 +24,7 @@ namespace LyaranTV
         TextBlock libraryHeroGlyph, libraryHeroKicker, libraryHeroTitle, libraryHeroMeta, libraryHeroDescription;
         StackPanel libraryHeroContent, libraryHeroActions, libraryHeroDots;
         Channel libraryHeroChannel;
+        int libraryLoadGeneration;
 
         void ShowLibrary(string mode)
         {
@@ -29,9 +32,123 @@ namespace LyaranTV
             StopLibraryHeroTimer();
             RebuildSidebar(); UpdateStatusBar(); SetPageStatus();
             channelList = null; resultsScroll = null; moreHost = null;
+            currentView = null;
 
-            var modeBase = activeSource == null ? new List<Channel>() : BaseViewForMode(mode).ToList();
-            var filtered = activeSource == null ? new List<Channel>() : LibraryFilteredView(modeBase);
+            if (activeSource != null && channels.Count >= 4000)
+            {
+                // Gros catalogue : on affiche tout de suite une page de chargement
+                // et on prépare les listes hors du fil d'interface pour que la
+                // fenêtre reste réactive pendant l'indexation.
+                int generation = ++libraryLoadGeneration;
+                var worker = new BackgroundWorker();
+                List<Channel> snapshot = new List<Channel>(channels);
+                string kind = activeKind, group = activeGroup, query = searchQuery, sort = sortMode;
+                List<Channel> modeBase = null, filtered = null;
+                long dataMs = 0;
+                // La page de chargement ne s'affiche que si la préparation
+                // dépasse un court instant : sur un petit compte, la
+                // bibliothèque s'ouvre directement, sans flash.
+                var loadingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+                loadingTimer.Tick += delegate
+                {
+                    loadingTimer.Stop();
+                    if (appClosing || generation != libraryLoadGeneration || page != mode) return;
+                    ShowLibraryLoading(mode);
+                };
+                loadingTimer.Start();
+                worker.DoWork += delegate
+                {
+                    var watch = Stopwatch.StartNew();
+                    modeBase = BaseViewForMode(mode, snapshot).ToList();
+                    filtered = LibraryFilteredView(modeBase, kind, group, query, sort);
+                    dataMs = watch.ElapsedMilliseconds;
+                };
+                worker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs e)
+                {
+                    loadingTimer.Stop();
+                    if (appClosing || generation != libraryLoadGeneration || page != mode) return;
+                    if (e.Error != null || modeBase == null || filtered == null)
+                    {
+                        try
+                        {
+                            HttpUtil.AppendLog("Bibliothèque : " + (e.Error == null ? "préparation vide" : e.Error.GetBaseException().Message));
+                        }
+                        catch { }
+                        // Repli direct : mieux vaut une page un peu lente qu'une page vide.
+                        modeBase = BaseViewForMode(mode).ToList();
+                        filtered = LibraryFilteredView(modeBase);
+                        dataMs = 0;
+                    }
+                    BuildLibraryPage(mode, modeBase, filtered, dataMs);
+                    SetPageStatus();
+                };
+                worker.RunWorkerAsync();
+                return;
+            }
+
+            var syncBase = activeSource == null ? new List<Channel>() : BaseViewForMode(mode).ToList();
+            var syncFiltered = activeSource == null ? new List<Channel>() : LibraryFilteredView(syncBase);
+            BuildLibraryPage(mode, syncBase, syncFiltered, 0);
+            SetPageStatus();
+        }
+
+        void ShowLibraryLoading(string mode)
+        {
+            currentView = null;
+            string title = LibraryTitleForMode(mode);
+            string subtitle = activeSource == null
+                ? "Aucune playlist active."
+                : activeSource.Name + "  ·  " + TextUtil.HumanCount(channels.Count) + " éléments disponibles";
+
+            var root = new StackPanel { Margin = new Thickness(28, 22, 28, 38) };
+            root.Children.Add(BuildLibraryHeader(mode, title, subtitle));
+
+            var card = new Border
+            {
+                MaxWidth = 560,
+                Padding = new Thickness(34, 30, 34, 32),
+                CornerRadius = new CornerRadius(20),
+                Background = Brush(Panel),
+                BorderBrush = Brush(BorderColor),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 34, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            var stack = new StackPanel();
+            var spinner = CreateSpinner(46);
+            spinner.HorizontalAlignment = HorizontalAlignment.Center;
+            stack.Children.Add(spinner);
+
+            var heading = Text("Chargement de la bibliothèque…", 18, Brush(TextPrimary), true);
+            heading.HorizontalAlignment = HorizontalAlignment.Center;
+            heading.Margin = new Thickness(0, 18, 0, 6);
+            stack.Children.Add(heading);
+
+            string detailText = String.IsNullOrWhiteSpace(searchQuery)
+                ? "Indexation de " + TextUtil.HumanCount(channels.Count) + " éléments et préparation des catégories."
+                : "Recherche de « " + searchQuery.Trim() + " » dans " + TextUtil.HumanCount(channels.Count) + " éléments.";
+            var detail = Text(detailText, 11.5, Brush(Muted), false);
+            detail.TextAlignment = TextAlignment.Center;
+            detail.TextWrapping = TextWrapping.Wrap;
+            detail.MaxWidth = 440;
+            detail.HorizontalAlignment = HorizontalAlignment.Center;
+            stack.Children.Add(detail);
+
+            var hint = Text("La page s'ouvrira automatiquement dès qu'elle est prête.", 10.5, Brush(Muted), false);
+            hint.TextAlignment = TextAlignment.Center;
+            hint.Margin = new Thickness(0, 10, 0, 0);
+            hint.HorizontalAlignment = HorizontalAlignment.Center;
+            stack.Children.Add(hint);
+
+            card.Child = stack;
+            root.Children.Add(card);
+            SetContent(root, false);
+            SetStatus("Chargement de la bibliothèque…");
+        }
+
+        void BuildLibraryPage(string mode, List<Channel> modeBase, List<Channel> filtered, long dataMs)
+        {
+            var libraryPerf = Stopwatch.StartNew();
             currentView = filtered;
 
             string title = LibraryTitleForMode(mode);
@@ -40,6 +157,7 @@ namespace LyaranTV
                 : activeSource.Name + "  ·  " + TextUtil.HumanCount(modeBase.Count) + (mode == "Favoris" ? " favori(s)" : mode == "Récents" ? " contenu(s) récent(s)" : " éléments disponibles");
             var root = new StackPanel { Margin = new Thickness(28, 22, 28, 38) };
             root.Children.Add(BuildLibraryHeader(mode, title, subtitle));
+            long headerMs = libraryPerf.ElapsedMilliseconds;
 
             if (activeSource == null || channels.Count == 0)
             {
@@ -77,8 +195,11 @@ namespace LyaranTV
             }
 
             root.Children.Add(BuildLibraryHero());
+            long heroMs = libraryPerf.ElapsedMilliseconds;
             root.Children.Add(BuildLibraryFilters(mode, modeBase));
+            long filtersMs = libraryPerf.ElapsedMilliseconds;
             AddLibraryShelves(root, filtered, modeBase, mode);
+            long shelvesMs = libraryPerf.ElapsedMilliseconds;
 
             BuildLibraryHeroPool(filtered);
             if (libraryHeroPool.Count > 0)
@@ -90,6 +211,15 @@ namespace LyaranTV
             }
 
             SetContent(root);
+            try
+            {
+                HttpUtil.AppendLog("Perf bibliothèque @" + DateTime.Now.ToString("HH:mm:ss.fff") + " · préparation " + dataMs
+                    + " · en-tête " + headerMs + " · hero " + (heroMs - headerMs)
+                    + " · filtres " + (filtersMs - heroMs) + " · étagères " + (shelvesMs - filtersMs)
+                    + " · pool " + (libraryPerf.ElapsedMilliseconds - shelvesMs) + " · rendu " + libraryPerf.ElapsedMilliseconds
+                    + " · total " + (dataMs + libraryPerf.ElapsedMilliseconds) + " ms");
+            }
+            catch { }
             StartLibraryHeroTimer();
         }
 
@@ -97,7 +227,8 @@ namespace LyaranTV
         {
             var header = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 18) };
             var right = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-            var countLabel = Text(TextUtil.HumanCount(currentView.Count) + " éléments", 10.5, Brush(Muted), false);
+            int shownCount = currentView == null ? channels.Count : currentView.Count;
+            var countLabel = Text(TextUtil.HumanCount(shownCount) + " éléments", 10.5, Brush(Muted), false);
             countLabel.VerticalAlignment = VerticalAlignment.Center;
             countLabel.Margin = new Thickness(0, 0, 2, 0);
             right.Children.Add(countLabel);
@@ -121,12 +252,17 @@ namespace LyaranTV
 
         List<Channel> LibraryFilteredView(List<Channel> modeBase)
         {
+            return LibraryFilteredView(modeBase, activeKind, activeGroup, searchQuery, sortMode);
+        }
+
+        List<Channel> LibraryFilteredView(List<Channel> modeBase, string kind, string group, string queryValue, string sort)
+        {
             IEnumerable<Channel> view = modeBase;
-            if (activeKind != "Tous") view = view.Where(c => c.Kind == activeKind);
-            if (activeGroup != AllGroups) view = view.Where(c => String.Equals(c.Group, activeGroup, StringComparison.OrdinalIgnoreCase));
-            string query = String.IsNullOrWhiteSpace(searchQuery) ? "" : searchQuery.Trim();
+            if (kind != "Tous") view = view.Where(c => c.Kind == kind);
+            if (group != AllGroups) view = view.Where(c => String.Equals(c.Group, group, StringComparison.OrdinalIgnoreCase));
+            string query = String.IsNullOrWhiteSpace(queryValue) ? "" : queryValue.Trim();
             if (query.Length > 0) view = view.Where(c => c.MatchesSearch(query));
-            return SortChannels(view).ToList();
+            return SortChannels(view, sort).ToList();
         }
 
         FrameworkElement BuildLibraryFilters(string mode, List<Channel> modeBase)
@@ -911,10 +1047,17 @@ namespace LyaranTV
             }
             else
             {
+                // Série ou épisode : la saison et l'épisode passent devant le
+                // reste, pour distinguer deux cartes d'une même série.
+                string episodeTag = EpisodeTag(channel);
                 double saved = GetSavedPosition(channel);
-                if (saved > 0) meta = "Reprendre  ·  " + TextUtil.FormatPosition(TimeSpan.FromSeconds(saved));
-                else if (!String.IsNullOrWhiteSpace(channel.Year)) meta = channel.Year + "  ·  " + (String.IsNullOrWhiteSpace(channel.Group) ? KindLabel(channel.Kind) : channel.Group);
-                else meta = String.IsNullOrWhiteSpace(channel.Group) ? KindLabel(channel.Kind) : channel.Group;
+                if (saved > 0) meta = (episodeTag.Length > 0 ? episodeTag + "  ·  " : "")
+                    + "Reprendre  ·  " + TextUtil.FormatPosition(TimeSpan.FromSeconds(saved));
+                else if (!String.IsNullOrWhiteSpace(channel.Year)) meta = channel.Year + "  ·  "
+                    + (episodeTag.Length > 0 ? episodeTag + "  ·  " : "")
+                    + (String.IsNullOrWhiteSpace(channel.Group) ? KindLabel(channel.Kind) : channel.Group);
+                else meta = (episodeTag.Length > 0 ? episodeTag + "  ·  " : "")
+                    + (String.IsNullOrWhiteSpace(channel.Group) ? KindLabel(channel.Kind) : channel.Group);
             }
             var metaText = Text(meta, 10, Brush(Color.FromArgb(205, 255, 255, 255)), false);
             metaText.TextWrapping = TextWrapping.NoWrap;

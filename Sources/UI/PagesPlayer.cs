@@ -115,7 +115,11 @@ namespace LyaranTV
             }
             page = "Lecture";
             currentPlaying = channel;
+            // Mesure des étapes du lancement : un gel perçu ici se voit tout de
+            // suite dans le journal (file de lecture, construction, affichage).
+            var playPerf = Stopwatch.StartNew();
             playQueue = BuildPlayQueue(channel, queue);
+            long queueMs = playPerf.ElapsedMilliseconds;
             playbackPaused = startPaused;
             resumePosition = startPosition > 0 ? startPosition : GetSavedPosition(channel);
             resumePaused = startPaused;
@@ -154,9 +158,17 @@ namespace LyaranTV
             if (enteringPlayer) CaptureSeriesReturn(channel);
 
             BuildPlayerPage();
+            long pageMs = playPerf.ElapsedMilliseconds;
             RebuildSidebar();
             UpdateStatusBar();
             SetContent(playerLayout);
+            long shownMs = playPerf.ElapsedMilliseconds;
+            try
+            {
+                HttpUtil.AppendLog("Perf lecture @" + DateTime.Now.ToString("HH:mm:ss.fff") + " · file " + queueMs + " ms · page " + (pageMs - queueMs)
+                    + " ms · affichage " + (shownMs - pageMs) + " ms · prêt " + shownMs + " ms");
+            }
+            catch { }
             if (fullScreen) ApplyFullScreenLayout();
             SetStatus("Lecture de " + channel.Name + ".");
             AddRecent(channel);
@@ -169,14 +181,47 @@ namespace LyaranTV
             if (IsStalkerChannel(channel)) ResolveStalkerAndStart(channel);
             else StartCurrentCandidate();
             StartMediaTrackScan(channel);
+            // Mesure la fin de la mise en page : si l'interface met du temps à
+            // redevenir inactive, le gel perçu à l'ouverture est ici, pas dans
+            // les étapes déjà mesurées.
+            Dispatcher.BeginInvoke(new Action(delegate
+            {
+                try { HttpUtil.AppendLog("Perf lecture @" + DateTime.Now.ToString("HH:mm:ss.fff") + " · interface au repos " + playPerf.ElapsedMilliseconds + " ms"); } catch { }
+            }), DispatcherPriority.ApplicationIdle);
         }
 
+        /// <summary>
+        /// File de lecture du lecteur : une fenêtre autour du contenu lancé, pas
+        /// une copie de toute la bibliothèque. Sur un compte de 240 000 éléments,
+        /// l'ancienne version construisait une liste géante sur le fil d'interface
+        /// à chaque lecture, ce qui figeait l'application avant même l'ouverture
+        /// de la vidéo.
+        /// </summary>
         List<Channel> BuildPlayQueue(Channel channel, List<Channel> requested)
         {
-            IEnumerable<Channel> source = requested;
-            if (source == null) source = currentView;
-            if (source == null || !source.Any()) source = channels;
-            var list = source.Where(c => c != null && (c.IsPlayable || c.IsSeries) && !hiddenChannels.Contains(c.Id)).ToList();
+            const int windowBefore = 40;
+            const int windowAfter = 360;
+            IList<Channel> source = requested;
+            if (source == null || source.Count == 0) source = currentView;
+            if (source == null || source.Count == 0) source = channels;
+
+            int index = -1;
+            for (int i = 0; i < source.Count; i++)
+            {
+                Channel candidate = source[i];
+                if (candidate != null && String.Equals(candidate.Id, channel.Id, StringComparison.OrdinalIgnoreCase)) { index = i; break; }
+            }
+            int start = index > windowBefore ? index - windowBefore : 0;
+            int end = Math.Min(source.Count, start + windowBefore + windowAfter);
+            var list = new List<Channel>(Math.Max(1, end - start));
+            for (int i = start; i < end; i++)
+            {
+                Channel candidate = source[i];
+                if (candidate == null) continue;
+                if (!candidate.IsPlayable && !candidate.IsSeries) continue;
+                if (hiddenChannels.Contains(candidate.Id)) continue;
+                list.Add(candidate);
+            }
             if (!list.Any(c => String.Equals(c.Id, channel.Id, StringComparison.OrdinalIgnoreCase))) list.Insert(0, channel);
             return list;
         }
@@ -2118,12 +2163,55 @@ namespace LyaranTV
 
         internal void NavigateForTest(string destination)
         {
+            NavigateForTest(destination, 0);
+        }
+
+        /// <summary>
+        /// Comme --play, --page peut arriver avant la restauration de la
+        /// bibliothèque : on attend qu'elle soit là au lieu d'ouvrir une page
+        /// vide, puis on navigue normalement.
+        /// </summary>
+        void NavigateForTest(string destination, int attempts)
+        {
             if (String.IsNullOrWhiteSpace(destination)) return;
+            if (channels.Count == 0 && sources.Count > 0 && attempts < 60)
+            {
+                var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+                timer.Tick += delegate
+                {
+                    timer.Stop();
+                    NavigateForTest(destination, attempts + 1);
+                };
+                timer.Start();
+                return;
+            }
             Nav(destination.Trim());
         }
 
         internal void PlayTargetForTest(string target)
         {
+            PlayTargetForTest(target, 0);
+        }
+
+        /// <summary>
+        /// La bibliothèque se restaure en arrière-plan : un identifiant passé à
+        /// --play peut arriver avant elle. On réessaie un moment au lieu de le
+        /// prendre à tort pour un fichier externe.
+        /// </summary>
+        void PlayTargetForTest(string target, int attempts)
+        {
+            if (String.IsNullOrWhiteSpace(target)) return;
+            if (FindChannel(target) == null && channels.Count == 0 && attempts < 60)
+            {
+                var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+                timer.Tick += delegate
+                {
+                    timer.Stop();
+                    PlayTargetForTest(target, attempts + 1);
+                };
+                timer.Start();
+                return;
+            }
             PlayExternalTarget(target);
         }
 

@@ -346,7 +346,19 @@ namespace LyaranTV
 
         IEnumerable<Channel> BaseViewForMode(string mode)
         {
-            IEnumerable<Channel> view = VisibleChannels.Where(c => !hiddenChannels.Contains(c.Id));
+            return BaseViewForMode(mode, channels);
+        }
+
+        /// <summary>
+        /// Même vue que <see cref="VisibleChannels"/> mais calculée sur un instantané,
+        /// pour pouvoir préparer la bibliothèque hors du fil d'interface.
+        /// </summary>
+        IEnumerable<Channel> BaseViewForMode(string mode, IList<Channel> source)
+        {
+            IEnumerable<Channel> view = (source ?? new List<Channel>()).Where(c => c != null && IsChannelAllowed(c));
+            if (settings.LanguageModeEnabled && !String.IsNullOrWhiteSpace(settings.LanguageModeCode))
+                view = view.Where(c => IsLanguageCategory(c.Group));
+            view = view.Where(c => !hiddenChannels.Contains(c.Id));
             if (mode == "Favoris") view = view.Where(c => favorites.Contains(c.Id));
             else if (mode == "Récents")
             {
@@ -577,10 +589,15 @@ namespace LyaranTV
 
         List<Channel> SortChannels(IEnumerable<Channel> view)
         {
-            if (sortMode == "Nom (Z → A)") return view.OrderByDescending(c => c.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
-            if (sortMode == "Catégorie") return view.OrderBy(c => c.Group, StringComparer.CurrentCultureIgnoreCase).ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
-            if (sortMode == "Numéro") return view.OrderBy(c => TextUtil.ParseInt(c.Number, Int32.MaxValue)).ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
-            if (sortMode == "Ordre de la playlist") return view.OrderBy(c => c.Order).ToList();
+            return SortChannels(view, sortMode);
+        }
+
+        List<Channel> SortChannels(IEnumerable<Channel> view, string sort)
+        {
+            if (sort == "Nom (Z → A)") return view.OrderByDescending(c => c.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+            if (sort == "Catégorie") return view.OrderBy(c => c.Group, StringComparer.CurrentCultureIgnoreCase).ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+            if (sort == "Numéro") return view.OrderBy(c => TextUtil.ParseInt(c.Number, Int32.MaxValue)).ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+            if (sort == "Ordre de la playlist") return view.OrderBy(c => c.Order).ToList();
             return view.OrderBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
         }
 

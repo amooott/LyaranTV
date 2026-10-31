@@ -659,7 +659,22 @@ namespace LyaranTV
         /// effacer son historique dans tous les profils, pas seulement le profil
         /// actif.
         /// </summary>
-        public static Dictionary<string, string> LoadHistorySources()
+        // Le fichier de propriété de l'historique peut peser plusieurs mégaoctets
+        // sur un gros compte (240 000 identifiants). Il était relu et réécrit à
+        // chaque lecture, sur le fil d'interface : d'où un gel au lancement d'un
+        // film. La carte reste désormais en mémoire et l'écriture est différée.
+        static Dictionary<string, string> historyCache;
+        static readonly object historyGate = new object();
+        static bool historyDirty;
+        static System.Threading.Timer historyTimer;
+
+        static Dictionary<string, string> HistoryMap()
+        {
+            if (historyCache == null) historyCache = LoadHistorySourcesCore();
+            return historyCache;
+        }
+
+        static Dictionary<string, string> LoadHistorySourcesCore()
         {
             var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             string file = AppPaths.File("history-sources.json");
@@ -679,7 +694,25 @@ namespace LyaranTV
             return result;
         }
 
+        public static Dictionary<string, string> LoadHistorySources()
+        {
+            lock (historyGate) return new Dictionary<string, string>(HistoryMap(), StringComparer.OrdinalIgnoreCase);
+        }
+
         public static void SaveHistorySources(Dictionary<string, string> map)
+        {
+            lock (historyGate)
+            {
+                historyCache = map == null
+                    ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    : new Dictionary<string, string>(map, StringComparer.OrdinalIgnoreCase);
+                historyDirty = false;
+                if (historyTimer != null) { historyTimer.Dispose(); historyTimer = null; }
+                SaveHistorySourcesCore(historyCache);
+            }
+        }
+
+        static void SaveHistorySourcesCore(Dictionary<string, string> map)
         {
             try
             {
@@ -691,21 +724,60 @@ namespace LyaranTV
             catch { }
         }
 
+        /// <summary>Écrit sans délai les changements encore en attente (fermeture).</summary>
+        public static void FlushHistorySources()
+        {
+            Dictionary<string, string> snapshot = null;
+            lock (historyGate)
+            {
+                if (!historyDirty || historyCache == null) return;
+                historyDirty = false;
+                snapshot = new Dictionary<string, string>(historyCache, StringComparer.OrdinalIgnoreCase);
+            }
+            SaveHistorySourcesCore(snapshot);
+        }
+
+        static void ScheduleHistorySave()
+        {
+            lock (historyGate)
+            {
+                if (historyTimer == null)
+                    historyTimer = new System.Threading.Timer(delegate { FlushHistorySources(); }, null, 1500, System.Threading.Timeout.Infinite);
+                else historyTimer.Change(1500, System.Threading.Timeout.Infinite);
+            }
+        }
+
+        /// <summary>Oublie la carte en mémoire (réinitialisation, changement de dossier).</summary>
+        public static void ResetHistoryCache()
+        {
+            lock (historyGate)
+            {
+                historyCache = null;
+                historyDirty = false;
+                if (historyTimer != null) { historyTimer.Dispose(); historyTimer = null; }
+            }
+        }
+
         public static void RecordHistorySources(IEnumerable<string> ids, string sourceName)
         {
             if (String.IsNullOrWhiteSpace(sourceName) || ids == null) return;
-            var map = LoadHistorySources();
             bool changed = false;
-            foreach (string id in ids)
+            lock (historyGate)
             {
-                if (String.IsNullOrWhiteSpace(id)) continue;
-                string current;
-                if (map.TryGetValue(id, out current)
-                    && String.Equals(current, sourceName, StringComparison.OrdinalIgnoreCase)) continue;
-                map[id] = sourceName;
-                changed = true;
+                var map = HistoryMap();
+                foreach (string id in ids)
+                {
+                    if (String.IsNullOrWhiteSpace(id)) continue;
+                    string current;
+                    if (map.TryGetValue(id, out current)
+                        && String.Equals(current, sourceName, StringComparison.OrdinalIgnoreCase)) continue;
+                    map[id] = sourceName;
+                    changed = true;
+                }
+                if (!changed) return;
+                historyDirty = true;
             }
-            if (changed) SaveHistorySources(map);
+            ScheduleHistorySave();
         }
 
         public static void RenameHistorySource(string oldName, string newName)
@@ -1047,6 +1119,7 @@ namespace LyaranTV
             }
             catch { }
             TmdbMatchStore.ForgetAll();
+            ResetHistoryCache();
         }
 
         public static void CreateBackup(string destination)
@@ -1079,6 +1152,7 @@ namespace LyaranTV
                 AppPaths.EnsureDataDir();
                 foreach (string file in Directory.GetFiles(temp))
                     File.Copy(file, Path.Combine(AppPaths.DataDir, Path.GetFileName(file)), true);
+                ResetHistoryCache();
             }
             finally
             {

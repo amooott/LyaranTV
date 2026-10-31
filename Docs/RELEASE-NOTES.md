@@ -1,3 +1,35 @@
+# LyaranTV 1.3.2
+
+Chargement visible à l'ouverture de la bibliothèque, sans blocage de la fenêtre.
+
+## Nouveautés
+
+- **Écran de chargement de la bibliothèque** : sur un gros catalogue, la page Bibliothèque apparaît immédiatement avec un indicateur animé, le nombre d'éléments indexés et un message clair ; elle laisse place à la bibliothèque dès que celle-ci est prête. Sur un petit compte, aucun écran intermédiaire n'est affiché : la page s'ouvre directement.
+- **Préparation en arrière-plan** : le filtrage, le tri et la construction des listes ne s'exécutent plus sur le fil d'interface. Sur le compte de 239 662 éléments, la préparation prend **197 ms hors interface** et le rendu **232 ms**, soit **429 ms au total** contre 1 085 ms auparavant, sans gel de la fenêtre.
+- **Barre d'état restaurée** après l'ouverture : elle ne reste plus bloquée sur « Chargement de la bibliothèque… ».
+
+---
+
+# LyaranTV 1.3.1
+
+Correctif des gels perçus au lancement d'un film ou d'une série.
+
+## Corrections
+
+- **Gel au lancement d'une lecture** : le programme relisait et réécrivait le fichier `history-sources.json` (9,7 Mo, 239 671 entrées) à chaque ouverture de lecteur, sur le fil d'interface. Le fichier est maintenant chargé une fois en mémoire et enregistré en arrière-plan, 1,5 s après la dernière modification. Mesure sur le compte de 239 662 éléments : ouverture du lecteur en **371 ms** au lieu de plusieurs secondes.
+- **File de lecture** : elle ne recopie plus tout le catalogue (jusqu'à 240 000 éléments) à chaque lecture ; seule une fenêtre autour du contenu lancé est conservée.
+- **Recherche des contenus** : `FindChannel` et `SeriesForEpisode` parcouraient linéairement les 240 000 entrées, à chaque carte de l'accueil. Un index est construit une fois par chargement de bibliothèque. L'accueil passe de **2 227 ms à 928 ms**.
+- **Moteur libVLC** : une seule instance est partagée par toute l'application (au lieu d'être recréée à chaque lecture), et elle est préchauffée en arrière-plan pendant l'affichage de l'accueil. L'inventaire des sorties audio, qui pouvait attendre l'initialisation du périphérique, est demandé hors du fil d'interface.
+- **Pistes audio et sous-titres** : l'analyse des pistes au démarrage de la lecture ne bloque plus la fenêtre.
+- **Reprendre la lecture** : les cartes de séries affichent maintenant la saison et l'épisode en clair (`S2 · E5` sur l'affiche, puis « Saison 2 · Épisode 5 » sous le titre), même quand le cache d'épisodes n'est pas encore chargé : la dernière trace de l'historique local est utilisée.
+- L'option `--play <identifiant>` attend désormais la fin de la restauration de la bibliothèque au lieu de prendre l'identifiant pour un fichier externe.
+
+## Diagnostic
+
+- Les journaux `Perf lecture` (file, page, affichage, repos) et `UI gel` (avec `LYARANTV_UIPROBE=1`) permettent de mesurer un futur ralentissement sans outil externe.
+
+---
+
 # LyaranTV 1.3.0
 
 Version de consolidation : démarrage beaucoup plus rapide, chargements visibles, mode langue et nettoyage de l'interface.

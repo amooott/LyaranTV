@@ -51,13 +51,48 @@ namespace LyaranTV
         {
             if (episode == null) return null;
             if (String.IsNullOrWhiteSpace(episode.SeriesId) && !String.Equals(episode.Kind, "Épisodes", StringComparison.OrdinalIgnoreCase)) return null;
-            foreach (Channel candidate in channels)
+            if (String.IsNullOrWhiteSpace(episode.SeriesId)) return null;
+            // Index par identifiant de série : l'ancien parcours complet du
+            // catalogue était répété pour chaque carte de « Reprendre ».
+            EnsureChannelIndex();
+            Channel found;
+            if (seriesLookup != null && seriesLookup.TryGetValue(episode.SeriesId, out found)) return found;
+            return null;
+        }
+
+        /// <summary>
+        /// Dernier épisode connu d'une série d'après l'historique local. Sert
+        /// quand le cache d'épisodes n'est pas encore chargé : la carte de
+        /// « Reprendre la lecture » peut quand même afficher la saison et
+        /// l'épisode en cours.
+        /// </summary>
+        EpisodeRecord LastEpisodeTrace(Channel series)
+        {
+            if (series == null) return null;
+            string streamId = series.StreamId;
+            string seriesId = series.SeriesId;
+            foreach (EpisodeRecord record in episodeHistory)
             {
-                if (candidate == null) continue;
-                if (!String.IsNullOrWhiteSpace(episode.SeriesId)
-                    && String.Equals(candidate.StreamId, episode.SeriesId, StringComparison.OrdinalIgnoreCase)) return candidate;
+                if (record == null || String.IsNullOrWhiteSpace(record.Id)) continue;
+                if (String.IsNullOrWhiteSpace(record.Url)) continue;
+                if (String.IsNullOrWhiteSpace(record.Season) && String.IsNullOrWhiteSpace(record.Episode)) continue;
+                if (!String.IsNullOrWhiteSpace(streamId)
+                    && String.Equals(record.SeriesId, streamId, StringComparison.OrdinalIgnoreCase)) return record;
+                if (!String.IsNullOrWhiteSpace(seriesId)
+                    && String.Equals(record.SeriesId, seriesId, StringComparison.OrdinalIgnoreCase)) return record;
             }
             return null;
+        }
+
+        /// <summary>« S2 · E5 » pour signaler la saison et l'épisode sur une carte.</summary>
+        static string EpisodeTag(Channel channel)
+        {
+            if (channel == null) return "";
+            bool hasSeason = !String.IsNullOrWhiteSpace(channel.Season);
+            bool hasEpisode = !String.IsNullOrWhiteSpace(channel.Episode);
+            if (!hasSeason && !hasEpisode) return "";
+            if (hasSeason && hasEpisode) return "S" + channel.Season + " · E" + channel.Episode;
+            return hasSeason ? "SAISON " + channel.Season : "ÉPISODE " + channel.Episode;
         }
 
         /// <summary>Un épisode est présenté avec le nom et l'affiche de sa série, comme sur Netflix.</summary>
@@ -65,6 +100,22 @@ namespace LyaranTV
         {
             if (content == null) return null;
             Channel series = SeriesForEpisode(content);
+            // La série peut arriver sans épisode (cache d'épisodes vide) : on
+            // complète avec la dernière trace connue pour afficher S… · E…
+            string season = content.Season;
+            string episode = content.Episode;
+            bool serial = series != null || content.IsSeries
+                || String.Equals(content.Kind, "Séries", StringComparison.OrdinalIgnoreCase)
+                || !String.IsNullOrWhiteSpace(content.SeriesId);
+            if (serial && String.IsNullOrWhiteSpace(season) && String.IsNullOrWhiteSpace(episode))
+            {
+                EpisodeRecord latest = LastEpisodeTrace(series ?? content);
+                if (latest != null)
+                {
+                    season = latest.Season;
+                    episode = latest.Episode;
+                }
+            }
             if (series == null)
             {
                 EpisodeRecord trace = episodeHistory.FirstOrDefault(r => r != null && String.Equals(r.Id, content.Id, StringComparison.OrdinalIgnoreCase));
@@ -72,7 +123,7 @@ namespace LyaranTV
                 var traceClone = new Channel
                 {
                     Id = content.Id, Name = trace.SeriesName, Url = content.Url, Group = content.Group,
-                    Kind = content.Kind, Season = content.Season, Episode = content.Episode,
+                    Kind = content.Kind, Season = season, Episode = episode,
                     SeriesId = content.SeriesId, StreamId = content.SeriesId,
                     PosterUrl = String.IsNullOrWhiteSpace(content.PosterUrl) ? trace.PosterUrl : content.PosterUrl,
                     Logo = content.Logo, Description = content.Description, Order = content.Order,
@@ -88,7 +139,7 @@ namespace LyaranTV
                 Id = content.Id, TvgId = content.TvgId, Kind = content.Kind, StreamId = content.StreamId,
                 Number = content.Number, Description = !String.IsNullOrWhiteSpace(series.Description) ? series.Description : content.Description,
                 Rating = series.Rating, Year = series.Year, SeriesId = content.SeriesId,
-                Season = content.Season, Episode = content.Episode,
+                Season = season, Episode = episode,
                 TmdbId = series.TmdbId,
                 PosterUrl = !String.IsNullOrWhiteSpace(series.PosterUrl) ? series.PosterUrl : content.PosterUrl,
                 BackdropUrl = !String.IsNullOrWhiteSpace(series.BackdropUrl) ? series.BackdropUrl : content.BackdropUrl,
@@ -144,6 +195,13 @@ namespace LyaranTV
                 if (series == null || !(series.IsSeries || String.Equals(series.Kind, "Séries", StringComparison.OrdinalIgnoreCase))) continue;
                 if (seen.Contains(series.Id)) continue;
                 Channel next = NextEpisodeFor(series);
+                if (next == null)
+                {
+                    // Cache d'épisodes pas encore chargé : on reprend le dernier
+                    // épisode vu, avec sa saison et son numéro.
+                    EpisodeRecord trace = LastEpisodeTrace(series);
+                    if (trace != null) next = ResolveContent(trace.Id);
+                }
                 if (next != null) add(next);
                 else add(series);
             }
@@ -229,6 +287,17 @@ namespace LyaranTV
             badge.VerticalAlignment = VerticalAlignment.Top;
             badge.Margin = new Thickness(8, 8, 0, 0);
             art.Children.Add(badge);
+
+            // Saison et épisode en clair sur l'affiche, pour une série en cours.
+            string episodeTag = EpisodeTag(item);
+            if (episodeTag.Length > 0)
+            {
+                var episodeBadge = Badge(episodeTag, Brush(Color.FromArgb(200, 8, 8, 16)), Brushes.White);
+                episodeBadge.HorizontalAlignment = HorizontalAlignment.Right;
+                episodeBadge.VerticalAlignment = VerticalAlignment.Top;
+                episodeBadge.Margin = new Thickness(0, 8, 8, 0);
+                art.Children.Add(episodeBadge);
+            }
 
             var play = new Border
             {

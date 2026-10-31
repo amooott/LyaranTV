@@ -396,6 +396,13 @@ namespace LyaranTV
         IntPtr media;
         bool disposed;
 
+        // Une seule instance libVLC pour toute l'application. La créér à chaque
+        // lancement rechargeait tous les plug-ins (plusieurs secondes sur une
+        // machine froide) pendant que la fenêtre attendait, ce qui donnait
+        // l'impression que le programme se figeait à l'ouverture d'un film.
+        static IntPtr sharedInstance;
+        static readonly object sharedGate = new object();
+
         readonly object audioGate = new object();
         // Modules de sortie essayés quand le périphérique refuse le format du
         // flux (TrueHD 7.1 sur une sortie stéréo, carte occupée en exclusif…).
@@ -424,30 +431,50 @@ namespace LyaranTV
         readonly Native.VideoFormatCb formatCallback;
         readonly Native.VideoCleanupCb cleanupCallback;
 
+        /// <summary>
+        /// Prépare libVLC hors du fil d'interface : au premier lancement, le
+        /// chargement des greffons peut prendre plusieurs secondes. L'appeler
+        /// pendant l'affichage de l'accueil évite ce délai au premier film.
+        /// </summary>
+        internal static void WarmUp()
+        {
+            try { SharedInstance(); } catch { }
+        }
+
+        static IntPtr SharedInstance()
+        {
+            if (!VlcRuntime.Available) throw new InvalidOperationException("libVLC indisponible : " + VlcRuntime.Failure);
+            lock (sharedGate)
+            {
+                if (sharedInstance != IntPtr.Zero) return sharedInstance;
+                string[] arguments = new[]
+                {
+                    "--no-osd", "--no-video-title-show", "--quiet", "--no-snapshot-preview",
+                    "--no-sub-autodetect-file", "--no-stats", "--network-caching=1200",
+                    // Aucun flux audio n'est envoyé tel quel à un décodeur externe :
+                    // VLC décode toujours la piste (AC-3, E-AC-3, DTS, TrueHD, MLP,
+                    // AAC, Opus, FLAC, PCM…), puis la convertit pour le périphérique.
+                    "--no-spdif",
+                    // Le rendu passe par des rappels mémoire : le décodage matériel
+                    // écrirait dans des surfaces Direct3D incompatibles avec ce tampon.
+                    "--avcodec-hw=none"
+                };
+                IntPtr created = Native.libvlc_new(arguments.Length, arguments);
+                if (created == IntPtr.Zero) throw new InvalidOperationException("VLC n'a pas pu démarrer son moteur.");
+                sharedInstance = created;
+                return sharedInstance;
+            }
+        }
+
         public VlcPlayback()
         {
-            string error;
-            if (!VlcRuntime.Available) throw new InvalidOperationException("libVLC indisponible : " + (error = VlcRuntime.Failure));
             lockCallback = OnLock;
             unlockCallback = OnUnlock;
             displayCallback = OnDisplay;
             formatCallback = OnFormat;
             cleanupCallback = OnCleanup;
 
-            string[] arguments = new[]
-            {
-                "--no-osd", "--no-video-title-show", "--quiet", "--no-snapshot-preview",
-                "--no-sub-autodetect-file", "--no-stats", "--network-caching=1200",
-                // Aucun flux audio n'est envoyé tel quel à un décodeur externe :
-                // VLC décode toujours la piste (AC-3, E-AC-3, DTS, TrueHD, MLP,
-                // AAC, Opus, FLAC, PCM…), puis la convertit pour le périphérique.
-                "--no-spdif",
-                // Le rendu passe par des rappels mémoire : le décodage matériel
-                // écrirait dans des surfaces Direct3D incompatibles avec ce tampon.
-                "--avcodec-hw=none"
-            };
-            instance = Native.libvlc_new(arguments.Length, arguments);
-            if (instance == IntPtr.Zero) throw new InvalidOperationException("VLC n'a pas pu démarrer son moteur.");
+            instance = SharedInstance();
             mediaPlayer = Native.libvlc_media_player_new(instance);
             if (mediaPlayer == IntPtr.Zero) throw new InvalidOperationException("VLC n'a pas pu créer de lecteur.");
             // Sortie audio imposée par les réglages, si elle existe sur cette machine.
@@ -1150,7 +1177,9 @@ namespace LyaranTV
             ReleaseMedia();
             try { if (mediaPlayer != IntPtr.Zero) Native.libvlc_media_player_release(mediaPlayer); } catch { }
             mediaPlayer = IntPtr.Zero;
-            try { if (instance != IntPtr.Zero) Native.libvlc_release(instance); } catch { }
+            // L'instance partagée reste vivante : seul le lecteur média est
+            // libéré. La détruire obligerait à recharger les greffons au film
+            // suivant.
             instance = IntPtr.Zero;
             lock (frameGate)
             {
