@@ -1,3 +1,13 @@
+# LyaranTV 1.1.6
+
+## Validation du vérificateur de mises à jour
+
+- Version publiée pour vérifier la détection de la Release, le téléchargement de l’installateur et le contrôle SHA-256 depuis la version 1.1.5.
+- Le correctif de lecture des assets GitHub de la 1.1.5 est inclus.
+- Installateur `setup-LyaranTV-1.1.6.exe` et empreintes SHA-256 joints à la Release.
+
+---
+
 # LyaranTV 1.1.5
 
 ## Correctif des mises à jour
