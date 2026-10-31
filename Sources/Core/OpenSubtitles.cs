@@ -274,62 +274,42 @@ namespace LyaranTV
 
         static string Request(string url, string key, string method, string body)
         {
-            var request = (HttpWebRequest)WebRequest.Create(url);
-            request.Method = method;
-            request.UserAgent = Agent;
-            request.Headers["Api-Key"] = key;
-            request.Accept = "application/json";
-            request.Timeout = 25000;
-            request.ReadWriteTimeout = 25000;
-            request.AllowAutoRedirect = true;
-            request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
-            if (body != null)
+            // Toutes les requêtes passent par HttpUtil (IPv4 d'abord) : sur un
+            // réseau dont l'IPv6 annoncée est injoignable, l'ancien moteur
+            // attendait 25 s avant d'échouer, d'où la recherche « dans le vide ».
+            var headers = new Dictionary<string, string>
             {
-                byte[] payload = Encoding.UTF8.GetBytes(body);
-                request.ContentType = "application/json";
-                request.ContentLength = payload.Length;
-                using (var stream = request.GetRequestStream()) stream.Write(payload, 0, payload.Length);
-            }
+                { "Api-Key", key },
+                { "Accept", "application/json" }
+            };
             try
             {
-                using (var response = (HttpWebResponse)request.GetResponse())
-                using (var stream = response.GetResponseStream())
-                using (var memory = new MemoryStream())
-                {
-                    byte[] buffer = new byte[81920];
-                    int read;
-                    while ((read = stream.Read(buffer, 0, buffer.Length)) > 0) memory.Write(buffer, 0, read);
-                    return HttpUtil.DecodeText(memory.ToArray());
-                }
+                return HttpUtil.ApiRequest(url, method, body, 12000, Agent, headers);
             }
-            catch (WebException ex)
+            catch (Exception ex)
             {
-                string detail = "";
-                try
-                {
-                    if (ex.Response != null)
-                    {
-                        using (var stream = ex.Response.GetResponseStream())
-                        using (var reader = new StreamReader(stream)) detail = reader.ReadToEnd();
-                    }
-                }
-                catch { }
-                throw new InvalidDataException(Describe(ex, detail), ex);
+                throw new InvalidDataException(Describe(ex), ex);
             }
         }
 
-        static string Describe(WebException ex, string detail)
+        static string Describe(Exception ex)
         {
-            string message = Val(Json(detail), "message");
-            var response = ex.Response as HttpWebResponse;
-            int code = response == null ? 0 : (int)response.StatusCode;
-            if (code == 401 || code == 403) return "Clé API OpenSubtitles refusée ou non autorisée pour ce fichier. Vérifiez votre clé dans les paramètres.";
-            if (code == 406) return "Ce fichier n'est pas téléchargeable avec votre compte OpenSubtitles (quota ou droits insuffisants).";
-            if (code == 429) return "Trop de demandes à OpenSubtitles. Patientez une minute puis réessayez.";
-            if (code == 503) return "OpenSubtitles est momentanément indisponible. Réessayez plus tard.";
-            if (code == 404) return "Aucun fichier correspondant chez OpenSubtitles.";
-            if (!String.IsNullOrWhiteSpace(message)) return message;
-            return HttpUtil.DescribeException(ex, "https://api.opensubtitles.com/");
+            string message = (ex == null ? "" : ex.GetBaseException().Message) ?? "";
+            if (message.IndexOf("HTTP 401", StringComparison.OrdinalIgnoreCase) >= 0
+                || message.IndexOf("HTTP 403", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Clé API OpenSubtitles refusée ou non autorisée pour ce fichier. Vérifiez votre clé dans les paramètres.";
+            if (message.IndexOf("HTTP 406", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Ce fichier n'est pas téléchargeable avec votre compte OpenSubtitles (quota ou droits insuffisants).";
+            if (message.IndexOf("HTTP 429", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Trop de demandes à OpenSubtitles. Patientez une minute puis réessayez.";
+            if (message.IndexOf("HTTP 503", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "OpenSubtitles est momentanément indisponible. Réessayez plus tard.";
+            if (message.IndexOf("HTTP 404", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Aucun fichier correspondant chez OpenSubtitles.";
+            if (message.IndexOf("Délai", StringComparison.OrdinalIgnoreCase) >= 0
+                || message.IndexOf("Connexion impossible", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "OpenSubtitles ne répond pas pour le moment. Vérifiez votre connexion, puis réessayez.";
+            return message;
         }
 
         static Dictionary<string, object> Json(string text)

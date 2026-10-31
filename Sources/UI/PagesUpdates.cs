@@ -41,14 +41,14 @@ namespace LyaranTV
 
                 if (info == null || !info.Ok)
                 {
-                    SetStatus(I18n.T("Impossible de vérifier les mises à jour."));
+                    if (!silent) SetStatus(I18n.T("Impossible de vérifier les mises à jour."));
                     if (!silent) ShowError(info == null ? I18n.T("Une erreur est survenue.") : I18n.T(info.Error));
                     return;
                 }
 
                 if (!info.HasUpdate)
                 {
-                    SetStatus(I18n.T("Vous utilisez la dernière version."));
+                    if (!silent) SetStatus(I18n.T("Vous utilisez la dernière version."));
                     if (!silent) ShowToast(I18n.T("Vous utilisez la dernière version.") + " · " + AppInfo.Version, false, true);
                     return;
                 }

@@ -253,7 +253,7 @@ namespace LyaranTV
                 {
                     try
                     {
-                        bytes = HttpUtil.GetBytes(url, 8000, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) LyaranTV/3.0");
+                        bytes = HttpUtil.GetBytesStandardFirst(url, 8000, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) LyaranTV/3.0");
                     }
                     catch (Exception imageError)
                     {

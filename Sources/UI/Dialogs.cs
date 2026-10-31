@@ -678,7 +678,7 @@ namespace LyaranTV
             };
             Grid.SetColumn(poster, 0); heroContent.Children.Add(poster);
             var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(16, 0, 0, 2) };
-            var title = Text(channel.Name, 22, Brushes.White, true);
+            var title = Text(TextUtil.DisplayTitle(channel.Name), 22, Brushes.White, true);
             title.TextWrapping = TextWrapping.Wrap; title.MaxHeight = 64; title.TextTrimming = TextTrimming.CharacterEllipsis;
             labels.Children.Add(title);
             var metaParts = new List<string>();
@@ -943,29 +943,56 @@ namespace LyaranTV
             runSearch = delegate
             {
                 string query = searchBox.Text.Trim();
-                if (query.Length == 0) { ShowError("Saisissez un titre à rechercher."); return; }
+                if (query.Length == 0)
+                {
+                    status.Foreground = Brush(Danger);
+                    status.Text = "Saisissez un titre à rechercher.";
+                    return;
+                }
                 bool series = String.Equals(Convert.ToString(typeBox.SelectedItem), "Série", StringComparison.Ordinal);
                 int searchYear = TmdbTitleCleaner.ExtractYear(channel.Name);
                 if (searchYear == 0) Int32.TryParse(channel.Year, out searchYear);
                 results.Children.Clear();
+                status.Foreground = Brush(Accent);
                 status.Text = "Recherche sur TMDb…";
+                search.IsEnabled = false;
                 var worker = new BackgroundWorker();
-                worker.DoWork += delegate(object sender, DoWorkEventArgs e) { e.Result = TmdbClient.Search(settings, query, searchYear, series, 12); };
+                worker.DoWork += delegate(object sender, DoWorkEventArgs e)
+                {
+                    // Une année erronée dans la playlist ne doit pas vider la
+                    // liste : on élargit la recherche si la première passe ne
+                    // renvoie rien.
+                    var found = TmdbClient.Search(settings, query, searchYear, series, 12);
+                    bool widened = false;
+                    if (found.Count == 0 && searchYear > 0)
+                    {
+                        found = TmdbClient.Search(settings, query, 0, series, 12);
+                        widened = true;
+                    }
+                    e.Result = new object[] { found, widened };
+                };
                 worker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs e)
                 {
+                    search.IsEnabled = true;
                     if (e.Error != null)
                     {
+                        status.Foreground = Brush(Danger);
                         status.Text = "Recherche impossible.";
-                        results.Children.Add(Card(Text("TMDb ne répond pas : " + e.Error.GetBaseException().Message, 11, Brush(Danger), false), 14));
+                        results.Children.Add(Card(Text("TMDb ne répond pas : " + e.Error.GetBaseException().Message, 11.5, Brush(Danger), false), 14));
                         return;
                     }
-                    var found = e.Result as List<TmdbResult>;
+                    var payload = e.Result as object[];
+                    var found = payload == null ? null : payload[0] as List<TmdbResult>;
+                    bool widened = payload != null && payload.Length > 1 && payload[1] is bool && (bool)payload[1];
                     if (found == null || found.Count == 0)
                     {
-                        status.Text = "Aucun résultat. Essayez un titre plus court ou l’autre type de contenu.";
+                        status.Foreground = Brush(Muted);
+                        status.Text = "Aucun résultat. Essayez un titre plus court, sans l’année, ou l’autre type de contenu.";
                         return;
                     }
-                    status.Text = found.Count + " résultat(s). Choisissez la fiche qui correspond.";
+                    status.Foreground = Brush(Success);
+                    status.Text = found.Count + " résultat(s). Choisissez la fiche qui correspond."
+                        + (widened ? " Recherche élargie : aucune fiche pour l’année indiquée." : "");
                     foreach (var result in found)
                     {
                         var captured = result;
@@ -1014,7 +1041,9 @@ namespace LyaranTV
             };
             search.Click += delegate { runSearch(); };
             searchBox.KeyDown += delegate(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) { runSearch(); e.Handled = true; } };
-            dialog.Loaded += delegate { searchBox.Focus(); searchBox.SelectAll(); };
+            // La recherche démarre seule : le titre est déjà rempli, l'utilisateur
+            // n'a qu'à choisir la bonne fiche au lieu de deviner le bouton.
+            dialog.Loaded += delegate { searchBox.Focus(); searchBox.SelectAll(); runSearch(); };
             bool? answer = dialog.ShowDialog();
             if (answer == true)
             {

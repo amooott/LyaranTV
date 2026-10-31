@@ -226,18 +226,40 @@ namespace LyaranTV
             string episodeNumber = currentPlaying == null ? "" : currentPlaying.Episode;
 
             var worker = new BackgroundWorker();
+            bool finished = false;
+            // Garde-fou : si l'API ne répond pas, l'écran ne reste pas bloqué
+            // sur « Recherche… » indéfiniment. Le bouton redevient actif et un
+            // message invite à réessayer.
+            var watchdog = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(20) };
+            watchdog.Tick += delegate
+            {
+                if (finished) { watchdog.Stop(); return; }
+                watchdog.Stop();
+                if (trigger != null) trigger.IsEnabled = true;
+                if (!dialog.IsVisible) return;
+                status.Foreground = Brush(Warning);
+                status.Text = "OpenSubtitles met trop de temps à répondre. Vérifiez la connexion puis relancez la recherche.";
+            };
+            watchdog.Start();
             worker.DoWork += delegate(object sender, DoWorkEventArgs e)
             {
                 e.Result = OpenSubtitlesClient.Search(settings, title, code, episode, season, episodeNumber);
             };
             worker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs e)
             {
+                finished = true;
+                watchdog.Stop();
                 if (trigger != null) trigger.IsEnabled = true;
                 if (appClosing) return;
                 if (e.Error != null)
                 {
                     status.Foreground = Brush(Danger);
-                    status.Text = e.Error.GetBaseException().Message;
+                    string reason = e.Error.GetBaseException().Message;
+                    if (reason.IndexOf("expir", StringComparison.OrdinalIgnoreCase) >= 0
+                        || reason.IndexOf("timeout", StringComparison.OrdinalIgnoreCase) >= 0
+                        || reason.IndexOf("connexion", StringComparison.OrdinalIgnoreCase) >= 0)
+                        reason = "Connexion à OpenSubtitles impossible. Vérifiez votre réseau puis réessayez.";
+                    status.Text = reason;
                     return;
                 }
                 var list = e.Result as List<OnlineSubtitle>;

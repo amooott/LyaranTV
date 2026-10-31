@@ -26,6 +26,153 @@ namespace LyaranTV
 
         public static string GetString(string url) { return GetString(url, 20000, "LyaranTV/2.0"); }
 
+        /// <summary>
+        /// Requête d'API JSON : le moteur standard est essayé en premier, avec
+        /// un délai court et sans keep-alive, puis le client IPv4 en repli.
+        /// L'ordre inverse (IPv4 d'abord) faisait attendre chaque adresse
+        /// injoignable du CDN, d'où des recherches qui semblaient ne jamais
+        /// aboutir. Le délai total reste borné dans tous les cas.
+        /// </summary>
+        public static string ApiGet(string url, int timeoutMs)
+        {
+            return ApiRequest(url, "GET", null, timeoutMs, "LyaranTV/2.0", null);
+        }
+
+        public static string ApiRequest(string url, string method, string body, int timeoutMs, string userAgent,
+            IDictionary<string, string> headers)
+        {
+            if (!TextUtil.IsHttp(url)) throw new InvalidDataException("Adresse HTTP/HTTPS invalide : " + (url ?? ""));
+            int budget = Math.Max(3000, Math.Min(timeoutMs, 15000));
+            Uri uri = null;
+            bool https = Uri.TryCreate(url, UriKind.Absolute, out uri)
+                && String.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+            Exception failure = null;
+            try
+            {
+                return ApiStandard(url, method, body, budget, userAgent, headers);
+            }
+            catch (Exception ex)
+            {
+                var web = ex as WebException;
+                // Une réponse HTTP réelle (401, 404, 429…) ne doit pas déclencher
+                // une seconde requête : elle est traduite telle quelle.
+                if (web != null && web.Response != null) throw new InvalidDataException(DescribeException(web, url), web);
+                failure = ex;
+                try { AppendLog("API standard · " + uri.Host + " · " + ex.GetBaseException().Message + " (repli IPv4)"); } catch { }
+            }
+            if (https && !HasProxy(uri))
+            {
+                try
+                {
+                    byte[] payload = body == null ? null : Encoding.UTF8.GetBytes(body);
+                    return DecodeText(DownloadHttpsIpv4(uri, Math.Min(budget, 7000), userAgent, method, payload, headers));
+                }
+                catch (Exception ex) { failure = ex; }
+            }
+            throw new InvalidDataException(DescribeException(failure, url), failure);
+        }
+
+        static string ApiStandard(string url, string method, string body, int timeoutMs, string userAgent,
+            IDictionary<string, string> headers)
+        {
+            var request = (HttpWebRequest)WebRequest.Create(url);
+            request.Method = String.IsNullOrWhiteSpace(method) ? "GET" : method;
+            request.UserAgent = String.IsNullOrWhiteSpace(userAgent) ? "LyaranTV/2.0" : userAgent;
+            request.Timeout = timeoutMs;
+            request.ReadWriteTimeout = timeoutMs;
+            request.AllowAutoRedirect = true;
+            request.KeepAlive = false;
+            request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+            request.Accept = "application/json";
+            if (headers != null)
+                foreach (var header in headers)
+                    if (!String.IsNullOrWhiteSpace(header.Key)) request.Headers[header.Key] = header.Value ?? "";
+            if (body != null)
+            {
+                byte[] payload = Encoding.UTF8.GetBytes(body);
+                request.ContentType = "application/json";
+                request.ContentLength = payload.Length;
+                using (var stream = request.GetRequestStream()) stream.Write(payload, 0, payload.Length);
+            }
+            using (var response = (HttpWebResponse)request.GetResponse())
+            using (var stream = response.GetResponseStream())
+            using (var memory = new MemoryStream())
+            {
+                byte[] buffer = new byte[81920];
+                int read;
+                while ((read = stream.Read(buffer, 0, buffer.Length)) > 0) memory.Write(buffer, 0, read);
+                return DecodeText(memory.ToArray());
+            }
+        }
+
+        /// <summary>
+        /// Requête HTTPS avec méthode, corps et en-têtes (API JSON), en IPv4
+        /// d'abord. Utilisée par OpenSubtitles : le moteur standard attendait
+        /// ~25 s sur l'IPv6 injoignable de certains réseaux avant d'échouer.
+        /// Conservée pour les appels qui ont besoin du client IPv4 direct.
+        /// </summary>
+        public static string Request(string url, string method, string body, int timeoutMs, string userAgent,
+            IDictionary<string, string> headers)
+        {
+            if (!TextUtil.IsHttp(url)) throw new InvalidDataException("Adresse HTTP/HTTPS invalide : " + (url ?? ""));
+            Uri uri;
+            if (Uri.TryCreate(url, UriKind.Absolute, out uri)
+                && String.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+                && !HasProxy(uri))
+            {
+                try
+                {
+                    byte[] payload = body == null ? null : Encoding.UTF8.GetBytes(body);
+                    return DecodeText(DownloadHttpsIpv4(uri, Math.Max(2000, timeoutMs), userAgent, method, payload, headers));
+                }
+                catch (InvalidDataException) { throw; }
+                catch (Exception ipv4Error)
+                {
+                    try { AppendLog("HTTPS IPv4 · " + uri.Host + " · " + ipv4Error.GetBaseException().Message + " (repli)"); } catch { }
+                }
+            }
+            return RequestStandard(url, method, body, timeoutMs, userAgent, headers);
+        }
+
+        static string RequestStandard(string url, string method, string body, int timeoutMs, string userAgent,
+            IDictionary<string, string> headers)
+        {
+            var request = (HttpWebRequest)WebRequest.Create(url);
+            request.Method = String.IsNullOrWhiteSpace(method) ? "GET" : method;
+            request.UserAgent = String.IsNullOrWhiteSpace(userAgent) ? "LyaranTV/2.0" : userAgent;
+            request.Timeout = timeoutMs;
+            request.ReadWriteTimeout = timeoutMs;
+            request.AllowAutoRedirect = true;
+            request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+            request.Accept = "application/json";
+            if (headers != null)
+                foreach (var header in headers)
+                    if (!String.IsNullOrWhiteSpace(header.Key)) request.Headers[header.Key] = header.Value ?? "";
+            try
+            {
+                if (body != null)
+                {
+                    byte[] payload = Encoding.UTF8.GetBytes(body);
+                    request.ContentType = "application/json";
+                    request.ContentLength = payload.Length;
+                    using (var stream = request.GetRequestStream()) stream.Write(payload, 0, payload.Length);
+                }
+                using (var response = (HttpWebResponse)request.GetResponse())
+                using (var stream = response.GetResponseStream())
+                using (var memory = new MemoryStream())
+                {
+                    byte[] buffer = new byte[81920];
+                    int read;
+                    while ((read = stream.Read(buffer, 0, buffer.Length)) > 0) memory.Write(buffer, 0, read);
+                    return DecodeText(memory.ToArray());
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidDataException(DescribeException(ex, url), ex);
+            }
+        }
+
         public static byte[] GetBytes(string url, int timeoutMs, string userAgent)
         {
             if (!TextUtil.IsHttp(url)) throw new InvalidDataException("Adresse HTTP/HTTPS invalide : " + (url ?? ""));
@@ -39,7 +186,7 @@ namespace LyaranTV
                 // au-delà des délais des cartes. On télécharge donc directement
                 // en IPv4, puis on retombe sur le moteur standard en cas d'échec
                 // (proxy, certificat, serveur particulier).
-                try { return DownloadHttpsIpv4(uri, timeoutMs, userAgent); }
+                try { return DownloadHttpsIpv4(uri, timeoutMs, userAgent, "GET", null, null); }
                 catch (InvalidDataException) { throw; }
                 catch (Exception ipv4Error)
                 {
@@ -51,6 +198,15 @@ namespace LyaranTV
 
         static byte[] GetBytesStandard(string url, int timeoutMs, string userAgent)
         {
+            try { return GetBytesStandardRaw(url, timeoutMs, userAgent); }
+            catch (Exception ex)
+            {
+                throw new InvalidDataException(DescribeException(ex, url), ex);
+            }
+        }
+
+        static byte[] GetBytesStandardRaw(string url, int timeoutMs, string userAgent)
+        {
             var request = (HttpWebRequest)WebRequest.Create(url);
             request.Method = "GET";
             request.UserAgent = String.IsNullOrWhiteSpace(userAgent) ? "LyaranTV/2.0" : userAgent;
@@ -59,25 +215,46 @@ namespace LyaranTV
             request.AllowAutoRedirect = true;
             request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
             request.Accept = "*/*";
-            try
+            using (var response = (HttpWebResponse)request.GetResponse())
+            using (var stream = response.GetResponseStream())
+            using (var memory = new MemoryStream())
             {
-                using (var response = (HttpWebResponse)request.GetResponse())
-                using (var stream = response.GetResponseStream())
-                using (var memory = new MemoryStream())
-                {
-                    byte[] buffer = new byte[81920];
-                    int read;
-                    while ((read = stream.Read(buffer, 0, buffer.Length)) > 0) memory.Write(buffer, 0, read);
-                    return memory.ToArray();
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidDataException(DescribeException(ex, url), ex);
+                byte[] buffer = new byte[81920];
+                int read;
+                while ((read = stream.Read(buffer, 0, buffer.Length)) > 0) memory.Write(buffer, 0, read);
+                return memory.ToArray();
             }
         }
 
         public static byte[] GetBytes(string url) { return GetBytes(url, 20000, "LyaranTV/2.0"); }
+
+        /// <summary>
+        /// Téléchargement d'image : le moteur standard passe en premier (délai
+        /// court), le client IPv4 ne sert qu'en repli. Une affiche ne doit
+        /// jamais immobiliser la file d'images derrière une adresse CDN morte.
+        /// </summary>
+        public static byte[] GetBytesStandardFirst(string url, int timeoutMs, string userAgent)
+        {
+            if (!TextUtil.IsHttp(url)) throw new InvalidDataException("Adresse HTTP/HTTPS invalide : " + (url ?? ""));
+            int budget = Math.Max(2000, timeoutMs);
+            Exception failure = null;
+            try { return GetBytesStandardRaw(url, budget, userAgent); }
+            catch (Exception ex)
+            {
+                var web = ex as WebException;
+                if (web != null && web.Response != null) throw new InvalidDataException(DescribeException(web, url), web);
+                failure = ex;
+            }
+            Uri uri;
+            if (Uri.TryCreate(url, UriKind.Absolute, out uri)
+                && String.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+                && !HasProxy(uri))
+            {
+                try { return DownloadHttpsIpv4(uri, Math.Min(budget, 5000), userAgent, "GET", null, null); }
+                catch (Exception ex) { failure = ex; }
+            }
+            throw new InvalidDataException(DescribeException(failure, url), failure);
+        }
 
         /// <summary>Vrai si une passerelle système relaie cette adresse.</summary>
         static bool HasProxy(Uri uri)
@@ -134,10 +311,16 @@ namespace LyaranTV
         /// </summary>
         static byte[] DownloadHttpsIpv4(Uri uri, int timeoutMs, string userAgent)
         {
+            return DownloadHttpsIpv4(uri, timeoutMs, userAgent, "GET", null, null);
+        }
+
+        static byte[] DownloadHttpsIpv4(Uri uri, int timeoutMs, string userAgent, string method, byte[] body,
+            IDictionary<string, string> headers)
+        {
             int budget = Math.Max(2000, timeoutMs);
             for (int hop = 0; hop < 5; hop++)
             {
-                HttpsResponse response = FetchHttpsIpv4(uri, budget, userAgent);
+                HttpsResponse response = FetchHttpsIpv4(uri, budget, userAgent, method, body, headers);
                 if (response.Status >= 300 && response.Status < 400 && response.Location.Length > 0)
                 {
                     Uri next;
@@ -160,8 +343,10 @@ namespace LyaranTV
             throw new InvalidDataException("Trop de redirections pour " + uri.Host + ".");
         }
 
-        static HttpsResponse FetchHttpsIpv4(Uri uri, int timeoutMs, string userAgent)
+        static HttpsResponse FetchHttpsIpv4(Uri uri, int timeoutMs, string userAgent, string method, byte[] body,
+            IDictionary<string, string> headers)
         {
+            if (String.IsNullOrWhiteSpace(method)) method = "GET";
             var watch = System.Diagnostics.Stopwatch.StartNew();
             var addresses = ResolveIpv4(uri.Host);
             if (addresses.Count == 0) throw new IOException("Aucune adresse IPv4 pour " + uri.Host + ".");
@@ -177,11 +362,29 @@ namespace LyaranTV
                     ssl.AuthenticateAsClient(uri.Host, null, SslProtocols.Tls12, false);
 
                     string path = String.IsNullOrEmpty(uri.PathAndQuery) ? "/" : uri.PathAndQuery;
-                    string query = "GET " + path + " HTTP/1.1\r\nHost: " + uri.Host
-                        + "\r\nUser-Agent: " + (String.IsNullOrWhiteSpace(userAgent) ? "LyaranTV/4.0" : userAgent)
-                        + "\r\nAccept: */*\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n";
-                    byte[] header = Encoding.ASCII.GetBytes(query);
+                    var request = new StringBuilder();
+                    request.Append(method).Append(' ').Append(path).Append(" HTTP/1.1\r\nHost: ").Append(uri.Host)
+                        .Append("\r\nUser-Agent: ").Append(String.IsNullOrWhiteSpace(userAgent) ? "LyaranTV/4.0" : userAgent)
+                        .Append("\r\nAccept: ").Append(headers != null && headers.ContainsKey("Accept") ? headers["Accept"] : "*/*")
+                        .Append("\r\nAccept-Encoding: identity\r\nConnection: close\r\n");
+                    if (headers != null)
+                    {
+                        foreach (var entry in headers)
+                        {
+                            // Le nom et la valeur sont validés : une en-tête
+                            // forgée ne peut pas couper la requête en deux.
+                            string name = (entry.Key ?? "").Trim();
+                            string value = (entry.Value ?? "").Replace("\r", "").Replace("\n", "").Trim();
+                            if (name.Length == 0 || name == "Accept" || name == "Host" || name == "Content-Length" || name == "Connection") continue;
+                            request.Append(name).Append(": ").Append(value).Append("\r\n");
+                        }
+                    }
+                    if (body != null && body.Length > 0)
+                        request.Append("Content-Type: application/json\r\nContent-Length: ").Append(body.Length.ToString(CultureInfo.InvariantCulture)).Append("\r\n");
+                    request.Append("\r\n");
+                    byte[] header = Encoding.ASCII.GetBytes(request.ToString());
                     ssl.Write(header, 0, header.Length);
+                    if (body != null && body.Length > 0) ssl.Write(body, 0, body.Length);
                     ssl.Flush();
 
                     using (var memory = new MemoryStream())
@@ -200,15 +403,20 @@ namespace LyaranTV
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
             Exception last = null;
+            int attempts = 0;
             foreach (IPAddress address in addresses)
             {
+                // Deux adresses suffisent : au-delà, un CDN qui répond mal
+                // immobiliserait la requête. Chaque essai reste court pour que
+                // le repli standard prenne le relais rapidement.
+                if (++attempts > 3) break;
                 int remaining = timeoutMs - (int)watch.ElapsedMilliseconds;
                 if (remaining < 300) break;
                 var client = new TcpClient(AddressFamily.InterNetwork);
                 try
                 {
                     var connect = client.ConnectAsync(address, port);
-                    if (connect.Wait(Math.Min(remaining, 5000))) return client;
+                    if (connect.Wait(Math.Min(remaining, 2500))) return client;
                     last = new TimeoutException("Connexion à " + address + " expirée.");
                 }
                 catch (Exception error) { last = error; }

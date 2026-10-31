@@ -12,6 +12,11 @@ tmp-*/
 build/tmp/
 Installer/build/
 
+# Captures et binaires de test à la racine
+/tmp-*.png
+/LyaranTV.exe
+.cloud-attachments/
+
 # Données locales éventuelles
 *.log
 *.rar

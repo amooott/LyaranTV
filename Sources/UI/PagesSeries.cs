@@ -212,7 +212,7 @@ namespace LyaranTV
             head.Children.Add(posterHost);
 
             var copy = new StackPanel { Margin = new Thickness(22, 4, 0, 0) };
-            var title = Text(series.Name, 25, Brush(TextPrimary), true);
+            var title = Text(TextUtil.DisplayTitle(series.Name), 25, Brush(TextPrimary), true);
             title.TextWrapping = TextWrapping.Wrap;
             copy.Children.Add(title);
             var seasons = episodes.Select(ep => String.IsNullOrWhiteSpace(ep.Season) ? "1" : ep.Season).Distinct().ToList();
@@ -242,6 +242,10 @@ namespace LyaranTV
             }
             actions.Children.Add(Button(Glyphs.Favorite, favorites.Contains(series.Id) ? "Retirer des favoris" : "Ajouter aux favoris",
                 delegate { ToggleFavorite(series); }, false));
+            // La correction TMDb était uniquement accessible depuis la fiche :
+            // elle est désormais directement sur la page des épisodes.
+            if (TmdbClient.IsConfigured(settings))
+                actions.Children.Add(Button(Glyphs.Search, "Corriger TMDb", delegate { ShowTmdbMatchDialog(series); }, false));
             if (!String.IsNullOrWhiteSpace(series.Url)) actions.Children.Add(Button(Glyphs.External, "Lecteur externe", delegate { OpenInExternalPlayer(series.Url); }, false));
             copy.Children.Add(actions);
             Grid.SetColumn(copy, 1);
@@ -250,16 +254,16 @@ namespace LyaranTV
 
             if (seasons.Count > 1)
             {
-                var seasonBar = new WrapPanel { Margin = new Thickness(0, 18, 0, 2) };
+                var seasonBar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 16, 0, 2) };
                 string active = String.IsNullOrWhiteSpace(episodesSeason) || !seasons.Contains(episodesSeason) ? seasons[0] : episodesSeason;
                 foreach (string season in seasons)
                 {
                     string captured = season;
-                    seasonBar.Children.Add(Chip("Saison " + season, String.Equals(season, active), delegate
+                    seasonBar.Children.Add(FilterTab("Saison " + season, String.Equals(season, active), delegate
                     {
                         episodesSeason = captured;
                         ShowSeriesEpisodes(series, episodes);
-                    }));
+                    }, "Afficher les épisodes de la saison " + season));
                 }
                 root.Children.Add(seasonBar);
             }

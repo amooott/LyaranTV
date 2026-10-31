@@ -429,6 +429,26 @@ namespace LyaranTV
             if (String.IsNullOrEmpty(value) || value.Length <= max) return value ?? "";
             return value.Substring(0, Math.Max(0, max - 1)).TrimEnd() + "…";
         }
+
+        /// <summary>
+        /// Titre lisible pour l'affichage : retire le préfixe de langue
+        /// (« FR - »), l'année finale et les séparateurs orphelins. Le nom
+        /// d'origine reste intact pour la recherche et les correspondances.
+        /// </summary>
+        public static string DisplayTitle(string value)
+        {
+            if (String.IsNullOrWhiteSpace(value)) return value ?? "";
+            string title = value.Trim();
+            // Préfixe de langue : « FR - », « EN - », « VF - »…
+            if (title.Length > 5 && title[2] == ' ' && title[3] == '-' && Char.IsLetter(title[0]) && Char.IsLetter(title[1]))
+                title = title.Substring(4).Trim();
+            // Année finale : « - 2026 », « (2026) », « 2026 ».
+            var match = System.Text.RegularExpressions.Regex.Match(title, @"[\s\-–—]*\(?(19|20)\d{2}\)?\s*$");
+            if (match.Success && match.Index > 0) title = title.Substring(0, match.Index).Trim();
+            // Séparateurs laissés en fin de titre.
+            title = title.TrimEnd(' ', '-', '–', '—', ':', '·');
+            return title.Length == 0 ? value.Trim() : title;
+        }
         public static int ParseInt(string value, int fallback)
         {
             int parsed; return Int32.TryParse((value ?? "").Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out parsed) ? parsed : fallback;

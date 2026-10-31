@@ -225,21 +225,22 @@ namespace LyaranTV
         {
             if (channel == null) return "";
             var parts = new List<string>();
-            if (!String.IsNullOrWhiteSpace(channel.Season)) parts.Add("Saison " + channel.Season);
-            if (!String.IsNullOrWhiteSpace(channel.Episode)) parts.Add("Épisode " + channel.Episode);
-            double saved = GetSavedPosition(channel);
-            if (parts.Count == 0 && !String.IsNullOrWhiteSpace(channel.Group)) parts.Add(channel.Group);
-            if (parts.Count == 0) parts.Add(KindLabel(channel.Kind));
+            string tag = EpisodeTag(channel);
+            if (tag.Length > 0) parts.Add(tag);
+            else if (channel.Kind == "Chaînes") parts.Add(String.IsNullOrWhiteSpace(channel.Group) ? "Direct" : channel.Group);
+            else if (!String.IsNullOrWhiteSpace(channel.Year)) parts.Add(channel.Year);
+            else parts.Add(KindLabel(channel.Kind));
             string line = String.Join("  ·  ", parts.ToArray());
+            double saved = GetSavedPosition(channel);
             if (saved <= 0) return line;
             double total;
             if (durations.TryGetValue(channel.Id, out total) && total > saved + 30)
             {
                 int remaining = (int)Math.Round((total - saved) / 60.0);
                 if (remaining < 1) remaining = 1;
-                line += "  ·  " + remaining.ToString() + " min restantes";
+                line += "  ·  " + remaining.ToString() + " min";
             }
-            else line += "  ·  à " + TextUtil.FormatPosition(TimeSpan.FromSeconds(saved));
+            else line += "  ·  " + TextUtil.FormatPosition(TimeSpan.FromSeconds(saved));
             return line;
         }
 
@@ -277,16 +278,6 @@ namespace LyaranTV
                     new GradientStop(Color.FromArgb(150, 0, 0, 0), 1)
                 }, new Point(0.5, 0), new Point(0.5, 1))
             });
-
-            // Un épisode est présenté comme sa série, avec saison et épisode dans la ligne d'état.
-            string kind = item.Kind == "Films" ? "FILM" : item.Kind == "Séries" ? "SÉRIE"
-                : item.Kind == "Épisodes" ? (String.IsNullOrWhiteSpace(item.Season) && String.IsNullOrWhiteSpace(item.SeriesId) ? "ÉPISODE" : "SÉRIE")
-                : item.Kind == "Chaînes" ? "DIRECT" : "MÉDIA";
-            var badge = Badge(kind, Brush(Color.FromArgb(190, 8, 8, 16)), item.Kind == "Chaînes" ? Brush(Danger) : Brushes.White);
-            badge.HorizontalAlignment = HorizontalAlignment.Left;
-            badge.VerticalAlignment = VerticalAlignment.Top;
-            badge.Margin = new Thickness(8, 8, 0, 0);
-            art.Children.Add(badge);
 
             // Saison et épisode en clair sur l'affiche, pour une série en cours.
             string episodeTag = EpisodeTag(item);
@@ -331,7 +322,7 @@ namespace LyaranTV
             }
             stack.Children.Add(art);
 
-            var title = Text(item.Name, 12.5, Brush(TextPrimary), true);
+            var title = Text(TextUtil.DisplayTitle(item.Name), 12.5, Brush(TextPrimary), true);
             title.TextWrapping = TextWrapping.NoWrap;
             title.TextTrimming = TextTrimming.CharacterEllipsis;
             title.Margin = new Thickness(2, 9, 2, 1);
@@ -409,21 +400,11 @@ namespace LyaranTV
             if (items.Count == 0) return null;
             var section = new StackPanel { Margin = new Thickness(0, 0, 0, 14) };
             var header = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 10) };
-            var seeAll = Chip("Tout voir", false, delegate { Nav("Bibliothèque"); });
-            seeAll.Margin = new Thickness(0);
+            var seeAll = TextAction("Tout voir", delegate { Nav("Bibliothèque"); }, "Ouvrir la bibliothèque complète");
             DockPanel.SetDock(seeAll, Dock.Right);
             header.Children.Add(seeAll);
-            var labels = new StackPanel();
-            var kicker = Text("CONTINUER", 9, Brush(Accent), true);
-            kicker.Margin = new Thickness(0, 0, 0, 3);
-            labels.Children.Add(kicker);
-            var titleRow = new StackPanel { Orientation = Orientation.Horizontal };
-            titleRow.Children.Add(Text("Reprendre la lecture", 19, Brush(TextPrimary), true));
-            var count = Badge(TextUtil.HumanCount(items.Count), Brush(WithAlpha(TextPrimary, 10)), Brush(Muted));
-            count.Margin = new Thickness(10, 0, 0, 0);
-            titleRow.Children.Add(count);
-            labels.Children.Add(titleRow);
-            labels.Children.Add(Text("Vos séries, films et épisodes en cours, à reprendre en un clic.", 11, Brush(Muted), false));
+            var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            labels.Children.Add(Text("Reprendre la lecture", 19, Brush(TextPrimary), true));
             header.Children.Add(labels);
             section.Children.Add(header);
 
@@ -449,12 +430,12 @@ namespace LyaranTV
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var logo = BuildLogo(last, 46); Grid.SetColumn(logo, 0); grid.Children.Add(logo);
             var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 10, 0) };
-            labels.Children.Add(Text(last.Name, 15, Brush(TextPrimary), true));
+            labels.Children.Add(Text(TextUtil.DisplayTitle(last.Name), 15, Brush(TextPrimary), true));
             string sub = last.Group + "  ·  " + KindLabel(last.Kind);
             var current = CurrentProgram(last);
             if (current != null) sub = "À l'antenne  ·  " + current.Title;
-            labels.Children.Add(Text(sub, 10.5, Brush(Muted), false));
-            if (saved > 0) labels.Children.Add(Text("Reprendre à " + TextUtil.FormatPosition(TimeSpan.FromSeconds(saved)), 10, Brush(Accent), true));
+            labels.Children.Add(Text(sub, 11.5, Brush(Muted), false));
+            if (saved > 0) labels.Children.Add(Text("Reprendre à " + TextUtil.FormatPosition(TimeSpan.FromSeconds(saved)), 11.5, Brush(Accent), true));
             Grid.SetColumn(labels, 1); grid.Children.Add(labels);
             var play = Button(Glyphs.Play, saved > 0 ? "Reprendre" : "Regarder", delegate { Play(last, null, saved, false); }, true);
             play.Margin = new Thickness(0); Grid.SetColumn(play, 2); grid.Children.Add(play);

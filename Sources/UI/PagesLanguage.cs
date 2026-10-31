@@ -19,7 +19,7 @@ namespace LyaranTV
 
         void AddLanguageSidebarItem(StackPanel host)
         {
-            var button = LanguageRow(I18n.Name(settings.Language), I18n.T("Langue de l'interface"), false, delegate { OpenLanguageDialog(); });
+            var button = LanguageRow(I18n.Name(settings.Language), "", false, delegate { OpenLanguageDialog(); });
             button.Margin = new Thickness(6, 2, 6, 2);
             button.ToolTip = I18n.T("Langue de l'interface") + " · " + I18n.T("Langue");
             host.Children.Add(button);

@@ -118,6 +118,10 @@ namespace LyaranTV
 
         TextBlock Text(string value, double size, Brush color, bool bold)
         {
+            // Plancher de lisibilité : les anciennes métadonnées à 9,5 px
+            // restaient illisibles sur un écran dense. Aucune information ne
+            // descend désormais sous 12,5 px.
+            if (size < 12.5) size = 12.5;
             return new TextBlock
             {
                 // Traduction au moment de la création : les écrans reconstruits
@@ -221,6 +225,66 @@ namespace LyaranTV
                 Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(),
                 SnapsToDevicePixels = true
             };
+            if (click != null) button.Click += delegate { click(); };
+            return button;
+        }
+
+        /// <summary>
+        /// Onglet de filtre : texte seul, accent souligné pour l'état actif.
+        /// Aucun cadre ni pastille : la navigation fait partie de la page, comme
+        /// les onglets d'une plateforme de streaming.
+        /// </summary>
+        Button FilterTab(string label, bool active, Action click, string tooltip = null)
+        {
+            var stack = new StackPanel { Orientation = Orientation.Vertical, HorizontalAlignment = HorizontalAlignment.Center };
+            var text = Text(label, 14, active ? Brush(TextPrimary) : Brush(Muted), active);
+            text.TextWrapping = TextWrapping.NoWrap;
+            text.TextAlignment = TextAlignment.Center;
+            text.HorizontalAlignment = HorizontalAlignment.Center;
+            stack.Children.Add(text);
+            stack.Children.Add(new Border
+            {
+                Height = 2, CornerRadius = new CornerRadius(1), Margin = new Thickness(0, 7, 0, 0),
+                Background = active ? Brush(Accent) : Brushes.Transparent,
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            });
+            var button = new Button
+            {
+                Content = stack, Height = 42, Padding = new Thickness(15, 0, 15, 0), Margin = new Thickness(0),
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brush(TextPrimary),
+                Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(8),
+                HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center
+            };
+            if (!String.IsNullOrWhiteSpace(tooltip)) button.ToolTip = tooltip;
+            if (!active)
+            {
+                button.MouseEnter += delegate { text.Foreground = Brush(TextPrimary); };
+                button.MouseLeave += delegate { text.Foreground = Brush(Muted); };
+                button.GotKeyboardFocus += delegate { text.Foreground = Brush(TextPrimary); };
+                button.LostKeyboardFocus += delegate { text.Foreground = Brush(Muted); };
+            }
+            if (click != null) button.Click += delegate { click(); };
+            return button;
+        }
+
+        /// <summary>
+        /// Action discrète en texte : « Tout voir », « Effacer les filtres ».
+        /// Intégrée au contenu, sans bordure ni fond, pour alléger les en-têtes.
+        /// </summary>
+        Button TextAction(string label, Action click, string tooltip = null)
+        {
+            var content = Text(label, 12.5, Brush(Muted), false);
+            content.TextWrapping = TextWrapping.NoWrap;
+            var button = new Button
+            {
+                Content = content, Height = 32, Padding = new Thickness(9, 0, 9, 0), Margin = new Thickness(0),
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brush(TextPrimary),
+                Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(8),
+                HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center
+            };
+            if (!String.IsNullOrWhiteSpace(tooltip)) button.ToolTip = tooltip;
+            button.MouseEnter += delegate { content.Foreground = Brush(TextPrimary); };
+            button.MouseLeave += delegate { content.Foreground = Brush(Muted); };
             if (click != null) button.Click += delegate { click(); };
             return button;
         }
@@ -712,17 +776,21 @@ namespace LyaranTV
             return new Border
             {
                 Background = background, CornerRadius = new CornerRadius(99), Padding = new Thickness(8, 2, 8, 2),
-                VerticalAlignment = VerticalAlignment.Center, Child = Text(label, 9.5, foreground, true)
+                VerticalAlignment = VerticalAlignment.Center, Child = Text(label, 10.5, foreground, true)
             };
         }
 
         DockPanel SectionHeader(string title, string subtitle, Button action)
         {
-            var dock = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 10, 0, 12) };
+            // Un titre d'étagère suffit : la phrase d'explication sous chaque
+            // rangée encombrait l'accueil. Elle reste affichée seulement pour
+            // les en-têtes qui n'ont pas d'action (« Personnes », résultats…),
+            // où elle porte une information utile.
+            var dock = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 12, 0, 12) };
             if (action != null) { action.Margin = new Thickness(10, 0, 0, 0); DockPanel.SetDock(action, Dock.Right); dock.Children.Add(action); }
-            var stack = new StackPanel();
-            stack.Children.Add(Text(title, 18, Brush(TextPrimary), true));
-            if (!String.IsNullOrWhiteSpace(subtitle)) stack.Children.Add(Text(subtitle, 11.5, Brush(Muted), false));
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            stack.Children.Add(Text(title, 19, Brush(TextPrimary), true));
+            if (action == null && !String.IsNullOrWhiteSpace(subtitle)) stack.Children.Add(Text(subtitle, 12, Brush(Muted), false));
             dock.Children.Add(stack);
             return dock;
         }
@@ -751,7 +819,7 @@ namespace LyaranTV
             itemStyle.Setters.Add(new Setter(Control.ForegroundProperty, Brush(TextPrimary)));
             itemStyle.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
             itemStyle.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(8, 6, 12, 6)));
-            itemStyle.Setters.Add(new Setter(Control.FontSizeProperty, 12.0));
+            itemStyle.Setters.Add(new Setter(Control.FontSizeProperty, 13.0));
             var itemBorder = new FrameworkElementFactory(typeof(Border)); itemBorder.Name = "ItemChrome";
             itemBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
             itemBorder.SetBinding(Border.BackgroundProperty, new Binding("Background") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });

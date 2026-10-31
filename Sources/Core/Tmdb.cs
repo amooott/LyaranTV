@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -415,7 +415,7 @@ namespace LyaranTV
             string key = ResolveKey(settings);
             if (String.IsNullOrWhiteSpace(key)) throw new InvalidOperationException("Ajoutez d’abord une clé API TMDb (v3).");
             string url = "https://api.themoviedb.org/3/configuration?api_key=" + Uri.EscapeDataString(key);
-            string json = HttpUtil.GetString(url, 15000, "LyaranTV/2.0");
+            string json = HttpUtil.ApiGet(url, 12000);
             var root = JsonObject(json);
             if (root == null || !root.ContainsKey("images")) throw new InvalidDataException("Réponse TMDb inattendue. Vérifiez la clé.");
             return "Clé TMDb valide. Les affiches et notes peuvent être récupérées.";
@@ -432,7 +432,7 @@ namespace LyaranTV
                 "&query=" + Uri.EscapeDataString(title) +
                 "&include_adult=false";
             if (year > 0) url += (series ? "&first_air_date_year=" : "&year=") + year.ToString(CultureInfo.InvariantCulture);
-            string json = HttpUtil.GetString(url, 15000, "LyaranTV/2.0");
+            string json = HttpUtil.ApiGet(url, 12000);
             var root = JsonObject(json);
             if (root == null) return results;
             object raw;
@@ -462,9 +462,28 @@ namespace LyaranTV
             if (results == null || results.Count == 0) return null;
             var ranked = results.Where(candidate => candidate != null)
                 .Select(candidate => new { Result = candidate, Score = MatchScore(title, year, candidate) })
-                .OrderByDescending(item => item.Score).ToList();
+                .OrderByDescending(item => item.Score)
+                .ThenByDescending(item => item.Result.VoteCount)
+                .ToList();
             if (ranked.Count == 0 || ranked[0].Score < 86) return null;
-            if (ranked.Count > 1 && ranked[0].Score - ranked[1].Score < 8) return null;
+            if (ranked.Count > 1 && ranked[0].Score - ranked[1].Score < 8)
+            {
+                // Deux fiches portent exactement le même titre (remake, série
+                // récente, version localisée). Sans année connue, on garde la
+                // plus populaire si le titre est identique ; avec une année
+                // précise, l'ambiguïté reste signalée à l'utilisateur.
+                if (year > 0) return null;
+                string wanted = ComparableTitle(title);
+                string first = ComparableTitle(ranked[0].Result.Title);
+                string firstOriginal = ComparableTitle(ranked[0].Result.OriginalTitle);
+                string second = ComparableTitle(ranked[1].Result.Title);
+                string secondOriginal = ComparableTitle(ranked[1].Result.OriginalTitle);
+                bool sameTitle = (first.Length > 0 && first == wanted && second == wanted)
+                    || (firstOriginal.Length > 0 && firstOriginal == wanted && secondOriginal == wanted)
+                    || (first.Length > 0 && first == wanted && secondOriginal == wanted)
+                    || (firstOriginal.Length > 0 && firstOriginal == wanted && second == wanted);
+                if (!sameTitle || ranked[0].Result.VoteCount <= ranked[1].Result.VoteCount) return null;
+            }
             return ranked[0].Result;
         }
 
@@ -587,7 +606,7 @@ namespace LyaranTV
                 "?api_key=" + Uri.EscapeDataString(ResolveKey(settings)) +
                 "&language=" + Uri.EscapeDataString(String.IsNullOrWhiteSpace(settings.TmdbLanguage) ? "fr-FR" : settings.TmdbLanguage) +
                 "&append_to_response=credits,videos,release_dates,content_ratings";
-            var obj = JsonObject(HttpUtil.GetString(url, 15000, "LyaranTV/2.0"));
+            var obj = JsonObject(HttpUtil.ApiGet(url, 12000));
             if (obj == null) return result;
             TmdbResult detailed = FromJson(obj, result.IsSeries);
             detailed.TmdbId = result.TmdbId;
@@ -781,47 +800,63 @@ namespace LyaranTV
             var groups = channels.Where(IsEligible).GroupBy(c => TmdbCacheStore.CacheKey(c), StringComparer.OrdinalIgnoreCase)
                 .Select(g => new { Key = g.Key, Items = g.ToList(), Title = TmdbTitleCleaner.CleanTitle(g.First().Name), Year = TmdbTitleCleaner.ExtractYear(g.First().Name), Series = g.First().Kind == "Séries" })
                 .Where(g => g.Key.Length > 0 && g.Items.Any(c => !c.TmdbChecked))
-                .Take(200).ToList();
+                .Take(600).ToList();
             if (groups.Count == 0) return;
+            // Les fiches sont demandées en parallèle : une recherche TMDb prend
+            // quelques dixièmes de seconde, mais 600 requêtes en série faisaient
+            // patienter plusieurs minutes avant que la première rangée ne se
+            // remplisse. Quatre requêtes simultanées restent sous les limites de
+            // l'API et remplissent l'accueil en quelques secondes.
             int done = 0;
-            foreach (var group in groups)
+            int next = -1;
+            int workers = Math.Min(4, groups.Count);
+            var threads = new Thread[workers];
+            for (int i = 0; i < workers; i++)
             {
-                if (cancelled != null && cancelled()) break;
-                // Automatic metadata is shared by title/year. Manual choices are scoped to
-                // an individual playlist item and must never leak to its title peers.
-                TmdbResult automaticResult = TmdbCacheStore.GetForChannel(group.Items[0]);
-                bool fromCache = automaticResult != null;
-                bool lookedUp = false;
-                bool needsLookup = automaticResult == null && group.Items.Any(channel =>
-                    !channel.TmdbChecked && TmdbMatchStore.Get(channel) == null);
-                if (needsLookup)
+                threads[i] = new Thread(delegate()
                 {
-                    lookedUp = true;
-                    try
+                    while (true)
                     {
-                        automaticResult = Lookup(settings, group.Title, group.Year, group.Series);
-                        if (automaticResult != null)
+                        if (cancelled != null && cancelled()) break;
+                        int index = Interlocked.Increment(ref next);
+                        if (index >= groups.Count) break;
+                        var group = groups[index];
+                        // Automatic metadata is shared by title/year. Manual choices are scoped to
+                        // an individual playlist item and must never leak to its title peers.
+                        TmdbResult automaticResult = TmdbCacheStore.GetForChannel(group.Items[0]);
+                        bool needsLookup = automaticResult == null && group.Items.Any(channel =>
+                            !channel.TmdbChecked && TmdbMatchStore.Get(channel) == null);
+                        if (needsLookup)
                         {
-                            TmdbCacheStore.Put(group.Key, automaticResult);
-                            TmdbCacheStore.Trim(settings.TmdbCacheLimit);
+                            try
+                            {
+                                automaticResult = Lookup(settings, group.Title, group.Year, group.Series);
+                                if (automaticResult != null)
+                                {
+                                    TmdbCacheStore.Put(group.Key, automaticResult);
+                                    TmdbCacheStore.Trim(settings.TmdbCacheLimit);
+                                }
+                            }
+                            catch { automaticResult = null; }
                         }
+                        foreach (var channel in group.Items)
+                        {
+                            TmdbResult result = TmdbMatchStore.Get(channel) ?? automaticResult;
+                            if (result != null)
+                            {
+                                Apply(channel, result);
+                                if (applied != null) applied(channel, result);
+                            }
+                            else channel.TmdbChecked = true;
+                        }
+                        int count = Interlocked.Increment(ref done);
+                        if (progress != null) progress(count, groups.Count, group.Title);
                     }
-                    catch { automaticResult = null; }
-                }
-                foreach (var channel in group.Items)
-                {
-                    TmdbResult result = TmdbMatchStore.Get(channel) ?? automaticResult;
-                    if (result != null)
-                    {
-                        Apply(channel, result);
-                        if (applied != null) applied(channel, result);
-                    }
-                    else channel.TmdbChecked = true;
-                }
-                done++;
-                if (progress != null) progress(done, groups.Count, group.Title);
-                if (lookedUp && !fromCache) { try { Thread.Sleep(120); } catch { } }
+                });
+                threads[i].IsBackground = true;
+                threads[i].Start();
             }
+            foreach (var thread in threads) thread.Join();
             TmdbCacheStore.Save();
         }
 

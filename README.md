@@ -1,4 +1,4 @@
-# LyaranTV 1.3.3
+# LyaranTV 1.3.4
 
 **LyaranTV** est un lecteur IPTV pour Windows, construit avec WPF et .NET Framework 4.x. Il reprend les usages essentiels d'un lecteur IPTV moderne — sources, bibliothèque, direct, guide EPG, recherche, favoris, reprise de lecture et fiches de contenus — avec une identité visuelle originale.
 
@@ -9,10 +9,10 @@
 - Interface française, thèmes **Sombre**, **Clair**, **Noir AMOLED** et **Automatique**.
 - Huit accents prédéfinis et accent personnalisé, avec migration automatique de l'ancien ambre vers le violet LyaranTV.
 - Sources **M3U/M3U8**, **Xtream Codes**, **Stalker/MAC**, démonstration intégrée et fichiers locaux.
-- Chargement des comptes Xtream **en parallèle** avec barre de progression, temps écoulé et **temps restant estimé** ; guide EPG chargé en arrière-plan. Une étape dédiée **« Chargement des affiches »** affiche sa progression réelle : les jaquettes du premier écran sont téléchargées avant l'ouverture, et une **file de fond** complète ensuite l'accueil puis la bibliothèque en continu. Les images sont conservées sur disque, donc les lancements suivants s'ouvrent avec toutes leurs affiches. Les téléchargements HTTPS passent par un client **IPv4 d'abord** (TLS 1.2, redirections, réponses chunked) : plus de jaquettes perdues sur les réseaux dont l'IPv6 est annoncé mais injoignable.
+- Chargement des comptes Xtream **en parallèle** avec barre de progression, temps écoulé et **temps restant estimé** ; guide EPG chargé en arrière-plan. Une étape dédiée **« Chargement des affiches »** affiche sa progression réelle : les jaquettes du premier écran sont téléchargées avant l'ouverture, et une **file de fond** complète ensuite l'accueil puis la bibliothèque en continu. Les images sont conservées sur disque, donc les lancements suivants s'ouvrent avec toutes leurs affiches. Les téléchargements passent d'abord par le moteur HTTPS standard (délai court), puis par un client **IPv4** en repli (TLS 1.2, redirections, réponses chunked) : une adresse CDN morte ne bloque plus la file.
 - **Accueil « billboard »** : bannière plein cadre sur 486 px, rotation automatique entre les contenus à reprendre et les mieux notés, affiche portrait nette à droite quand seule une affiche existe, fond flou et fondu progressif vers la page, boutons d’action blancs, favori et pastilles cliquables. En dessous : salutation, raccourcis, **Top 10**, nouveautés, films, séries, rangée **En direct** avec programme en cours et barre de progression, puis les playlists.
 - **Ouverture de la bibliothèque avec chargement visible** : sur un gros catalogue, la page s'affiche immédiatement avec un indicateur, pendant que les listes et les catégories sont préparées en arrière-plan — la fenêtre reste réactive.
-- Bibliothèque repensée en mode découverte : hero cinématique avec rotation automatique et aperçu au survol, étagères horizontales avec flèches au survol, **grandes cartes de 236 × 354 px** (2:3 strict) dont l'affiche remplit tout le cadre, filtres rapides, vue « Tout parcourir » en grille et **toutes les catégories de chaînes, films et séries** réunies en blocs verticaux.
+- Bibliothèque repensée en mode découverte : hero cinématique avec rotation automatique et aperçu au survol, étagères horizontales avec flèches au survol, **grandes cartes de 236 × 354 px** (2:3 strict) dont l'affiche remplit tout le cadre, filtres en onglets texte, vue « Tout parcourir » en grille et **toutes les catégories de chaînes, films et séries** réunies en blocs verticaux.
 - **Palette cinéma neutre** : charcoal `#07080B`, surfaces `#101218`, accent violet conservé comme seule couleur d’action ; halo animé très lent, vignette et dégradés. Thèmes clair et AMOLED alignés.
 - Lecteur intégré Windows Media Foundation : sonde de connexion, proxy local, ordre des liens TS → MP4/MKV → HLS, reconnexion du direct, pause, volume, plein écran, reprise, raccourcis ±5 s, sous-titres SRT/WebVTT **et pistes texte embarquées MKV/MP4**, détection des pistes audio, lecteur externe. Les menus de pistes affichent toujours la **langue et le type technique** (par exemple `Français · 5.1 · AC-3`, `Japonais · stéréo · AAC`, `Français · VOSTFR · SubRip`). Les contrôles sont **superposés à la vidéo** (fenêtré comme plein écran), avec une **barre de progression interactive** (piste de 6 px qui s'épaissit à 10 px au survol, curseur lumineux de 15 px, infobulle et glissement) et un masquage automatique après 3,5 s en lecture ; le curseur disparaît aussi en plein écran.
 - **Outils de lecteur classiques** : vitesse de 0,5× à 2× mémorisée, lecture en boucle, **séquence A-B** avec repères sur la timeline, **minuterie de veille** (15–90 min ou fin de l’épisode), avance **image par image**, sauts ±10 s, menu contextuel complet au clic droit et aide des raccourcis (`?`).
@@ -60,6 +60,17 @@ La page **Bibliothèque** fonctionne comme une page d'accueil de streaming : un 
 - **Favoris et historique** : les contenus déjà commencés apparaissent dans une étagère « Reprendre la lecture » avec leur position.
 
 Les affiches et backdrops TMDb remplissent le hero et les cartes ; sans image, un dégradé, les initiales et un filigrane du titre conservent une composition lisible.
+
+## Interface épurée
+
+L'interface privilégie le contenu et retire les informations répétées :
+
+- **Barre latérale** : navigation, playlists, profil et langue, sans compteurs ni numéro de version.
+- **Filtres intégrés** : `Tout`, `Direct`, `Films`, `Séries` et `Effacer les filtres` sont des onglets texte soulignés par l'accent, sans pastille ni cadre.
+- **Titres lisibles** : les préfixes de playlist (`FR - `, `EN - `) et l'année finale sont retirés à l'affichage ; le nom d'origine reste utilisé pour la recherche et TMDb.
+- **Cartes calmes** : note discrète, pas de badge de type, méta réduite à l'année, à la saison/épisode ou à la reprise.
+- **Typographie** : toutes les petites informations sont remontées à **12,5 px minimum**.
+- **Barre d'état** : page à gauche, source active à droite.
 
 ## Compilation
 
@@ -160,7 +171,9 @@ set LYARANTV_TMDB_KEY=votre_cle
 
 La clé n'est jamais incluse dans le projet, les exemples, les sauvegardes portables ou les journaux. Sans clé, LyaranTV reste pleinement utilisable et affiche des vignettes de remplacement.
 
-Les images distantes sont lues à la demande depuis TMDb ou depuis les URL `tvg-logo` de votre playlist. Elles sont décodées à 420 px de large, gardées en mémoire (environ 220 images) et conservées dans un cache disque borné sous `%APPDATA%\LyaranTV\covers` ; les fichiers de plus de 45 jours sont purgés et le cache est ramené à environ 1 200 images. Ce cache se vide depuis **Paramètres → Métadonnées et sous-titres**.
+L'enrichissement part **en parallèle (4 requêtes)** et traite d'abord les contenus visibles sur l'accueil (hero, reprises, nouveautés, films et séries). Une correspondance exacte titre/année est préférée ; deux fiches de même titre sans année sont départagées par popularité. La correction manuelle (**clic droit → Corriger TMDb**) recherche le titre, affiche les résultats avec leur score de correspondance et mémorise le choix par profil et par source.
+
+Les images distantes sont lues à la demande depuis TMDb ou depuis les URL `tvg-logo` de votre playlist. Elles sont décodées à 420 px de large, gardées en mémoire (environ 220 images) et conservées dans un cache disque borné sous `%APPDATA%\LyaranTV\covers` ; les fichiers de plus de 45 jours sont purgés et le cache est ramené à environ 1 200 images. Les affiches des contenus visibles sont **préchargées en priorité** pour éviter les cadres vides. Ce cache se vide depuis **Paramètres → Métadonnées et sous-titres**.
 
 ## Affiches et synopsis de secours
 
@@ -183,7 +196,7 @@ La recherche en ligne est optionnelle. Créez une clé API gratuite sur opensubt
 set LYARANTV_OPENSUBTITLES_KEY=votre_cle
 ```
 
-Dans le lecteur, le bouton des sous-titres propose « Chercher sur OpenSubtitles… » : le titre du film — ou de la série, avec saison et épisode — est prérempli, les fichiers sont listés avec leur langue et leur nombre de téléchargements, puis le fichier choisi est téléchargé en SubRip dans `%APPDATA%\LyaranTV\sous-titres` et appliqué immédiatement. Aucune requête n'est envoyée sans action de votre part. Les fichiers restent soumis aux conditions d'OpenSubtitles.com.
+Dans le lecteur, le bouton des sous-titres propose « Chercher sur OpenSubtitles… » : le titre du film — ou de la série, avec saison et épisode — est prérempli, les fichiers sont listés avec leur langue et leur nombre de téléchargements, puis le fichier choisi est téléchargé en SubRip dans `%APPDATA%\LyaranTV\sous-titres` et appliqué immédiatement. Aucune requête n'est envoyée sans action de votre part. Les délais réseau sont bornés et, si l'API ne répond pas, un message explicite invite à réessayer au lieu de laisser « Recherche… » indéfiniment. Les fichiers restent soumis aux conditions d'OpenSubtitles.com.
 
 ## Données et confidentialité
 

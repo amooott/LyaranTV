@@ -1,3 +1,37 @@
+# LyaranTV 1.3.4
+
+Interface plus calme, recherches TMDb/OpenSubtitles fiables et affiches préchargées.
+
+## Interface
+
+- **Moins d'informations à l'écran** : barre latérale sans compteurs ni version, barre d'état réduite à la source active, en-têtes d'étagères sans eyebrow ni sous-titre, hero et cartes allégés.
+- **Filtres intégrés** : `Tout`, `Direct`, `Films`, `Séries` et `Effacer les filtres` sont des onglets texte soulignés par l'accent, sans pastille ni cadre.
+- **Titres nettoyés** : les préfixes `FR - ` / `EN - ` et l'année finale ne s'affichent plus sur les cartes, le hero, le Top 10, les fiches et le lecteur. Le nom d'origine reste utilisé pour la recherche et TMDb.
+- **Typographie** : toutes les petites informations sont remontées à **12,5 px minimum** ; les titres de cartes passent à 14–14,5 px.
+- **Cartes épurées** : plus de badge FILM/SÉRIE/MÉDIA, note discrète, méta limitée à l'année, la saison/épisode ou la reprise.
+
+## TMDb et OpenSubtitles
+
+- **Recherches qui n'attendent plus indéfiniment** : les appels JSON passent d'abord par le moteur HTTPS standard avec un délai court, puis par le client IPv4 en repli. Chaque adresse CDN morte ne bloque plus la requête.
+- **Enrichissement TMDb parallèle** : 4 requêtes simultanées, priorité aux contenus visibles sur l'accueil, jusqu'à 600 groupes par passe. Les correspondances exactes restent préférées ; les doublons de titre sans année sont départagés par popularité.
+- **Correction TMDb** : la recherche affiche les résultats avec leur score, la correction est mémorisée par profil et par source et rafraîchit immédiatement la fiche, la bibliothèque et l'accueil.
+- **OpenSubtitles** : délai réseau borné et message explicite si l'API ne répond pas ; le bouton redevient actif au lieu de laisser « Recherche… » bloqué.
+
+## Affiches
+
+- **Préchargement prioritaire** des contenus visibles (hero, reprises, nouveautés, films et séries) avant le reste du catalogue.
+- **Téléchargement d'images** : moteur standard d'abord, repli IPv4 court ; une adresse CDN morte ne retient plus la file derrière elle.
+- Cache mémoire et disque conservés : les lancements suivants ouvrent la bibliothèque déjà remplie.
+
+## Vérifications
+
+- Auto-test : **32/32**.
+- TMDb : recherche en **0,3 s**, fiche et affiche trouvées.
+- OpenSubtitles : **50 résultats en 0,7 s**.
+- Accueil et bibliothèque capturés avec les affiches en place.
+
+---
+
 # LyaranTV 1.3.3
 
 Affiches préchargées, et téléchargements HTTPS réparés sur les réseaux à IPv6 défaillant.

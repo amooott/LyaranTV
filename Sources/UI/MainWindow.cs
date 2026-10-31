@@ -439,14 +439,6 @@ namespace LyaranTV
             hint.IsHitTestVisible = false; hint.Margin = new Thickness(1, 0, 0, 0);
             var searchHost = new Grid(); searchHost.Children.Add(searchBox); searchHost.Children.Add(hint);
             Grid.SetColumn(searchHost, 1); searchGrid.Children.Add(searchHost);
-            var shortcutHint = new Border
-            {
-                Background = Brush(WithAlpha(TextPrimary, 9)), BorderBrush = Brush(WithAlpha(TextPrimary, 14)),
-                BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Padding = new Thickness(6, 2, 6, 3),
-                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 2, 0), IsHitTestVisible = false,
-                Child = Text("Ctrl F", 8.5, Brush(Muted), true)
-            };
-            Grid.SetColumn(shortcutHint, 2); searchGrid.Children.Add(shortcutHint);
             searchWrap.Child = searchGrid;
             searchWrap.Margin = new Thickness(12, 0, 12, 0);
             Grid.SetColumn(searchWrap, 1); top.Children.Add(searchWrap);
@@ -519,14 +511,12 @@ namespace LyaranTV
             var nav = new StackPanel { Margin = new Thickness(0, 10, 0, 4) };
             sidebar.Children.Add(nav);
             nav.Children.Add(NavItem(Glyphs.Home, "Accueil", "Accueil", -1));
-            nav.Children.Add(NavItem(Glyphs.Library, "Bibliothèque", "Bibliothèque", channels.Count));
-            // Tant qu'aucune playlist n'est chargée, favoris et récents restent
-            // à zéro : ils ne réapparaissent qu'une fois leurs contenus connus.
-            int favoriteCount = channels.Count == 0 ? 0 : favorites.Count;
-            int recentCount = channels.Count == 0 ? 0 : recentIds.Count;
-            nav.Children.Add(NavItem(Glyphs.Favorite, "Ma liste", "Favoris", favoriteCount));
-            nav.Children.Add(NavItem(Glyphs.Recent, "Récents", "Récents", recentCount));
-            nav.Children.Add(NavItem(Glyphs.Guide, "Guide EPG", "Guide EPG", loadedEpg.Count));
+            nav.Children.Add(NavItem(Glyphs.Library, "Bibliothèque", "Bibliothèque", -1));
+            // Les compteurs restent dans les pages : la barre latérale ne montre
+            // que la navigation, pour rester calme et lisible.
+            nav.Children.Add(NavItem(Glyphs.Favorite, "Ma liste", "Favoris", -1));
+            nav.Children.Add(NavItem(Glyphs.Recent, "Récents", "Récents", -1));
+            nav.Children.Add(NavItem(Glyphs.Guide, "Guide EPG", "Guide EPG", -1));
 
             var section = Text("MES PLAYLISTS", 9.5, Brush(Muted), true);
             section.Margin = new Thickness(22, 18, 0, 6); sidebar.Children.Add(section);
@@ -549,18 +539,15 @@ namespace LyaranTV
             var manage = new StackPanel();
             sidebar.Children.Add(manage);
             manage.Children.Add(NavItem(Glyphs.Filter, "Catégories", "Catégories", -1));
-            manage.Children.Add(NavItem(Glyphs.View, "Chaînes masquées", "Chaînes masquées", hiddenChannels.Count));
+            manage.Children.Add(NavItem(Glyphs.View, "Chaînes masquées", "Chaînes masquées", -1));
             manage.Children.Add(NavItem(Glyphs.Settings, "Paramètres", "Paramètres", -1));
             manage.Children.Add(NavItem(Glyphs.Help, "Guide rapide", "Guide rapide", -1));
 
             sidebar.Children.Add(ProfileSidebarItem());
             // Sélecteur de langue, tout en bas de la barre latérale.
-            var languageHost = new StackPanel { Margin = new Thickness(0, 2, 0, 2) };
+            var languageHost = new StackPanel { Margin = new Thickness(0, 2, 0, 8) };
             sidebar.Children.Add(languageHost);
             AddLanguageSidebarItem(languageHost);
-            var footer = Text(AppInfo.Name + " " + AppInfo.Version + " · " + TextUtil.HumanCount(VisibleChannels.Count()) + " " + I18n.T("éléments"), 9.5, Brush(Muted), false);
-            footer.Margin = new Thickness(22, 10, 12, 18); footer.TextWrapping = TextWrapping.Wrap;
-            sidebar.Children.Add(footer);
             // La barre latérale est reconstruite à chaque navigation : on la
             // retraduit ici, sinon elle repasserait en français.
             I18n.Apply(sidebar);
@@ -622,7 +609,7 @@ namespace LyaranTV
             icon.Margin = new Thickness(11, 0, 9, 0); Grid.SetColumn(icon, 1); grid.Children.Add(icon);
             var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             labels.Children.Add(Text(source.Name, 12.5, Brush(TextPrimary), active));
-            labels.Children.Add(Text(source.DisplayType + (source.LastCount > 0 ? " · " + TextUtil.HumanCount(source.LastCount) : ""), 9.5, Brush(Muted), false));
+            labels.Children.Add(Text(source.DisplayType, 11, Brush(Muted), false));
             Grid.SetColumn(labels, 2); grid.Children.Add(labels);
             if (active) { var dot = new Border { Width = 6, Height = 6, CornerRadius = new CornerRadius(3), Background = Brush(Success), Margin = new Thickness(6, 0, 4, 0) }; Grid.SetColumn(dot, 3); grid.Children.Add(dot); }
             var button = new Button
@@ -921,8 +908,7 @@ namespace LyaranTV
             initial.TextAlignment = TextAlignment.Center;
             Grid.SetColumn(circle, 0); grid.Children.Add(circle);
             var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            labels.Children.Add(Text(profile.Name, 12, Brush(TextPrimary), true));
-            labels.Children.Add(Text(profile.IsChild ? "Profil enfant" : "Profil", 9.5, Brush(Muted), false));
+            labels.Children.Add(Text(profile.Name, 13, Brush(TextPrimary), true));
             Grid.SetColumn(labels, 1); grid.Children.Add(labels);
             var chevron = Icon(Glyphs.ChevronUp, 12, Brush(Muted)); Grid.SetColumn(chevron, 2); grid.Children.Add(chevron);
             var button = new Button
@@ -992,12 +978,19 @@ namespace LyaranTV
             if (tmdbEnriching || channels.Count == 0 || !TmdbClient.IsConfigured(settings)) return;
             tmdbEnriching = true;
             tmdbApplied = 0;
-            var snapshot = channels.ToList();
+            // Les contenus visibles sur l'accueil passent en premier : la
+            // première rangée et le hero reçoivent leurs fiches avant le reste
+            // du catalogue. Le reste suit, sans doublon.
+            var priority = HomeCoverOrder(160);
+            var snapshot = new List<Channel>(channels.Count);
+            var queued = new HashSet<Channel>();
+            foreach (var channel in priority) if (channel != null && queued.Add(channel)) snapshot.Add(channel);
+            foreach (var channel in channels) if (channel != null && queued.Add(channel)) snapshot.Add(channel);
             var worker = new BackgroundWorker();
             worker.DoWork += delegate
             {
                 TmdbClient.Enrich(snapshot, settings,
-                    delegate(Channel channel, TmdbResult result) { tmdbApplied++; },
+                    delegate(Channel channel, TmdbResult result) { System.Threading.Interlocked.Increment(ref tmdbApplied); },
                     delegate(int done, int total, string title)
                     {
                         if (done != 1 && done % 10 != 0 && done != total) return;
@@ -1035,6 +1028,14 @@ namespace LyaranTV
                     if (page == "Bibliothèque" || page == "Favoris" || page == "Récents" || page == "Recherche") RenderChannels(false);
                     else if (page == "Accueil") ShowHome();
                     else if (page == "Guide EPG") ShowEpg();
+                    else if (page == "Épisodes" && episodesSeries != null)
+                    {
+                        // Une correction TMDb sur la fiche d'une série doit se
+                        // voir immédiatement sur la page de ses épisodes.
+                        List<Channel> cachedEpisodes;
+                        if (seriesEpisodes.TryGetValue(SeriesKey(episodesSeries), out cachedEpisodes) && cachedEpisodes.Count > 0)
+                            ShowSeriesEpisodes(episodesSeries, cachedEpisodes);
+                    }
                 };
             }
             tmdbRefreshTimer.Stop();
@@ -1044,13 +1045,9 @@ namespace LyaranTV
         void UpdateStatusBar()
         {
             if (statusRight == null) return;
-            var visible = VisibleChannels.ToList();
-            int live = visible.Count(c => c.Kind == "Chaînes");
-            int movies = visible.Count(c => c.Kind == "Films");
-            int series = visible.Count(c => c.Kind == "Séries");
-            string text = TextUtil.HumanCount(live) + " chaînes · " + TextUtil.HumanCount(movies) + " films · " + TextUtil.HumanCount(series) + " séries · " + TextUtil.HumanCount(channels.Count == 0 ? 0 : favorites.Count) + " favoris";
-            if (activeSource != null) text += "  ·  " + activeSource.Name;
-            statusRight.Text = text;
+            // La barre d'état ne répète plus le détail de chaque catégorie :
+            // la source active et le volume global suffisent.
+            statusRight.Text = activeSource != null ? activeSource.Name : (channels.Count == 0 ? "Aucune source" : "");
         }
 
         void SetStatus(string message) { if (statusText != null) statusText.Text = message; }
@@ -1058,15 +1055,15 @@ namespace LyaranTV
         void SetPageStatus()
         {
             if (statusText == null) return;
-            if (page == "Accueil") SetStatus("Vue d’ensemble · " + TextUtil.HumanCount(channels.Count) + " éléments disponibles.");
-            else if (page == "Bibliothèque") SetStatus(activeSource == null ? "Aucune playlist active." : activeSource.Name + " · " + TextUtil.HumanCount(channels.Count) + " éléments dans votre bibliothèque.");
-            else if (page == "Favoris") SetStatus("Ma liste · " + TextUtil.HumanCount(favorites.Count) + " élément(s).");
-            else if (page == "Récents") SetStatus("Récemment regardés.");
-            else if (page == "Recherche") SetStatus("Recherche dans la bibliothèque active.");
-            else if (page == "Catégories") SetStatus("Gestion des catégories.");
-            else if (page == "Chaînes masquées") SetStatus("Contenus masqués.");
-            else if (page == "Guide rapide") SetStatus("Guide rapide de LyaranTV.");
-            else if (page == "Lecture") SetStatus(currentPlaying == null ? "Lecteur." : "Lecture de « " + currentPlaying.Name + " ».");
+            if (page == "Accueil") SetStatus("Vue d’ensemble");
+            else if (page == "Bibliothèque") SetStatus(activeSource == null ? "Aucune playlist active" : activeSource.Name);
+            else if (page == "Favoris") SetStatus("Ma liste");
+            else if (page == "Récents") SetStatus("Récemment regardés");
+            else if (page == "Recherche") SetStatus("Recherche");
+            else if (page == "Catégories") SetStatus("Catégories");
+            else if (page == "Chaînes masquées") SetStatus("Contenus masqués");
+            else if (page == "Guide rapide") SetStatus("Guide rapide");
+            else if (page == "Lecture") SetStatus(currentPlaying == null ? "Lecteur" : "Lecture de « " + TextUtil.DisplayTitle(currentPlaying.Name) + " »");
         }
 
         void RebuildEpgIndex()

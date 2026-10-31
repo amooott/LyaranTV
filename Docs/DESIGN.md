@@ -65,8 +65,8 @@ L'ancien accent ambre `#F2A33C` des versions précédentes est migré automatiqu
 - Famille : **Inter**, avec repli sur **Segoe UI**.
 - Titres de page : 24–28 px, semi-gras.
 - Titres de section : 17–20 px, semi-gras.
-- Corps : 12–14 px.
-- Métadonnées : 9,5–11 px, couleur secondaire.
+- Corps : 13–15 px.
+- Métadonnées : **12,5 px minimum**, couleur secondaire : aucune information ne descend sous ce seuil.
 - Chiffres et notes : chiffres tabulaires lorsque disponibles.
 
 Les textes principaux conservent un contraste élevé : `#F4F4F8` sur `#0A0A12` atteint environ 18:1, et `#9C9CB0` sur `#0A0A12` environ 7,3:1. Les boutons à fond accent choisissent automatiquement une encre sombre ou blanche selon le contraste de l'accent.
@@ -77,13 +77,13 @@ Le logo LyaranTV est la piste **17 · Égaliseur** : un carré arrondi violet-bl
 
 ## Mise en page
 
-- Barre latérale fixe d'environ 248 px : navigation, playlists, profil.
+- Barre latérale fixe d'environ 248 px : navigation, playlists, profil. Les compteurs et la version ne s'y affichent plus : ils restent dans les pages et la barre d'état.
 - Barre supérieure d'environ 72 px : recherche centrale, thème, actualisation, ajout, paramètres.
 - Zone de contenu avec marges de 28–38 px et largeur de lecture confortable.
-- Barre d'état discrète : page, nombre d'éléments, source active.
-- Bibliothèque découverte : hero de 400 px, barre de filtres, étagères horizontales, puis exploration par catégorie.
+- Barre d'état discrète : page à gauche, source active à droite.
+- Bibliothèque découverte : hero de 400 px, filtres en onglets texte (`Tout`, `Direct`, `Films`, `Séries`, `Effacer les filtres`), étagères horizontales, puis exploration par catégorie.
 - Recherche globale : par défaut, les résultats sont séparés en sections Films, Séries, Épisodes, Chaînes, Personnes et Avis et activité ; les filtres existants permettent de réduire à un type.
-- Cartes de bibliothèque : affiche 186 px de large (cadre image 170 × 258 px, soit exactement 2:3) pour les films et séries, carte large 238 px pour le direct ; rayon 16 px, image 134 px pour le direct, titre et métadonnées sous l'image.
+- Cartes de bibliothèque : affiches 2:3 de 236 px de large (280 × 158 px pour le direct), rayon 16 px. Le titre est nettoyé des préfixes de playlist et l'année finale n'est plus répétée ; la note reste discrète en haut à droite, sans badge de type.
 - Navigation : la page courante, ses filtres et sa position de défilement sont mémorisés avant chaque changement ; le bouton **Retour** de la barre supérieure et celui des épisodes reviennent au dernier point quitté. Depuis le lecteur, le retour vise la **page des épisodes de la série** pour un épisode, sinon la **catégorie d'origine** (type, catégorie et défilement) pour un film ou une chaîne.
 - Lignes de liste : hauteur compacte, vignette 48 px, actions à droite.
 - Dialogues : rayon 16–20 px, fond panneau, ombre douce, bouton de fermeture explicite.

@@ -270,10 +270,9 @@ namespace LyaranTV
             else if (channel.Kind == "Séries") kicker = "SÉRIE";
             else kicker = "À REGARDER";
             if (!String.IsNullOrWhiteSpace(channel.Genres)) kicker += "  ·  " + TextUtil.Ellipsis(channel.Genres, 38).ToUpperInvariant();
-            else if (!String.IsNullOrWhiteSpace(channel.Group)) kicker += "  ·  " + TextUtil.Ellipsis(channel.Group, 34).ToUpperInvariant();
             homeHeroKicker.Text = kicker;
-            homeHeroTitle.Text = channel.Name;
-            homeHeroGlyph.Text = TextUtil.Ellipsis(channel.Name.ToUpperInvariant(), 28);
+            homeHeroTitle.Text = TextUtil.DisplayTitle(channel.Name);
+            homeHeroGlyph.Text = TextUtil.Ellipsis(TextUtil.DisplayTitle(channel.Name).ToUpperInvariant(), 28);
 
             var meta = new List<string>();
             if (!String.IsNullOrWhiteSpace(channel.Year)) meta.Add(channel.Year);
@@ -284,19 +283,18 @@ namespace LyaranTV
                 if (!String.IsNullOrWhiteSpace(channel.Episode)) episode += " : E" + channel.Episode;
                 meta.Add(episode);
             }
-            if (!String.IsNullOrWhiteSpace(channel.Runtime)) meta.Add(channel.Runtime);
             if (channel.Kind == "Chaînes")
             {
                 var now = CurrentProgram(channel);
-                if (now != null) meta.Add("À l'antenne · " + now.Title);
-                else meta.Add(String.IsNullOrWhiteSpace(channel.Group) ? "Direct" : channel.Group);
+                if (now != null) meta.Add(now.Title);
+                else meta.Add("Direct");
             }
             if (meta.Count == 0) meta.Add(KindLabel(channel.Kind));
             homeHeroMeta.Text = String.Join("   ·   ", meta.ToArray());
 
             string description = String.IsNullOrWhiteSpace(channel.Overview) ? channel.Description : channel.Overview;
-            if (String.IsNullOrWhiteSpace(description)) description = "Aucun synopsis disponible. Ouvrez la fiche pour en savoir plus et lancer la lecture.";
-            homeHeroDescription.Text = TextUtil.Ellipsis(description, 260);
+            if (String.IsNullOrWhiteSpace(description)) description = "Aucun synopsis disponible. Ouvrez la fiche pour en savoir plus.";
+            homeHeroDescription.Text = TextUtil.Ellipsis(description, 220);
 
             bool hasBackdrop = !String.IsNullOrWhiteSpace(channel.BackdropUrl);
             bool hasPoster = !String.IsNullOrWhiteSpace(channel.PosterUrl) || !String.IsNullOrWhiteSpace(channel.StillUrl);
@@ -511,18 +509,13 @@ namespace LyaranTV
             var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
             if (channels.Count > 0)
             {
-                var surprise = Chip("Au hasard", false, SurpriseMe);
-                surprise.Margin = new Thickness(0, 0, 8, 0);
-                surprise.ToolTip = "Laisser LyaranTV choisir un contenu pour vous";
+                var surprise = TextAction("Au hasard", SurpriseMe, "Laisser LyaranTV choisir un contenu pour vous");
                 right.Children.Add(surprise);
-                var browse = Chip("Parcourir la bibliothèque", false, delegate { Nav("Bibliothèque"); });
-                browse.Margin = new Thickness(0, 0, 8, 0);
-                browse.ToolTip = "Ouvrir la bibliothèque complète";
+                var browse = TextAction("Parcourir", delegate { Nav("Bibliothèque"); }, "Ouvrir la bibliothèque complète");
                 right.Children.Add(browse);
                 if (loadedEpg.Count > 0)
                 {
-                    var guide = Chip("Guide TV", false, delegate { Nav("Guide EPG"); });
-                    guide.Margin = new Thickness(0);
+                    var guide = TextAction("Guide TV", delegate { Nav("Guide EPG"); }, "Ouvrir le guide des programmes");
                     right.Children.Add(guide);
                 }
             }
@@ -534,20 +527,9 @@ namespace LyaranTV
             var heading = Text(greeting, 22, Brush(TextPrimary), true);
             pageTitle = heading;
             line.Children.Add(heading);
-            if (activeSource != null)
-            {
-                var badge = Badge(activeSource.Name.ToUpperInvariant(), Brush(WithAlpha(Accent, 30)), Brush(Accent));
-                badge.Margin = new Thickness(11, 0, 0, 0);
-                line.Children.Add(badge);
-            }
             labels.Children.Add(line);
             var visible = VisibleChannels.ToList();
-            string stats = TextUtil.HumanCount(visible.Count(c => c.Kind == "Chaînes")) + " chaînes"
-                + "   ·   " + TextUtil.HumanCount(visible.Count(c => c.Kind == "Films")) + " films"
-                + "   ·   " + TextUtil.HumanCount(visible.Count(c => c.Kind == "Séries")) + " séries"
-                + (favorites.Count > 0 ? "   ·   " + TextUtil.HumanCount(favorites.Count) + " favoris" : "")
-                + (loadedEpg.Count > 0 ? "   ·   " + TextUtil.HumanCount(loadedEpg.Count) + " programmes TV" : "");
-            labels.Children.Add(Text(stats, 11, Brush(Muted), false));
+            labels.Children.Add(Text(TextUtil.HumanCount(visible.Count) + " contenus disponibles", 12, Brush(Muted), false));
             dock.Children.Add(labels);
             return dock;
         }
@@ -625,10 +607,10 @@ namespace LyaranTV
                 grid.Children.Add(number);
             }
             var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(11, 0, 11, 10) };
-            labels.Children.Add(Text(channel.Name, 12.5, Brushes.White, true));
+            labels.Children.Add(Text(TextUtil.DisplayTitle(channel.Name), 12.5, Brushes.White, true));
             var now = CurrentProgram(channel);
             string sub = now != null ? now.Title : (String.IsNullOrWhiteSpace(channel.Group) ? "En direct" : channel.Group);
-            labels.Children.Add(Text(TextUtil.Ellipsis(sub, 42), 10, Brush(Color.FromArgb(200, 255, 255, 255)), false));
+            labels.Children.Add(Text(TextUtil.Ellipsis(sub, 42), 11, Brush(Color.FromArgb(200, 255, 255, 255)), false));
             if (now != null && now.Duration.TotalSeconds > 1)
             {
                 var progress = new Border

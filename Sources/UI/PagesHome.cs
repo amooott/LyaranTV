@@ -168,7 +168,7 @@ namespace LyaranTV
             if (liveShelf != null) root.Children.Add(liveShelf);
             try { HttpUtil.AppendLog("Perf accueil · étagères " + homePerf.ElapsedMilliseconds + " ms"); } catch { }
 
-            var playlistHead = SectionHeader("Vos playlists", "Ajoutez, actualisez et organisez vos sources.", Button(Glyphs.Add, "Ajouter", AddPlaylist, false));
+            var playlistHead = SectionHeader("Vos playlists", "Ajoutez, actualisez et organisez vos sources.", TextAction("Ajouter", AddPlaylist, "Ajouter une playlist"));
             root.Children.Add(playlistHead);
             if (sources.Count == 0)
             {
@@ -201,7 +201,7 @@ namespace LyaranTV
             var recentChannels = recentIds.Select(FindChannel).Where(c => c != null && IsChannelAllowed(c)).Take(6).ToList();
             if (recentChannels.Count > 0)
             {
-                root.Children.Add(SectionHeader("Récemment regardés", "Reprenez où vous en étiez.", Button(Glyphs.Recent, "Historique", delegate { Nav("Récents"); }, false)));
+                root.Children.Add(SectionHeader("Récemment regardés", "Reprenez où vous en étiez.", TextAction("Historique", delegate { Nav("Récents"); }, "Ouvrir l’historique")));
                 var wrap = new WrapPanel();
                 foreach (var channel in recentChannels) wrap.Children.Add(HomeChannelTile(channel));
                 root.Children.Add(wrap);
@@ -210,7 +210,7 @@ namespace LyaranTV
             var nowPrograms = VisibleChannels.Where(c => c.Kind == "Chaînes").Select(c => new { Channel = c, Program = CurrentProgram(c) }).Where(x => x.Program != null).Take(6).ToList();
             if (nowPrograms.Count > 0)
             {
-                root.Children.Add(SectionHeader("À l’antenne", "Ce qui passe en ce moment.", Button(Glyphs.Guide, "Ouvrir le guide", delegate { Nav("Guide EPG"); }, false)));
+                root.Children.Add(SectionHeader("À l’antenne", "Ce qui passe en ce moment.", TextAction("Guide TV", delegate { Nav("Guide EPG"); }, "Ouvrir le guide des programmes")));
                 var wrap = new WrapPanel();
                 foreach (var item in nowPrograms) wrap.Children.Add(NowProgramCard(item.Channel, item.Program));
                 root.Children.Add(wrap);
@@ -262,10 +262,10 @@ namespace LyaranTV
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             var logo = BuildThumb(channel, 34, 51); Grid.SetColumn(logo, 0); grid.Children.Add(logo);
             var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 4, 0) };
-            labels.Children.Add(Text(channel.Name, 12.5, Brush(TextPrimary), true));
+            labels.Children.Add(Text(TextUtil.DisplayTitle(channel.Name), 12.5, Brush(TextPrimary), true));
             string meta = channel.Group;
             if (channel.TmdbRating > 0) meta += "  ·  ★ " + channel.TmdbRating.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
-            labels.Children.Add(Text(meta, 9.5, Brush(Muted), false));
+            labels.Children.Add(Text(meta, 11, Brush(Muted), false));
             Grid.SetColumn(labels, 1); grid.Children.Add(labels);
             var card = new Border
             {
@@ -322,9 +322,9 @@ namespace LyaranTV
                 SetContent(root); return;
             }
             var modeBase = BaseViewForMode("Recherche").ToList();
-            var chips = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
-            AddKindChip(chips, "Tous", "Tous", modeBase.Count);
-            AddKindChip(chips, "Chaînes", "Chaînes", modeBase.Count(c => c.Kind == "Chaînes"));
+            var chips = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+            AddKindChip(chips, "Tout", "Tous", modeBase.Count);
+            AddKindChip(chips, "Direct", "Chaînes", modeBase.Count(c => c.Kind == "Chaînes"));
             AddKindChip(chips, "Films", "Films", modeBase.Count(c => c.Kind == "Films"));
             AddKindChip(chips, "Séries", "Séries", modeBase.Count(c => c.Kind == "Séries"));
             root.Children.Add(chips);
@@ -339,12 +339,12 @@ namespace LyaranTV
         void AddKindChip(Panel panel, string label, string kind, int count)
         {
             string captured = kind;
-            var chip = Chip(label + "  " + TextUtil.HumanCount(count), activeKind == captured, delegate
+            var tab = FilterTab(label, activeKind == captured, delegate
             {
                 activeKind = captured; activeGroup = AllGroups;
                 RenderChannels();
-            });
-            panel.Children.Add(chip);
+            }, label + "  ·  " + TextUtil.HumanCount(count) + " élément(s)");
+            panel.Children.Add(tab);
         }
 
         IEnumerable<Channel> BaseViewForMode(string mode)
@@ -614,7 +614,7 @@ namespace LyaranTV
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var logo = BuildThumb(channel, 40, 60); Grid.SetColumn(logo, 0); grid.Children.Add(logo);
             var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 8, 0) };
-            labels.Children.Add(Text(channel.Name, 13, Brush(TextPrimary), true));
+            labels.Children.Add(Text(TextUtil.DisplayTitle(channel.Name), 13, Brush(TextPrimary), true));
             string second = channel.Group + "  ·  " + KindLabel(channel.Kind);
             if (channel.TmdbRating > 0)
                 second += "  ·  ★ " + channel.TmdbRating.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
@@ -733,8 +733,7 @@ namespace LyaranTV
             // reste utile dès le premier contenu enregistré.
             if (list.Count == 0) return null;
             var wrap = new StackPanel { Margin = new Thickness(0, 4, 0, 2) };
-            var seeAll = Chip("Tout voir", false, delegate { Nav(seeAllPage); });
-            seeAll.Margin = new Thickness(0);
+            var seeAll = TextAction("Tout voir", delegate { Nav(seeAllPage); }, "Voir tous les contenus de cette sélection");
             wrap.Children.Add(SectionHeader(title, subtitle, seeAll));
             var strip = new StackPanel { Orientation = Orientation.Horizontal };
             // Dès que les contenus possèdent leur image panoramique d'origine,
@@ -769,7 +768,7 @@ namespace LyaranTV
             var pool = homeTopRated.Take(10).ToList();
             if (pool.Count < 4) return null;
             var wrap = new StackPanel { Margin = new Thickness(0, 4, 0, 2) };
-            wrap.Children.Add(SectionHeader("Top 10 aujourd'hui", "Le classement des contenus les mieux notés de votre playlist.", null));
+            wrap.Children.Add(SectionHeader("Top 10 aujourd'hui", null, null));
             var strip = new StackPanel { Orientation = Orientation.Horizontal };
             for (int i = 0; i < pool.Count; i++) strip.Children.Add(TopTenCard(pool[i], i + 1));
             wrap.Children.Add(WrapLibraryScroller(strip));
@@ -801,7 +800,7 @@ namespace LyaranTV
             art.Child = PosterVisual(channel, 176, 264);
             RoundClip(art, 13);
             stack.Children.Add(art);
-            var name = Text(channel.Name, 12.5, Brush(TextPrimary), true);
+            var name = Text(TextUtil.DisplayTitle(channel.Name), 13, Brush(TextPrimary), true);
             name.TextTrimming = TextTrimming.CharacterEllipsis;
             name.TextWrapping = TextWrapping.NoWrap;
             name.MaxWidth = 176;
@@ -837,11 +836,10 @@ namespace LyaranTV
             if (list.Count < 3) return null;
             var wrap = new StackPanel { Margin = new Thickness(0, 4, 0, 2) };
             string kind = list[0].Kind;
-            var seeAll = Chip("Tout voir", false, delegate
+            var seeAll = TextAction("Tout voir", delegate
             {
                 ShowLibraryCollection(CollectionTitle(kind, AllGroups), kind, AllGroups);
-            });
-            seeAll.Margin = new Thickness(0);
+            }, "Voir tous les contenus de cette sélection");
             wrap.Children.Add(SectionHeader(title, subtitle, seeAll));
             var strip = new StackPanel { Orientation = Orientation.Horizontal };
             bool banners = ShouldUseBanners(list);

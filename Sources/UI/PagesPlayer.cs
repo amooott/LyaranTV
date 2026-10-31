@@ -393,7 +393,7 @@ namespace LyaranTV
             DockPanel.SetDock(playerTopBackButton, Dock.Left);
             playerTopBar.Children.Add(playerTopBackButton);
             var topTitles = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            playerTopTitle = Text(currentPlaying.Name, 15.5, Brushes.White, true);
+            playerTopTitle = Text(TextUtil.DisplayTitle(currentPlaying.Name), 15.5, Brushes.White, true);
             playerTopTitle.TextTrimming = TextTrimming.CharacterEllipsis;
             playerTopTitle.MaxWidth = 760;
             playerTopTitle.HorizontalAlignment = HorizontalAlignment.Left;
@@ -1025,7 +1025,7 @@ namespace LyaranTV
             }
             stack.Children.Add(eyebrowRow);
 
-            currentChannel = Text(currentPlaying.Name, 26, Brush(TextPrimary), true);
+            currentChannel = Text(TextUtil.DisplayTitle(currentPlaying.Name), 26, Brush(TextPrimary), true);
             currentChannel.TextWrapping = TextWrapping.Wrap;
             currentChannel.MaxWidth = 900;
             currentChannel.HorizontalAlignment = HorizontalAlignment.Left;
