@@ -1,3 +1,12 @@
+# LyaranTV 1.2.0
+
+## Test de mise à jour depuis la 1.1.9
+
+- Version publiée pour vérifier le téléchargement, le remplacement dans le bon dossier et le redémarrage automatique corrigés en 1.1.9.
+- Installateur `setup-LyaranTV-1.2.0.exe` et empreintes SHA-256 joints à la Release.
+
+---
+
 # LyaranTV 1.1.9
 
 ## Correctif de l’installation après téléchargement
