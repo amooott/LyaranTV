@@ -618,6 +618,15 @@ namespace LyaranTV
             header.Children.Add(Text("Fiche du contenu", 20, Brush(TextPrimary), true));
             root.Children.Add(header);
 
+            var contentBody = new StackPanel();
+            var contentScroll = new ScrollViewer
+            {
+                Content = contentBody, MaxHeight = 610,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+            };
+            root.Children.Add(contentScroll);
+
             // Un épisode n'a souvent qu'un aperçu 16:9 : il tient le rôle du fond.
             string preferredBackdrop = !String.IsNullOrWhiteSpace(channel.BackdropUrl) ? channel.BackdropUrl : channel.StillUrl;
             bool hasBackdrop = !String.IsNullOrWhiteSpace(preferredBackdrop);
@@ -688,14 +697,14 @@ namespace LyaranTV
             }
             Grid.SetColumn(labels, 1); heroContent.Children.Add(labels);
             hero.Children.Add(heroContent);
-            root.Children.Add(hero);
+            contentBody.Children.Add(hero);
 
             string overview = String.IsNullOrWhiteSpace(channel.Overview) ? channel.Description : channel.Overview;
             if (!String.IsNullOrWhiteSpace(overview))
             {
                 var description = Text(overview, 12, Brush(Muted), false);
                 var scroll = new ScrollViewer { Content = description, MaxHeight = 156, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Margin = new Thickness(0, 12, 0, 0) };
-                root.Children.Add(Card(scroll, 14));
+                contentBody.Children.Add(Card(scroll, 14));
             }
 
             bool canLoadTmdbDetails = !String.IsNullOrWhiteSpace(channel.TmdbId) && TmdbClient.IsConfigured(settings);
@@ -706,7 +715,7 @@ namespace LyaranTV
             detailStack.Children.Add(detailStatus);
             detailStack.Children.Add(detailBody);
             if (canLoadTmdbDetails || !String.IsNullOrWhiteSpace(channel.Cast) || !String.IsNullOrWhiteSpace(channel.Director))
-                root.Children.Add(Card(detailStack, 13));
+                contentBody.Children.Add(Card(detailStack, 13));
             Action<TmdbResult> renderDetails = delegate(TmdbResult data)
             {
                 detailBody.Children.Clear();
@@ -743,55 +752,83 @@ namespace LyaranTV
             var activityBody = new StackPanel();
             var activityStack = new StackPanel();
             Action renderActivity = delegate { };
-            activityStack.Children.Add(Text("VOTRE ACTIVITÉ · LETTERBOXD ET LOCALE", 9.5, Brush(Accent), true));
+            activityStack.Children.Add(Text("VOTRE ACTIVITÉ · LETTERBOXD ET LYARANTV", 9.5, Brush(Accent), true));
+            var activitySource = Text("Historique importé depuis vos CSV Letterboxd et suivi local LyaranTV · profil « " + ProfileScope.Current + " »", 9.5, Brush(Muted), false);
+            activitySource.Margin = new Thickness(0, 4, 0, 0);
+            activityStack.Children.Add(activitySource);
             activityStack.Children.Add(activityBody);
             if (channel.Kind == "Films")
             {
-                root.Children.Add(Card(activityStack, 13));
+                contentBody.Children.Add(Card(activityStack, 13));
                 renderActivity = delegate
                 {
                     activityBody.Children.Clear();
                     if (activity == null || (!activity.Watched && !activity.Watchlisted && activity.Rating <= 0 && String.IsNullOrWhiteSpace(activity.Review)))
-                        activityBody.Children.Add(Text("Aucune activité importée pour ce film dans le profil « " + ProfileScope.Current + " ». Vous pouvez aussi le suivre localement avec les boutons ci-dessous.", 10.5, Brush(Muted), false));
+                    {
+                        var emptyActivity = Text("Aucune donnée personnelle importée pour ce film dans le profil « " + ProfileScope.Current + " ». Les boutons en bas de la fiche enregistrent un suivi local à LyaranTV.", 10.5, Brush(Muted), false);
+                        emptyActivity.Margin = new Thickness(0, 5, 0, 0);
+                        activityBody.Children.Add(emptyActivity);
+                    }
                     else
                     {
-                        var parts = new List<string>();
-                        if (activity.Watched) parts.Add("Vu" + (String.IsNullOrWhiteSpace(activity.Date) ? "" : " · " + activity.Date));
-                        if (activity.Watchlisted) parts.Add("Dans la liste à voir");
-                        if (activity.Rating > 0) parts.Add("Votre note Letterboxd · " + activity.Rating.ToString("0.0", CultureInfo.GetCultureInfo("fr-FR")) + "/5");
-                        activityBody.Children.Add(Text(String.Join("  ·  ", parts.ToArray()), 10.5, Brush(TextPrimary), true));
+                        string personalTitle = (activity.Title ?? "").Trim();
+                        if (!String.IsNullOrWhiteSpace(activity.Year)) personalTitle += "  ·  " + activity.Year;
+                        if (!String.IsNullOrWhiteSpace(personalTitle))
+                        {
+                            var titleLine = Text(personalTitle, 13, Brush(TextPrimary), true);
+                            titleLine.Margin = new Thickness(0, 6, 0, 2);
+                            activityBody.Children.Add(titleLine);
+                        }
+                        var badges = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+                        Action<string, Brush> addBadge = delegate(string badgeLabel, Brush tint)
+                        {
+                            var badge = new Border
+                            {
+                                Background = Brush(Raised), BorderBrush = Brush(BorderColor), BorderThickness = new Thickness(1),
+                                CornerRadius = new CornerRadius(9), Padding = new Thickness(9, 5, 9, 5),
+                                Margin = new Thickness(0, 0, 6, 6), Child = Text(badgeLabel, 10, tint, true)
+                            };
+                            badges.Children.Add(badge);
+                        };
+                        if (activity.Watched) addBadge("✓  VU" + (String.IsNullOrWhiteSpace(activity.Date) ? "" : " · " + activity.Date), Brush(Accent));
+                        if (activity.Watchlisted) addBadge("À VOIR", Brush(TextPrimary));
+                        if (activity.Rating > 0) addBadge("★  " + activity.Rating.ToString("0.0", CultureInfo.GetCultureInfo("fr-FR")) + " / 5", Brush(Accent));
+                        activityBody.Children.Add(badges);
                         if (!String.IsNullOrWhiteSpace(activity.Review))
                         {
-                            var review = Text(activity.Review, 11, Brush(Muted), false);
-                            review.TextWrapping = TextWrapping.Wrap;
-                            review.Margin = new Thickness(0, 5, 0, 0);
-                            activityBody.Children.Add(review);
+                            var reviewText = Text(activity.Review.Trim(), 11, Brush(TextPrimary), false);
+                            reviewText.TextWrapping = TextWrapping.Wrap;
+                            reviewText.TextTrimming = TextTrimming.None;
+                            var reviewCard = new Border
+                            {
+                                Background = Brush(Raised), BorderBrush = Brush(WithAlpha(Accent, 110)), BorderThickness = new Thickness(2, 0, 0, 0),
+                                CornerRadius = new CornerRadius(3, 10, 10, 3), Padding = new Thickness(12),
+                                Margin = new Thickness(0, 5, 0, 0), Child = reviewText
+                            };
+                            activityBody.Children.Add(reviewCard);
                         }
                     }
                     string letterboxdUsername = LetterboxdActivityStore.Username;
                     if (!String.IsNullOrWhiteSpace(letterboxdUsername))
-                        activityBody.Children.Add(Text("Profil associé : @" + letterboxdUsername, 9.5, Brush(Muted), false));
+                    {
+                        var profileLine = Text("Compte public configuré : @" + letterboxdUsername, 9.5, Brush(Muted), false);
+                        profileLine.Margin = new Thickness(0, 5, 0, 0);
+                        activityBody.Children.Add(profileLine);
+                    }
                 };
                 renderActivity();
-                var openLetterboxd = Button(Glyphs.External, "Ouvrir sur Letterboxd", delegate
-                {
-                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(LetterboxdActivityStore.FilmUrl(channel)) { UseShellExecute = true }); }
-                    catch { ShowError("Impossible d’ouvrir Letterboxd dans le navigateur."); }
-                }, false);
-                openLetterboxd.Margin = new Thickness(0, 8, 0, 0);
-                activityStack.Children.Add(openLetterboxd);
             }
 
             if (channel.Kind == "Films")
             {
                 var publicReviewsCard = new StackPanel();
                 var publicReviewsHeader = new StackPanel { Orientation = Orientation.Horizontal };
-                publicReviewsHeader.Children.Add(Text("AVIS PUBLICS · LETTERBOXD", 9.5, Brush(Accent), true));
+                publicReviewsHeader.Children.Add(Text("AVIS DES PROFILS · LETTERBOXD", 9.5, Brush(Accent), true));
                 var publicReviewsStatus = Text("", 9.5, Brush(Muted), false);
                 publicReviewsStatus.Margin = new Thickness(8, 0, 0, 0);
                 publicReviewsHeader.Children.Add(publicReviewsStatus);
                 publicReviewsCard.Children.Add(publicReviewsHeader);
-                var publicReviewsBody = new StackPanel { Margin = new Thickness(0, 7, 0, 0) };
+                var publicReviewsBody = new StackPanel { Margin = new Thickness(0, 9, 0, 0) };
                 publicReviewsCard.Children.Add(publicReviewsBody);
                 var configuredProfiles = LetterboxdActivityStore.GetPublicUsernames();
                 BackgroundWorker rssWorker = null;
@@ -801,42 +838,61 @@ namespace LyaranTV
                     var reviews = LetterboxdActivityStore.PublicReviews(channel);
                     if (reviews.Count == 0)
                     {
-                        publicReviewsBody.Children.Add(Text(configuredProfiles.Count == 0
-                            ? "Saisissez votre nom d’utilisateur Letterboxd dans Paramètres pour afficher votre activité publique récente."
-                            : "Aucun avis récent correspondant dans les flux publics enregistrés.", 10.5, Brush(Muted), false));
+                        var emptyReviews = Text(configuredProfiles.Count == 0
+                            ? "Ajoutez votre nom d’utilisateur Letterboxd dans Paramètres pour afficher ici vos notes et avis publics récents. Vous pouvez aussi ajouter les profils de vos amis."
+                            : "Aucune note ou critique récente correspondant à ce film dans les flux publics enregistrés.", 10.5, Brush(Muted), false);
+                        emptyReviews.Margin = new Thickness(0, 3, 0, 0);
+                        publicReviewsBody.Children.Add(emptyReviews);
                         return;
                     }
+                    var resultCount = Text(reviews.Count + (reviews.Count == 1 ? " profil trouvé" : " profils trouvés") + " · données publiques récentes", 9.5, Brush(Muted), false);
+                    resultCount.Margin = new Thickness(0, 0, 0, 8);
+                    publicReviewsBody.Children.Add(resultCount);
                     foreach (var review in reviews)
                     {
-                        var row = new StackPanel { Margin = new Thickness(0, 0, 0, 9) };
+                        var row = new StackPanel();
                         string heading = "@" + review.Username;
-                        if (review.Rating > 0) heading += "  ·  " + review.Rating.ToString("0.0", CultureInfo.GetCultureInfo("fr-FR")) + "/5";
+                        string sourceProfile = (review.ProfileUsername ?? "").Trim();
+                        if (!String.IsNullOrWhiteSpace(sourceProfile) && !String.Equals(sourceProfile, review.Username, StringComparison.OrdinalIgnoreCase))
+                            heading += "  ·  flux de @" + sourceProfile;
                         if (!String.IsNullOrWhiteSpace(review.Date))
                         {
                             DateTime date;
                             if (DateTime.TryParse(review.Date, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out date))
                                 heading += "  ·  " + date.ToLocalTime().ToString("d MMM yyyy", CultureInfo.GetCultureInfo("fr-FR"));
                         }
-                        row.Children.Add(Text(heading, 10.5, Brush(TextPrimary), true));
+                        var reviewMeta = new DockPanel { LastChildFill = true };
+                        var author = Text(heading, 10.5, Brush(TextPrimary), true);
+                        author.Margin = new Thickness(0, 0, 8, 0);
+                        if (review.Rating > 0)
+                        {
+                            var rating = Text("★  " + review.Rating.ToString("0.0", CultureInfo.GetCultureInfo("fr-FR")) + " / 5", 10.5, Brush(Accent), true);
+                            rating.HorizontalAlignment = HorizontalAlignment.Right;
+                            DockPanel.SetDock(rating, Dock.Right);
+                            reviewMeta.Children.Add(rating);
+                        }
+                        reviewMeta.Children.Add(author);
+                        row.Children.Add(reviewMeta);
                         if (!String.IsNullOrWhiteSpace(review.Review))
                         {
-                            var excerpt = Text(TextUtil.Ellipsis(review.Review, 600), 10.5, Brush(Muted), false);
-                            excerpt.TextWrapping = TextWrapping.Wrap;
-                            excerpt.Margin = new Thickness(0, 3, 0, 0);
-                            row.Children.Add(excerpt);
-                        }
-                        if (!String.IsNullOrWhiteSpace(review.Uri))
-                        {
-                            var openReview = Button(Glyphs.External, "Lire l’avis sur Letterboxd", delegate
+                            var fullReview = Text(review.Review.Trim(), 10.5, Brush(TextPrimary), false);
+                            fullReview.TextWrapping = TextWrapping.Wrap;
+                            fullReview.TextTrimming = TextTrimming.None;
+                            var reviewQuote = new Border
                             {
-                                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(review.Uri) { UseShellExecute = true }); }
-                                catch { ShowError("Impossible d’ouvrir cet avis dans le navigateur."); }
-                            }, false);
-                            openReview.HorizontalAlignment = HorizontalAlignment.Left;
-                            openReview.Margin = new Thickness(0, 3, 0, 0);
-                            row.Children.Add(openReview);
+                                Background = Brush(Raised), BorderBrush = Brush(WithAlpha(Accent, 110)), BorderThickness = new Thickness(2, 0, 0, 0),
+                                CornerRadius = new CornerRadius(3, 10, 10, 3), Padding = new Thickness(12),
+                                Margin = new Thickness(0, 7, 0, 0), Child = fullReview
+                            };
+                            row.Children.Add(reviewQuote);
                         }
-                        publicReviewsBody.Children.Add(row);
+                        else
+                        {
+                            var noText = Text("Aucun texte de critique pour cette entrée publique.", 10, Brush(Muted), false);
+                            noText.Margin = new Thickness(0, 5, 0, 0);
+                            row.Children.Add(noText);
+                        }
+                        publicReviewsBody.Children.Add(Card(row, 11));
                     }
                 };
                 Action<bool> refreshPublicReviews = delegate(bool force)
@@ -867,7 +923,7 @@ namespace LyaranTV
                 refreshRss.Margin = new Thickness(0, 7, 0, 0);
                 refreshRss.IsEnabled = configuredProfiles.Count > 0;
                 publicReviewsCard.Children.Add(refreshRss);
-                root.Children.Add(Card(publicReviewsCard, 13));
+                contentBody.Children.Add(Card(publicReviewsCard, 13));
                 if (configuredProfiles.Count > 0 && LetterboxdActivityStore.NeedsRssRefresh) refreshPublicReviews(false);
             }
 
@@ -889,17 +945,17 @@ namespace LyaranTV
                     nextText.Margin = new Thickness(0, 6, 0, 0);
                     epgStack.Children.Add(nextText);
                 }
-                root.Children.Add(Card(epgStack, 13));
+                contentBody.Children.Add(Card(epgStack, 13));
             }
 
             if (!String.IsNullOrWhiteSpace(channel.Season) || !String.IsNullOrWhiteSpace(channel.Episode))
-                root.Children.Add(Card(Text("Saison " + channel.Season + "  ·  Épisode " + channel.Episode, 11, Brush(Muted), false), 12));
+                contentBody.Children.Add(Card(Text("Saison " + channel.Season + "  ·  Épisode " + channel.Episode, 11, Brush(Muted), false), 12));
 
             if (!String.IsNullOrWhiteSpace(channel.TmdbId))
             {
                 var credit = Text(TmdbClient.Attribution, 9.5, Brush(Muted), false);
                 credit.Margin = new Thickness(0, 0, 0, 8); credit.TextWrapping = TextWrapping.Wrap;
-                root.Children.Add(credit);
+                contentBody.Children.Add(credit);
             }
 
             var actions = new WrapPanel { Margin = new Thickness(0, 2, 0, 0) };

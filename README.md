@@ -20,7 +20,7 @@
 - Guide EPG XMLTV avec navigation par jour et programmes en cours.
 - Favoris, historique, positions de reprise, profils séparés et contrôle parental. Supprimer une playlist efface aussi son historique, ses reprises et ses épisodes en cours dans tous les profils, sans toucher aux autres playlists.
 - Fiches de contenus enrichies avec titre original, casting, réalisation, durée, pays, classification et bande-annonce via **TMDb** lorsque vous fournissez votre propre clé.
-- Activité Letterboxd facultative : import local de vos fichiers CSV d’export, notes et critiques personnelles, avis publics récents de profils choisis via RSS, liste à voir locale et liens vers Letterboxd. Les données sont séparées par profil.
+- Activité Letterboxd facultative : import local des CSV d’export, note et critique personnelle intégrales, ainsi que notes et critiques publiques récentes de vos profils choisis via RSS, affichées dans les fiches avec auteur, date et note. Les avis se lisent directement dans LyaranTV; aucun renvoi vers la page du film ou de la critique n’est nécessaire. Les données sont séparées par profil.
 - Affiches, vignettes et logos chargés **en ligne**, avec un cache disque borné (`%APPDATA%\LyaranTV\covers`) et un cache mémoire : aucun visuel n'est fourni avec le programme.
 - Barres de défilement personnalisées, champs de saisie lisibles dans tous les thèmes, animations discrètes et option de réduction des mouvements.
 - Sauvegarde complète `.lyaran`, export/import JSON portable et export M3U.
@@ -171,7 +171,7 @@ Les résultats sont mis en cache dans `%APPDATA%\LyaranTV\artwork-cache.json` et
 
 ## Letterboxd
 
-Dans **Paramètres → API Letterboxd**, le nom public de votre compte suffit : LyaranTV charge automatiquement son flux RSS à l’ouverture de l’accueil, sans mot de passe. Les profils d’amis sont facultatifs. Le flux public contient l’activité récente; importez les CSV (`watchlist.csv`, `ratings.csv`, `diary.csv`, `reviews.csv`) pour récupérer l’historique complet. Les avis RSS sont mis en cache six heures et associés prudemment par titre et année. L’activité importée et le cache RSS restent locaux et séparés par profil. Les actions « vu » et « liste à voir » de LyaranTV restent locales et ne modifient pas Letterboxd.
+Dans **Paramètres → API Letterboxd**, le nom public de votre compte suffit : LyaranTV charge automatiquement son flux RSS à l’ouverture de l’accueil, sans mot de passe. Les profils d’amis sont facultatifs. Le flux public contient l’activité récente; importez les CSV (`watchlist.csv`, `ratings.csv`, `diary.csv`, `reviews.csv`) pour récupérer l’historique complet. Dans la fiche d’un film, les notes, statuts vu/à voir et critiques importées apparaissent avec le texte complet; les avis RSS affichent aussi leur auteur, profil source et date. Ils sont mis en cache six heures et associés prudemment par titre et année, puis lus directement dans LyaranTV. L’activité importée et le cache RSS restent locaux et séparés par profil. Les actions « vu » et « liste à voir » de LyaranTV restent locales et ne modifient pas Letterboxd.
 
 La section **API Letterboxd** ouvre aussi la [documentation API](https://api-docs.letterboxd.com/) et la [page de demande d’accès](https://letterboxd.com/api-beta/access/). Les flux RSS ne donnent accès qu’à l’activité récente rendue publique; les listes privées et l’écriture vers le compte nécessitent un accès API approuvé.
 

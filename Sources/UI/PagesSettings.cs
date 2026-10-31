@@ -614,13 +614,6 @@ namespace LyaranTV
             stack.Children.Add(SettingsRow("Autres profils publics (facultatif)", "Laissez ce champ vide pour ne suivre que votre compte. Vous pouvez ajouter jusqu’à 7 noms d’amis.", letterboxdProfilesRow));
 
             var letterboxdActions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
-            letterboxdActions.Children.Add(Button(Glyphs.External, "Ouvrir mon profil", delegate
-            {
-                string username = (letterboxdUser.Text ?? LetterboxdActivityStore.Username ?? "").Trim().TrimStart('@');
-                if (username.Length == 0) { ShowError("Saisissez d’abord votre nom d’utilisateur Letterboxd."); return; }
-                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://letterboxd.com/" + Uri.EscapeDataString(username) + "/") { UseShellExecute = true }); }
-                catch { ShowError("Impossible d’ouvrir Letterboxd dans le navigateur."); }
-            }, false));
             var clearLetterboxd = Button(Glyphs.Delete, "Supprimer mes données Letterboxd", delegate
             {
                 if (!AskConfirmation("Supprimer les données Letterboxd", "L’activité importée, les noms de profils et le cache RSS du profil « " + ProfileScope.Current + " » seront supprimés.", "Supprimer")) return;
@@ -628,7 +621,6 @@ namespace LyaranTV
                 ShowSettings();
                 Notice("Données Letterboxd locales supprimées pour ce profil.");
             }, false);
-            clearLetterboxd.Margin = new Thickness(7, 0, 0, 0);
             letterboxdActions.Children.Add(clearLetterboxd);
             stack.Children.Add(letterboxdActions);
 

@@ -1,3 +1,14 @@
+# LyaranTV 1.1.4
+
+## Fiches Letterboxd intégrées
+
+- Les notes, l’état vu/à voir et les critiques personnelles issues des CSV apparaissent en entier dans la fiche du film.
+- Les critiques publiques récentes montrent le profil, l’auteur, la date, la note et le texte complet directement dans l’application.
+- La fiche peut défiler pour lire les avis longs. Les boutons qui renvoyaient vers la page du film, l’avis ou le profil Letterboxd ont été retirés.
+- L’installateur `setup-LyaranTV-1.1.4.exe` est joint à la Release GitHub avec les empreintes SHA-256.
+
+---
+
 # LyaranTV 1.1.3
 
 ## Letterboxd et mises à jour
