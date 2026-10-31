@@ -50,19 +50,15 @@ if not exist "%WORK%\payload.zip" (
   exit /b 1
 )
 
-rem Jeton GitHub injecte a l'installation : variable d'environnement ou
-rem fichier build\update-token.txt (jamais versionne).
-set "TOKEN="
-if exist "%ROOT%\build\update-token.txt" set /p TOKEN=<"%ROOT%\build\update-token.txt"
-if defined LYARANTV_UPDATE_TOKEN set "TOKEN=%LYARANTV_UPDATE_TOKEN%"
+rem Aucun jeton personnel n'est embarque dans l'installateur.
 > "%WORK%\UpdateToken.cs" echo namespace LyaranTV.Setup
 >>"%WORK%\UpdateToken.cs" echo {
 >>"%WORK%\UpdateToken.cs" echo     internal static class UpdateToken
 >>"%WORK%\UpdateToken.cs" echo     {
->>"%WORK%\UpdateToken.cs" echo         public const string Value = "%TOKEN%";
+>>"%WORK%\UpdateToken.cs" echo         public const string Value = "";
 >>"%WORK%\UpdateToken.cs" echo     }
 >>"%WORK%\UpdateToken.cs" echo }
-if defined TOKEN (echo Jeton de mise a jour : integre) else (echo Jeton de mise a jour : absent)
+echo Aucun jeton personnel n'est integre ; l'utilisateur pourra le saisir dans Parametres.
 
 set "RSP=%WORK%\setup.rsp"
 > "%RSP%" echo /nologo

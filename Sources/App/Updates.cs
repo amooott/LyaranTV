@@ -146,8 +146,10 @@ namespace LyaranTV
             {
                 var response = ex.Response as HttpWebResponse;
                 int status = response == null ? 0 : (int)response.StatusCode;
-                if (status == 401 || status == 403) info.Error = "Jeton GitHub refusé ou sans accès au dépôt.";
-                else if (status == 404) info.Error = "Release introuvable (dépôt privé ou aucune version publiée).";
+                if (status == 401 || status == 403) info.Error = "Jeton GitHub refusé ou droits insuffisants. Pour un jeton à granularité fine, autorisez le dépôt "
+                    + AppInfo.Repository + " avec Contents : Read; pour un jeton classic, utilisez la portée repo.";
+                else if (status == 404) info.Error = "GitHub ne trouve aucune Release accessible. Vérifiez qu’une Release est publiée et, pour un jeton à granularité fine, autorisez le dépôt "
+                    + AppInfo.Repository + " avec Contents : Read.";
                 else info.Error = "Réseau indisponible : " + ex.GetBaseException().Message;
                 return info;
             }

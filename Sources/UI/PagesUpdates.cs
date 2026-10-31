@@ -200,7 +200,8 @@ namespace LyaranTV
 
             var stack = new StackPanel { Margin = new Thickness(22, 18, 22, 18) };
             stack.Children.Add(Text(I18n.T("Jeton GitHub"), 17, Brush(TextPrimary), true));
-            var hint = Text("Le dépôt est privé : la vérification des mises à jour demande un jeton personnel GitHub (portée « repo »). "
+            var hint = Text("Pour un jeton à granularité fine (github_pat_), sélectionnez le dépôt " + AppInfo.Repository
+                + " et accordez Contents : Read. Pour un jeton classique (ghp_), utilisez la portée repo. "
                 + I18n.T("Le jeton reste chiffré sur cet ordinateur."), 11, Brush(Muted), false);
             hint.TextWrapping = TextWrapping.Wrap;
             hint.Margin = new Thickness(0, 6, 0, 12);
@@ -329,6 +330,7 @@ namespace LyaranTV
             text = Regex.Replace(text, @"(://[^:/\s]+:)[^@\s]+@", "$1•••@");
             text = Regex.Replace(text, @"(?i)(password|passwd|pwd|token|secret|api_key|apikey|username)=([^&\s""]+)", "$1=•••");
             text = Regex.Replace(text, @"(?i)bearer\s+[A-Za-z0-9._\-]+", "Bearer •••");
+            text = Regex.Replace(text, @"\bgithub_pat_[A-Za-z0-9_]{20,}\b", "•••");
             text = Regex.Replace(text, @"\bgh[pousr]_[A-Za-z0-9]{20,}\b", "•••");
             return text;
         }

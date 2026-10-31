@@ -802,7 +802,7 @@ namespace LyaranTV
                     if (reviews.Count == 0)
                     {
                         publicReviewsBody.Children.Add(Text(configuredProfiles.Count == 0
-                            ? "Ajoutez les noms publics de votre compte et de vos amis dans Paramètres pour afficher leurs avis récents."
+                            ? "Saisissez votre nom d’utilisateur Letterboxd dans Paramètres pour afficher votre activité publique récente."
                             : "Aucun avis récent correspondant dans les flux publics enregistrés.", 10.5, Brush(Muted), false));
                         return;
                     }

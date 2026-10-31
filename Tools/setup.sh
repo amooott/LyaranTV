@@ -16,12 +16,8 @@ fi
 SETUP="setup-LyaranTV-$VERSION.exe"
 echo "Version : $VERSION"
 
-# Jeton GitHub injecté à l'installation : variable d'environnement ou fichier
-# local build/update-token.txt (jamais versionné).
-TOKEN_VALUE="${LYARANTV_UPDATE_TOKEN:-}"
-if [ -z "$TOKEN_VALUE" ] && [ -f build/update-token.txt ]; then
-  TOKEN_VALUE="$(tr -d '\r\n' < build/update-token.txt)"
-fi
+# Aucun jeton personnel n'est embarqué dans l'installateur.
+TOKEN_VALUE=""
 mkdir -p build
 cat > build/UpdateToken.cs <<EOF
 namespace LyaranTV.Setup
@@ -32,7 +28,7 @@ namespace LyaranTV.Setup
     }
 }
 EOF
-echo "Jeton de mise à jour : $([ -n "$TOKEN_VALUE" ] && echo intégré || echo absent)"
+echo "Aucun jeton personnel n'est intégré ; il peut être saisi dans les paramètres."
 
 bash Tools/build.sh >/dev/null
 rm -rf build/stage build/payload.zip

@@ -33,7 +33,7 @@ namespace LyaranTV.Setup
     internal static class SetupProgram
     {
         public const string ProductName = "LyaranTV";
-        public const string Version = "1.1.2";
+        public const string Version = "1.1.3";
         public const string Publisher = "Amooott";
         public const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\LyaranTV";
 
@@ -273,10 +273,9 @@ namespace LyaranTV.Setup
         }
 
         /// <summary>
-        /// Enregistre le jeton GitHub fourni au build dans les réglages de
-        /// l'application, chiffré par DPAPI comme le fait CredentialVault :
-        /// les mises à jour fonctionnent donc dès l'installation, sans saisie.
-        /// Un jeton déjà enregistré par l'utilisateur n'est jamais remplacé.
+        /// Enregistre un jeton facultatif dans les réglages de l'application,
+        /// chiffré par DPAPI comme le fait CredentialVault. Les installateurs
+        /// publiés ne contiennent aucun jeton; un jeton existant n'est jamais remplacé.
         /// </summary>
         static void SeedUpdateToken()
         {

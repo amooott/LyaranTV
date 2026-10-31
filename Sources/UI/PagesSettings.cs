@@ -30,7 +30,7 @@ namespace LyaranTV
                 BuildProfileSettings()));
             root.Children.Add(SettingsCard("Métadonnées et sous-titres", "Affiches, notes et synopsis (TMDb), recherche de sous-titres (OpenSubtitles). Facultatif.",
                 BuildTmdbSettings()));
-            root.Children.Add(SettingsCard("API Letterboxd", "État de l’accès API, profils publics et activité importée.",
+            root.Children.Add(SettingsCard("API Letterboxd", "Un nom d’utilisateur suffit pour vos avis publics récents; vous pouvez importer l’historique.",
                 BuildLetterboxdApiSettings()));
             root.Children.Add(SettingsCard("Démarrage", "Ce que LyaranTV ouvre au lancement.",
                 BuildStartupSettings()));
@@ -544,8 +544,8 @@ namespace LyaranTV
         StackPanel BuildLetterboxdApiSettings()
         {
             var stack = new StackPanel();
-            stack.Children.Add(Text("ÉTAT · API NON CONNECTÉE", 10, Brush(Accent), true));
-            var apiNotice = Text("L’API Letterboxd est accessible sur demande. Letterboxd indique ne pas accorder actuellement l’accès aux projets privés ou personnels. LyaranTV ne peut donc pas activer une connexion OAuth ni lire des données privées. Les flux RSS publics et l’import CSV ci-dessous restent disponibles sans mot de passe.", 11, Brush(Muted), false);
+            stack.Children.Add(Text("ACTIVITÉ PUBLIQUE · NOM D’UTILISATEUR SUFFIT", 10, Brush(Accent), true));
+            var apiNotice = Text("Saisissez le nom public de votre compte : LyaranTV chargera automatiquement son flux RSS public, sans authentification ni mot de passe. Le flux contient l’activité publique récente; importez votre export CSV pour récupérer l’historique complet, vos notes et votre liste à voir.", 11, Brush(Muted), false);
             apiNotice.TextWrapping = TextWrapping.Wrap;
             apiNotice.Margin = new Thickness(0, 4, 0, 8);
             stack.Children.Add(apiNotice);
@@ -570,13 +570,13 @@ namespace LyaranTV
             var letterboxdUser = StyledTextBox();
             letterboxdUser.Width = 220;
             letterboxdUser.Text = LetterboxdActivityStore.Username;
-            letterboxdUser.ToolTip = "Nom d’utilisateur public, sans mot de passe ni connexion dans LyaranTV.";
+            letterboxdUser.ToolTip = "Votre nom public suffit pour charger l’activité récente; aucun mot de passe n’est demandé.";
             var letterboxdRow = new StackPanel { Orientation = Orientation.Horizontal };
             letterboxdRow.Children.Add(letterboxdUser);
             var saveLetterboxd = Button(Glyphs.Save, "Enregistrer", delegate
             {
                 LetterboxdActivityStore.SetUsername(letterboxdUser.Text);
-                Notice("Nom Letterboxd enregistré dans le profil « " + ProfileScope.Current + " ».");
+                Notice("Nom Letterboxd enregistré. Son flux public sera actualisé automatiquement à l’ouverture de l’Accueil.");
             }, false);
             saveLetterboxd.Margin = new Thickness(7, 0, 0, 0);
             letterboxdRow.Children.Add(saveLetterboxd);
@@ -595,12 +595,12 @@ namespace LyaranTV
             }, false);
             importLetterboxd.Margin = new Thickness(7, 0, 0, 0);
             letterboxdRow.Children.Add(importLetterboxd);
-            stack.Children.Add(SettingsRow("Nom d’utilisateur Letterboxd", "Utilisé pour ouvrir votre profil public et lire son flux RSS.", letterboxdRow));
+            stack.Children.Add(SettingsRow("Nom d’utilisateur Letterboxd", "Suffit pour charger automatiquement vos avis publics récents. Enregistrez-le, puis ouvrez l’Accueil.", letterboxdRow));
 
             var letterboxdProfiles = StyledTextBox();
             letterboxdProfiles.Width = 350;
             letterboxdProfiles.Text = LetterboxdActivityStore.PublicUsernames;
-            letterboxdProfiles.ToolTip = "Noms publics séparés par des virgules. Maximum : 8 profils.";
+            letterboxdProfiles.ToolTip = "Facultatif : noms publics d’amis, séparés par des virgules. Maximum : 7 amis.";
             var letterboxdProfilesRow = new StackPanel { Orientation = Orientation.Horizontal };
             letterboxdProfilesRow.Children.Add(letterboxdProfiles);
             var saveLetterboxdProfiles = Button(Glyphs.Save, "Enregistrer", delegate
@@ -611,7 +611,7 @@ namespace LyaranTV
             }, false);
             saveLetterboxdProfiles.Margin = new Thickness(7, 0, 0, 0);
             letterboxdProfilesRow.Children.Add(saveLetterboxdProfiles);
-            stack.Children.Add(SettingsRow("Profils publics à consulter", "Votre nom et ceux de vos amis, séparés par des virgules. Les avis publics récents sont lus via RSS ; 8 profils maximum.", letterboxdProfilesRow));
+            stack.Children.Add(SettingsRow("Autres profils publics (facultatif)", "Laissez ce champ vide pour ne suivre que votre compte. Vous pouvez ajouter jusqu’à 7 noms d’amis.", letterboxdProfilesRow));
 
             var letterboxdActions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
             letterboxdActions.Children.Add(Button(Glyphs.External, "Ouvrir mon profil", delegate
@@ -632,7 +632,7 @@ namespace LyaranTV
             letterboxdActions.Children.Add(clearLetterboxd);
             stack.Children.Add(letterboxdActions);
 
-            var privacy = Text("Les noms et les données importées sont conservés localement, séparés par profil. Aucun mot de passe Letterboxd ni identifiant IPTV n’est envoyé. Les flux publics sont mis en cache six heures ; les données privées et l’écriture sur Letterboxd nécessitent un accès API approuvé.", 9.8, Brush(Muted), false);
+            var privacy = Text("Les noms et les données importées restent locaux et séparés par profil. Aucun mot de passe Letterboxd n’est demandé. Les flux publics sont mis en cache six heures; les données privées et l’écriture sur Letterboxd nécessitent un accès API approuvé.", 9.8, Brush(Muted), false);
             privacy.TextWrapping = TextWrapping.Wrap;
             privacy.Margin = new Thickness(0, 9, 0, 0);
             stack.Children.Add(privacy);
@@ -780,7 +780,7 @@ namespace LyaranTV
             }));
 
             var note = Text("Le programme interroge les Releases du dépôt " + AppInfo.Repository
-                + " ; le fichier téléchargé est comparé à l'empreinte SHA-256 publiée avant d'être exécuté. Le dépôt étant privé, un jeton GitHub personnel est nécessaire.", 9.8, Brush(Muted), false);
+                + " ; le fichier téléchargé est comparé à l'empreinte SHA-256 publiée avant d'être exécuté. Pour un jeton à granularité fine, autorisez ce dépôt et Contents : Read; pour un jeton classique, utilisez repo.", 9.8, Brush(Muted), false);
             note.Margin = new Thickness(0, 9, 0, 0);
             note.TextWrapping = TextWrapping.Wrap;
             stack.Children.Add(note);
