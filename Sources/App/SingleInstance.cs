@@ -25,11 +25,12 @@ namespace LyaranTV
         {
             try
             {
-                // On ajoute TLS 1.2 et 1.3 sans écraser ce que la machine sait
-                // déjà faire : certains serveurs IPTV n'acceptent que le 1.2.
+                // TLS 1.2 suffit à tous les serveurs utilisés et reste négociable
+                // par .NET Framework. Le drapeau TLS 1.3 (12288) n'existe pas dans
+                // cette version du framework : ajouté à l'énumération, il rendait
+                // toute connexion HTTPS interne muette jusqu'au délai d'attente —
+                // les affiches ne se téléchargeaient donc jamais.
                 ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
-                try { ServicePointManager.SecurityProtocol |= (SecurityProtocolType)12288; }
-                catch { }
                 ServicePointManager.Expect100Continue = false;
                 ServicePointManager.DefaultConnectionLimit = 16;
             }
@@ -42,6 +43,9 @@ namespace LyaranTV
         /// </summary>
         public static bool Claim(Action onActivate)
         {
+            // Les captures de contrôle peuvent tourner à côté de l'application
+            // installée, dans un dossier de données séparé.
+            if (Environment.GetEnvironmentVariable("LYARANTV_ALLOW_MULTI") == "1") return true;
             try
             {
                 bool created;

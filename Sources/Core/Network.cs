@@ -1,6 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Net;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Text;
 
 namespace LyaranTV
@@ -24,6 +29,28 @@ namespace LyaranTV
         public static byte[] GetBytes(string url, int timeoutMs, string userAgent)
         {
             if (!TextUtil.IsHttp(url)) throw new InvalidDataException("Adresse HTTP/HTTPS invalide : " + (url ?? ""));
+            Uri uri;
+            if (Uri.TryCreate(url, UriKind.Absolute, out uri)
+                && String.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+                && !HasProxy(uri))
+            {
+                // L'IPv6 annoncé par certains réseaux est injoignable : le moteur
+                // historique attend alors ~20 s avant de basculer en IPv4, bien
+                // au-delà des délais des cartes. On télécharge donc directement
+                // en IPv4, puis on retombe sur le moteur standard en cas d'échec
+                // (proxy, certificat, serveur particulier).
+                try { return DownloadHttpsIpv4(uri, timeoutMs, userAgent); }
+                catch (InvalidDataException) { throw; }
+                catch (Exception ipv4Error)
+                {
+                    try { AppendLog("HTTPS IPv4 · " + uri.Host + " · " + ipv4Error.GetBaseException().Message + " (repli)"); } catch { }
+                }
+            }
+            return GetBytesStandard(url, timeoutMs, userAgent);
+        }
+
+        static byte[] GetBytesStandard(string url, int timeoutMs, string userAgent)
+        {
             var request = (HttpWebRequest)WebRequest.Create(url);
             request.Method = "GET";
             request.UserAgent = String.IsNullOrWhiteSpace(userAgent) ? "LyaranTV/2.0" : userAgent;
@@ -51,6 +78,240 @@ namespace LyaranTV
         }
 
         public static byte[] GetBytes(string url) { return GetBytes(url, 20000, "LyaranTV/2.0"); }
+
+        /// <summary>Vrai si une passerelle système relaie cette adresse.</summary>
+        static bool HasProxy(Uri uri)
+        {
+            try
+            {
+                IWebProxy proxy = WebRequest.GetSystemWebProxy();
+                if (proxy == null) return false;
+                Uri relay = proxy.GetProxy(uri);
+                return relay != null && !String.Equals(relay.Host, uri.Host, StringComparison.OrdinalIgnoreCase);
+            }
+            catch { return false; }
+        }
+
+        sealed class HttpsResponse
+        {
+            public int Status;
+            public string Location = "";
+            public byte[] Body = new byte[0];
+        }
+
+        // Les affiches arrivent par dizaines du même hôte : une résolution DNS
+        // par image ajoutait plusieurs secondes à l'ouverture d'une rangée.
+        static readonly object DnsGate = new object();
+        static readonly Dictionary<string, List<IPAddress>> DnsCache = new Dictionary<string, List<IPAddress>>(StringComparer.OrdinalIgnoreCase);
+        static readonly Dictionary<string, DateTime> DnsExpiry = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+
+        static List<IPAddress> ResolveIpv4(string host)
+        {
+            lock (DnsGate)
+            {
+                DateTime expiry;
+                List<IPAddress> cached;
+                if (DnsCache.TryGetValue(host, out cached) && DnsExpiry.TryGetValue(host, out expiry) && expiry > DateTime.UtcNow) return cached;
+            }
+            var addresses = new List<IPAddress>();
+            foreach (IPAddress address in Dns.GetHostAddresses(host))
+                if (address.AddressFamily == AddressFamily.InterNetwork) addresses.Add(address);
+            lock (DnsGate)
+            {
+                if (DnsCache.Count > 256) { DnsCache.Clear(); DnsExpiry.Clear(); }
+                DnsCache[host] = addresses;
+                DnsExpiry[host] = DateTime.UtcNow.AddMinutes(10);
+            }
+            return addresses;
+        }
+
+        /// <summary>
+        /// Téléchargement HTTPS en IPv4 seulement : résolution A, connexion
+        /// directe avec un délai borné, TLS 1.2 avec SNI, puis lecture de la
+        /// réponse (Content-Length, chunked, gzip éventuel). Les redirections
+        /// HTTPS sont suivies. Une erreur HTTP réelle est signalée par une
+        /// InvalidDataException, sans nouvelle tentative inutile.
+        /// </summary>
+        static byte[] DownloadHttpsIpv4(Uri uri, int timeoutMs, string userAgent)
+        {
+            int budget = Math.Max(2000, timeoutMs);
+            for (int hop = 0; hop < 5; hop++)
+            {
+                HttpsResponse response = FetchHttpsIpv4(uri, budget, userAgent);
+                if (response.Status >= 300 && response.Status < 400 && response.Location.Length > 0)
+                {
+                    Uri next;
+                    if (Uri.TryCreate(uri, response.Location, out next)
+                        && String.Equals(next.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                    {
+                        uri = next;
+                        continue;
+                    }
+                    throw new InvalidDataException("Redirection vers une adresse non sécurisée refusée : " + response.Location);
+                }
+                if (response.Status >= 400)
+                {
+                    if (response.Status == 401 || response.Status == 403) throw new InvalidDataException("Accès refusé par " + uri.Host + " (HTTP " + response.Status + ").");
+                    if (response.Status == 404) throw new InvalidDataException("Adresse introuvable sur " + uri.Host + " (HTTP 404).");
+                    throw new InvalidDataException("Erreur HTTP " + response.Status + " renvoyée par " + uri.Host + ".");
+                }
+                return response.Body;
+            }
+            throw new InvalidDataException("Trop de redirections pour " + uri.Host + ".");
+        }
+
+        static HttpsResponse FetchHttpsIpv4(Uri uri, int timeoutMs, string userAgent)
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            var addresses = ResolveIpv4(uri.Host);
+            if (addresses.Count == 0) throw new IOException("Aucune adresse IPv4 pour " + uri.Host + ".");
+
+            TcpClient client = ConnectIpv4(addresses, uri.Port, Math.Max(1500, timeoutMs));
+            try
+            {
+                using (var ssl = new SslStream(client.GetStream(), false))
+                {
+                    int remaining = Math.Max(1500, timeoutMs - (int)watch.ElapsedMilliseconds);
+                    ssl.ReadTimeout = remaining;
+                    ssl.WriteTimeout = remaining;
+                    ssl.AuthenticateAsClient(uri.Host, null, SslProtocols.Tls12, false);
+
+                    string path = String.IsNullOrEmpty(uri.PathAndQuery) ? "/" : uri.PathAndQuery;
+                    string query = "GET " + path + " HTTP/1.1\r\nHost: " + uri.Host
+                        + "\r\nUser-Agent: " + (String.IsNullOrWhiteSpace(userAgent) ? "LyaranTV/4.0" : userAgent)
+                        + "\r\nAccept: */*\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n";
+                    byte[] header = Encoding.ASCII.GetBytes(query);
+                    ssl.Write(header, 0, header.Length);
+                    ssl.Flush();
+
+                    using (var memory = new MemoryStream())
+                    {
+                        byte[] buffer = new byte[81920];
+                        int read;
+                        while ((read = ssl.Read(buffer, 0, buffer.Length)) > 0) memory.Write(buffer, 0, read);
+                        return ParseHttpsResponse(memory.ToArray(), uri.Host);
+                    }
+                }
+            }
+            finally { try { client.Close(); } catch { } }
+        }
+
+        static TcpClient ConnectIpv4(List<IPAddress> addresses, int port, int timeoutMs)
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            Exception last = null;
+            foreach (IPAddress address in addresses)
+            {
+                int remaining = timeoutMs - (int)watch.ElapsedMilliseconds;
+                if (remaining < 300) break;
+                var client = new TcpClient(AddressFamily.InterNetwork);
+                try
+                {
+                    var connect = client.ConnectAsync(address, port);
+                    if (connect.Wait(Math.Min(remaining, 5000))) return client;
+                    last = new TimeoutException("Connexion à " + address + " expirée.");
+                }
+                catch (Exception error) { last = error; }
+                try { client.Close(); } catch { }
+            }
+            throw new IOException("Connexion impossible : " + (last == null ? "aucune adresse IPv4" : last.GetBaseException().Message), last);
+        }
+
+        static HttpsResponse ParseHttpsResponse(byte[] raw, string host)
+        {
+            int split = -1;
+            for (int i = 0; i + 3 < raw.Length; i++)
+                if (raw[i] == 13 && raw[i + 1] == 10 && raw[i + 2] == 13 && raw[i + 3] == 10) { split = i + 4; break; }
+            if (split < 0) throw new IOException("Réponse incomplète de " + host + ".");
+            string head = Encoding.ASCII.GetString(raw, 0, split);
+            string[] lines = head.Split(new[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length == 0) throw new IOException("Réponse vide de " + host + ".");
+            string[] status = lines[0].Split(' ');
+            int code;
+            if (status.Length < 2 || !Int32.TryParse(status[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out code))
+                throw new IOException("Statut HTTP illisible renvoyé par " + host + ".");
+
+            var response = new HttpsResponse { Status = code };
+            bool chunked = false;
+            string encoding = "";
+            for (int i = 1; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                int colon = line.IndexOf(':');
+                if (colon <= 0) continue;
+                string name = line.Substring(0, colon).Trim();
+                string value = line.Substring(colon + 1).Trim();
+                if (String.Equals(name, "Location", StringComparison.OrdinalIgnoreCase)) response.Location = value;
+                else if (String.Equals(name, "Transfer-Encoding", StringComparison.OrdinalIgnoreCase)) chunked = value.IndexOf("chunked", StringComparison.OrdinalIgnoreCase) >= 0;
+                else if (String.Equals(name, "Content-Encoding", StringComparison.OrdinalIgnoreCase)) encoding = value.ToLowerInvariant();
+            }
+
+            byte[] body = new byte[raw.Length - split];
+            Buffer.BlockCopy(raw, split, body, 0, body.Length);
+            if (chunked) body = DecodeChunked(body);
+            if (encoding.Contains("gzip")) body = Inflate(body, true);
+            else if (encoding.Contains("deflate")) body = Inflate(body, false);
+            response.Body = body;
+            return response;
+        }
+
+        static byte[] DecodeChunked(byte[] body)
+        {
+            using (var input = new MemoryStream(body))
+            using (var output = new MemoryStream())
+            {
+                while (true)
+                {
+                    string line = ReadAsciiLine(input);
+                    if (line == null) break;
+                    int extension = line.IndexOf(';');
+                    if (extension >= 0) line = line.Substring(0, extension);
+                    int size;
+                    if (!Int32.TryParse(line.Trim(), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out size) || size <= 0) break;
+                    byte[] chunk = new byte[size];
+                    int read = 0;
+                    while (read < size)
+                    {
+                        int count = input.Read(chunk, read, size - read);
+                        if (count <= 0) break;
+                        read += count;
+                    }
+                    output.Write(chunk, 0, read);
+                    ReadAsciiLine(input);
+                }
+                return output.ToArray();
+            }
+        }
+
+        static string ReadAsciiLine(Stream stream)
+        {
+            var text = new StringBuilder();
+            while (true)
+            {
+                int value = stream.ReadByte();
+                if (value < 0) return text.Length == 0 ? null : text.ToString();
+                if (value == 10) return text.ToString();
+                if (value != 13) text.Append((char)value);
+            }
+        }
+
+        static byte[] Inflate(byte[] data, bool gzip)
+        {
+            try
+            {
+                using (var input = new MemoryStream(data))
+                using (Stream decompressor = gzip ? (Stream)new System.IO.Compression.GZipStream(input, System.IO.Compression.CompressionMode.Decompress)
+                    : new System.IO.Compression.DeflateStream(input, System.IO.Compression.CompressionMode.Decompress))
+                using (var output = new MemoryStream())
+                {
+                    byte[] buffer = new byte[81920];
+                    int read;
+                    while ((read = decompressor.Read(buffer, 0, buffer.Length)) > 0) output.Write(buffer, 0, read);
+                    return output.ToArray();
+                }
+            }
+            catch { return data; }
+        }
 
         public static string DownloadToString(string location)
         {

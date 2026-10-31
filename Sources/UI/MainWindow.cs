@@ -1015,6 +1015,7 @@ namespace LyaranTV
                 if (tmdbApplied > 0)
                 {
                     ShowToast(TextUtil.HumanCount(tmdbApplied) + " fiche(s) enrichie(s) avec TMDb.", false, true);
+                    ScheduleArtworkSave();
                     ScheduleTmdbRefresh();
                 }
                 else SetStatus("TMDb configuré · aucune fiche correspondante trouvée.");
@@ -1133,6 +1134,10 @@ namespace LyaranTV
             seriesLookup = null;
             channelLookupVersion = -1;
             channelIndexGeneration++;
+            // Nouvelle bibliothèque : les demandes d'affiche de l'ancienne ne
+            // doivent pas être réutilisées pour les nouveaux contenus.
+            artworkWaiters.Clear();
+            artworkFinished.Clear();
         }
 
         void EnsureChannelIndex()
@@ -1818,15 +1823,25 @@ namespace LyaranTV
                     return;
                 }
                 if (dialog != null && dialog.IsVisible) dialog.Complete("Bibliothèque prête · " + TextUtil.HumanCount(result.Items.Count) + " éléments indexés.");
-                if (dialog != null && dialog.IsVisible) dialog.CoversReport("affiches prêtes", true);
-                var closeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(850) };
-                closeTimer.Tick += delegate
+                // Les jaquettes du premier écran ont le temps d'arriver avant la
+                // fermeture : la bibliothèque ne s'ouvre pas sur des cadres vides.
+                List<Channel> opening = currentView != null && currentView.Count > 0
+                    ? currentView.Take(36).ToList() : HomeCoverOrder(36);
+                WaitForCoverImages(opening, 36, 2200, delegate
                 {
-                    closeTimer.Stop(); finished = true;
-                    if (dialog != null && dialog.IsVisible) dialog.Close();
-                    loadingWindow = null;
-                };
-                closeTimer.Start();
+                    if (dialog != null && dialog.IsVisible) dialog.CoversReport("affiches prêtes", true);
+                    var closeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+                    closeTimer.Tick += delegate
+                    {
+                        closeTimer.Stop(); finished = true;
+                        if (dialog != null && dialog.IsVisible) dialog.Close();
+                        loadingWindow = null;
+                    };
+                    closeTimer.Start();
+                }, delegate(int loadedCount, int totalCount)
+                {
+                    if (dialog != null && dialog.IsVisible) dialog.CoversReport("mise en cache · " + loadedCount + "/" + totalCount, false);
+                });
             };
             worker.RunWorkerAsync();
         }
@@ -1977,43 +1992,68 @@ namespace LyaranTV
                 RebuildSidebar();
                 UpdateStatusBar();
                 try { HttpUtil.AppendLog("Perf restauration · barre latérale " + uiPerf.ElapsedMilliseconds + " ms"); } catch { }
-                dialog.Report(3, 90, "Ouverture de la bibliothèque…", false);
-                ShowStartPage();
-                try { HttpUtil.AppendLog("Perf restauration · " + uiPerf.ElapsedMilliseconds + " ms (interface)"); } catch { }
-                int live = channels.Count(c => c.Kind == "Chaînes");
-                int movies = channels.Count(c => c.Kind == "Films");
-                int series = channels.Count(c => c.Kind == "Séries");
-                SetStatus("Bibliothèque restaurée · " + TextUtil.HumanCount(live) + " chaînes, " + TextUtil.HumanCount(movies) + " films, " + TextUtil.HumanCount(series) + " séries.");
-                string stamp = restored.SavedUtc == DateTime.MinValue ? "" : restored.SavedUtc.ToLocalTime().ToString("dd/MM à HH:mm");
-                // Une copie du futur (horloge modifiée) est traitée comme périmée.
-                bool stale = restored.SavedUtc == DateTime.MinValue || restored.SavedUtc > DateTime.UtcNow.AddMinutes(5)
-                    || DateTime.UtcNow - restored.SavedUtc > LibraryCache.MaxAge;
-                dialog.Complete("Bibliothèque prête · " + TextUtil.HumanCount(channels.Count) + " éléments.");
-                dialog.CoversReport("affiches prêtes", true);
-                var closeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(850) };
-                closeTimer.Tick += delegate
+                dialog.Report(3, 90, "Chargement des affiches…", false);
+                // Le catalogue de l'accueil est préparé ici : la file de covers
+                // suivra exactement l'ordre du défilé puis des étagères, juste
+                // après les jaquettes du premier écran.
+                BuildHomeCatalog();
+                // Les affiches de secours du défilé partent avant l'accueil :
+                // elles remplacent immédiatement les adresses mortes.
+                PrefetchFallbackArtwork(homeTopRated, 32);
+                PrefetchFallbackArtwork(homeNovelties, 16);
+                var firstCovers = new List<Channel>();
+                firstCovers.AddRange(BuildResumeItems(8));
+                firstCovers.AddRange(homeTopRated.Take(20));
+                firstCovers.AddRange(homeNovelties.Take(12));
+                firstCovers.AddRange(homeUniqueMovies.Take(10));
+                firstCovers.AddRange(homeUniqueSeries.Take(10));
+                Action showRestored = delegate
                 {
-                    closeTimer.Stop();
-                    if (dialog.IsVisible) dialog.Close();
-                    if (loadingWindow == dialog) loadingWindow = null;
-                    if (stale)
+                    ShowStartPage();
+                    try { HttpUtil.AppendLog("Perf restauration · " + uiPerf.ElapsedMilliseconds + " ms (interface)"); } catch { }
+                    int live = channels.Count(c => c.Kind == "Chaînes");
+                    int movies = channels.Count(c => c.Kind == "Films");
+                    int series = channels.Count(c => c.Kind == "Séries");
+                    SetStatus("Bibliothèque restaurée · " + TextUtil.HumanCount(live) + " chaînes, " + TextUtil.HumanCount(movies) + " films, " + TextUtil.HumanCount(series) + " séries.");
+                    string stamp = restored.SavedUtc == DateTime.MinValue ? "" : restored.SavedUtc.ToLocalTime().ToString("dd/MM à HH:mm");
+                    // Une copie du futur (horloge modifiée) est traitée comme périmée.
+                    bool stale = restored.SavedUtc == DateTime.MinValue || restored.SavedUtc > DateTime.UtcNow.AddMinutes(5)
+                        || DateTime.UtcNow - restored.SavedUtc > LibraryCache.MaxAge;
+                    dialog.Complete("Bibliothèque prête · " + TextUtil.HumanCount(channels.Count) + " éléments.");
+                    dialog.CoversReport("affiches prêtes", true);
+                    var closeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(850) };
+                    closeTimer.Tick += delegate
                     {
-                        // Copie ancienne : le chargement réseau repart avec sa
-                        // fenêtre de progression pour suivre l'actualisation.
-                        ShowToast("Bibliothèque du " + (String.IsNullOrEmpty(stamp) ? "dernière session" : stamp) +
-                            " · actualisation nécessaire…", false, true);
-                        Activate(source, false);
+                        closeTimer.Stop();
+                        if (dialog.IsVisible) dialog.Close();
+                        if (loadingWindow == dialog) loadingWindow = null;
+                        if (stale)
+                        {
+                            // Copie ancienne : le chargement réseau repart avec sa
+                            // fenêtre de progression pour suivre l'actualisation.
+                            ShowToast("Bibliothèque du " + (String.IsNullOrEmpty(stamp) ? "dernière session" : stamp) +
+                                " · actualisation nécessaire…", false, true);
+                            Activate(source, false);
+                        }
+                        else ShowToast("Bibliothèque restaurée instantanément · " + TextUtil.HumanCount(channels.Count) + " éléments.", false, true);
+                    };
+                    closeTimer.Start();
+                    StartTmdbEnrichment();
+                    StartCoverPrewarm(HomeCoverOrder(320), 320);
+                    if (settings.AutoPlayLast)
+                    {
+                        var last = FindChannel(settings.LastChannelId);
+                        if (last != null && IsChannelAllowed(last)) Play(last);
                     }
-                    else ShowToast("Bibliothèque restaurée instantanément · " + TextUtil.HumanCount(channels.Count) + " éléments.", false, true);
                 };
-                closeTimer.Start();
-                StartTmdbEnrichment();
-                PrefetchArtwork(channels, 80);
-                if (settings.AutoPlayLast)
+                // Les premières covers sont attendues pendant que la fenêtre de
+                // restauration est encore ouverte : l'accueil n'apparaît pas
+                // avec des cadres vides. Le délai n'est payé qu'une fois, les
+                // images étant ensuite relues depuis le cache disque.
+                WaitForCoverImages(firstCovers, 64, 3200, showRestored, delegate(int loadedCount, int totalCount)
                 {
-                    var last = FindChannel(settings.LastChannelId);
-                    if (last != null && IsChannelAllowed(last)) Play(last);
-                }
+                    if (dialog.IsVisible) dialog.CoversReport("mise en cache · " + loadedCount + "/" + totalCount, false);
+                });
             };
             worker.RunWorkerAsync();
         }
@@ -2098,7 +2138,8 @@ namespace LyaranTV
                 if (last != null && IsChannelAllowed(last)) Play(last);
             }
             StartTmdbEnrichment();
-            PrefetchArtwork(channels, 80);
+            BuildHomeCatalog();
+            StartCoverPrewarm(HomeCoverOrder(220), 220);
             if (loadingWindow != null) loadingWindow.CoversReport("affiches prêtes", true);
             StartBackgroundGuide(source, result);
             if (!silent && !String.IsNullOrWhiteSpace(pendingPageAfterLoad))

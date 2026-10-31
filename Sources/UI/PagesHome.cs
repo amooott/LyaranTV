@@ -125,6 +125,9 @@ namespace LyaranTV
         {
             var homePerf = System.Diagnostics.Stopwatch.StartNew();
             BuildHomeCatalog();
+            // Les affiches des rangées sont déjà en cache : elles s'affichent
+            // sans laisser de cadre vide pendant que le reste se précharge.
+            StartCoverPrewarm(HomeCoverOrder(220), 220);
             try { HttpUtil.AppendLog("Perf accueil · catalogue " + homePerf.ElapsedMilliseconds + " ms"); } catch { }
             page = "Accueil"; RebuildSidebar(); UpdateStatusBar();
             SetPageStatus();

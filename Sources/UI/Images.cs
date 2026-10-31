@@ -25,11 +25,20 @@ namespace LyaranTV
         static readonly LinkedList<string> Order = new LinkedList<string>();
         static readonly Dictionary<string, List<Action<ImageSource>>> Pending = new Dictionary<string, List<Action<ImageSource>>>(StringComparer.OrdinalIgnoreCase);
         static readonly Dictionary<string, Request> Requests = new Dictionary<string, Request>(StringComparer.OrdinalIgnoreCase);
+        // Un hôte d'images injoignable ne doit pas retenir chaque carte pendant
+        // quinze secondes : après quelques échecs, ses adresses sont ignorées
+        // un moment et le contenu bascule sur son affiche de secours.
+        static readonly Dictionary<string, int> HostFailures = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        static readonly Dictionary<string, DateTime> HostBlockedUntil = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
         // Pile LIFO : les images de la vue affichée passent avant les demandes
         // devenues hors écran, ce qui accélère nettement les grandes bibliothèques.
         static readonly List<Request> Queue = new List<Request>();
+        // Un diagnostic court et borné : si un hôte d'images change de format ou
+        // de politique, le journal doit le dire au lieu de laisser des cadres
+        // vides sans explication.
+        static int imageErrorsLogged;
         static int activeWorkers;
-        const int MaxWorkers = 6;
+        const int MaxWorkers = 8;
         const int MaxMemory = 220;
         const int DecodeWidth = 420;
         // Les affiches sont aussi conservées sur le disque : l'accueil s'affiche
@@ -85,6 +94,17 @@ namespace LyaranTV
             }
         }
 
+        /// <summary>
+        /// Précharge une image sans attendre son affichage : elle est ensuite
+        /// servie depuis la mémoire, sans cadre vide ni fondu.
+        /// </summary>
+        public static void Prefetch(string url)
+        {
+            if (String.IsNullOrWhiteSpace(url)) return;
+            if (Get(url) != null) return;
+            GetAsync(url, null);
+        }
+
         static void Worker(object state)
         {
             while (true)
@@ -102,7 +122,14 @@ namespace LyaranTV
                 if (image == null)
                 {
                     try { image = Load(request.Url); }
-                    catch { }
+                    catch (Exception imageError)
+                    {
+                        if (imageErrorsLogged < 8)
+                        {
+                            imageErrorsLogged++;
+                            try { HttpUtil.AppendLog("Affiche non chargée · " + request.Url + " · " + imageError.GetBaseException().Message); } catch { }
+                        }
+                    }
                 }
                 List<Action<ImageSource>> waiters = null;
                 lock (Gate)
@@ -136,8 +163,82 @@ namespace LyaranTV
             }
         }
 
+        static string HostOf(string url)
+        {
+            try
+            {
+                Uri uri;
+                if (Uri.TryCreate(url, UriKind.Absolute, out uri) && !String.IsNullOrWhiteSpace(uri.Host)) return uri.Host;
+            }
+            catch { }
+            return "";
+        }
+
+        static bool HostBlocked(string url)
+        {
+            string host = HostOf(url);
+            if (host.Length == 0) return false;
+            lock (Gate)
+            {
+                DateTime until;
+                return HostBlockedUntil.TryGetValue(host, out until) && until > DateTime.UtcNow;
+            }
+        }
+
+        static bool IsHostFailure(Exception error)
+        {
+            Exception current = error;
+            while (current != null)
+            {
+                var web = current as WebException;
+                if (web != null)
+                {
+                    // Une réponse HTTP (404, 403…) signifie que l'hôte répond :
+                    // elle ne doit jamais bloquer tout le domaine.
+                    if (web.Response != null) return false;
+                    return web.Status == WebExceptionStatus.Timeout
+                        || web.Status == WebExceptionStatus.NameResolutionFailure
+                        || web.Status == WebExceptionStatus.ConnectFailure
+                        || web.Status == WebExceptionStatus.ConnectionClosed
+                        || web.Status == WebExceptionStatus.SecureChannelFailure
+                        || web.Status == WebExceptionStatus.TrustFailure;
+                }
+                current = current.InnerException;
+            }
+            return false;
+        }
+
+        static void ReportHostResult(string url, bool success)
+        {
+            string host = HostOf(url);
+            if (host.Length == 0) return;
+            lock (Gate)
+            {
+                if (success)
+                {
+                    HostFailures.Remove(host);
+                    HostBlockedUntil.Remove(host);
+                    return;
+                }
+                int failures;
+                HostFailures.TryGetValue(host, out failures);
+                failures++;
+                HostFailures[host] = failures;
+                if (failures >= 4) HostBlockedUntil[host] = DateTime.UtcNow.AddMinutes(5);
+            }
+        }
+
         static BitmapSource Load(string url)
         {
+            if (HostBlocked(url))
+            {
+                if (imageErrorsLogged < 8)
+                {
+                    imageErrorsLogged++;
+                    try { HttpUtil.AppendLog("Hôte d'affiches ignoré · " + url); } catch { }
+                }
+                return null;
+            }
             byte[] bytes = null;
             if (File.Exists(url))
             {
@@ -150,7 +251,15 @@ namespace LyaranTV
                 bytes = ReadDisk(url);
                 if (bytes == null)
                 {
-                    bytes = HttpUtil.GetBytes(url, 15000, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) LyaranTV/3.0");
+                    try
+                    {
+                        bytes = HttpUtil.GetBytes(url, 8000, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) LyaranTV/3.0");
+                    }
+                    catch (Exception imageError)
+                    {
+                        if (IsHostFailure(imageError)) ReportHostResult(url, false);
+                        throw;
+                    }
                     if (bytes != null && bytes.Length > 0) WriteDisk(url, bytes);
                 }
             }
@@ -159,11 +268,30 @@ namespace LyaranTV
                 string path = new Uri(url).LocalPath;
                 if (File.Exists(path)) bytes = File.ReadAllBytes(path);
             }
-            if (bytes == null || bytes.Length == 0) return null;
-            try { return Decode(bytes); }
-            catch
+            if (bytes == null || bytes.Length == 0)
+            {
+                if (imageErrorsLogged < 8)
+                {
+                    imageErrorsLogged++;
+                    try { HttpUtil.AppendLog("Affiche vide · " + url); } catch { }
+                }
+                return null;
+            }
+            try
+            {
+                BitmapSource decoded = Decode(bytes);
+                ReportHostResult(url, true);
+                return decoded;
+            }
+            catch (Exception decodeError)
             {
                 // Une réponse HTML ou un fichier corrompu ne doit pas rester en cache.
+                // Un 404 sur une image ne condamne pas tout le domaine.
+                if (imageErrorsLogged < 8)
+                {
+                    imageErrorsLogged++;
+                    try { HttpUtil.AppendLog("Affiche illisible · " + url + " · " + decodeError.GetBaseException().Message); } catch { }
+                }
                 if (TextUtil.IsHttp(url)) DeleteDisk(url);
                 return null;
             }

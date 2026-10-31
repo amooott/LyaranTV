@@ -1,6 +1,23 @@
-# LyaranTV 1.3.2
+# LyaranTV 1.3.3
 
-Chargement visible à l'ouverture de la bibliothèque, sans blocage de la fenêtre.
+Affiches préchargées, et téléchargements HTTPS réparés sur les réseaux à IPv6 défaillant.
+
+## Corrections
+
+- **Affiches vides qui ne se chargeaient jamais** : sur un réseau qui annonce une adresse IPv6 sans la router (fréquent chez certains fournisseurs), chaque téléchargement attendait ~20 s avant de basculer en IPv4, alors que les jaquettes abandonnaient au bout de 8 s. Un moteur de téléchargement HTTPS **IPv4 d'abord** (TLS 1.2 avec SNI, redirections, réponses chunked, gzip) remplace cette attente ; le moteur historique reste utilisé derrière un proxy ou en repli. Une jaquette passe ainsi de « jamais chargée » à **~250 ms**. TMDb, TVmaze, iTunes et OpenSubtitles sont réparés par la même occasion.
+- **Drapeau TLS 1.3 invalide** retiré du démarrage : .NET Framework ne le négocie pas, et son ajout à l'énumération pouvait bloquer toutes les connexions HTTPS internes.
+- **Jaquette morte réessayée sans fin** : une ancienne URL TMDb en 404 est désormais écartée après le premier échec ; la carte bascule sur ses autres visuels puis sur son affiche dessinée.
+
+## Nouveautés
+
+- **Préchargement continu des jaquettes** : une file de fond parcourt l'accueil (reprises, défilé, nouveautés, films, séries), puis la bibliothèque au fil de la navigation, par petits lots de 6 images toutes les 120 ms. Les cartes visibles restent prioritaires et les images sont conservées dans le cache disque `covers/` : les lancements suivants ouvrent la bibliothèque déjà remplie.
+- **Écran de chargement** : l'étape « Chargement des affiches de films et séries » affiche la progression réelle (`mise en cache · 36/40`), la file de fond est suspendue le temps de couvrir le premier écran, et la fenêtre ne se ferme plus avant que l'essentiel des jaquettes soit prêt (3,2 s au pire).
+- **Diagnostic borné** : le journal indique `Affiche non chargée`, `Affiche illisible` ou `Hôte d'affiches ignoré` (8 lignes maximum par session) au lieu de laisser un cadre vide sans explication.
+
+## Vérifications
+
+- Cache d'affiches vidé : **36/40 jaquettes prêtes en 2 s** (les 4 restantes sont des URL TMDb réellement supprimées, HTTP 404), 98 images en cache après 8 s, ouverture de l'interface en **1,5 s**.
+- Accueil et bibliothèque capturés avec les affiches en place, avant et après réouverture à cache chaud.
 
 ## Nouveautés
 

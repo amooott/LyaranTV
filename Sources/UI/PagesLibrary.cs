@@ -150,6 +150,9 @@ namespace LyaranTV
         {
             var libraryPerf = Stopwatch.StartNew();
             currentView = filtered;
+            // Les jaquettes des étagères partent avant la construction du hero
+            // et des cartes : elles ont ainsi le temps d'arriver en mémoire.
+            WarmLibraryCovers(filtered);
 
             string title = LibraryTitleForMode(mode);
             string subtitle = activeSource == null

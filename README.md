@@ -1,4 +1,4 @@
-# LyaranTV 1.3.2
+# LyaranTV 1.3.3
 
 **LyaranTV** est un lecteur IPTV pour Windows, construit avec WPF et .NET Framework 4.x. Il reprend les usages essentiels d'un lecteur IPTV moderne — sources, bibliothèque, direct, guide EPG, recherche, favoris, reprise de lecture et fiches de contenus — avec une identité visuelle originale.
 
@@ -9,7 +9,7 @@
 - Interface française, thèmes **Sombre**, **Clair**, **Noir AMOLED** et **Automatique**.
 - Huit accents prédéfinis et accent personnalisé, avec migration automatique de l'ancien ambre vers le violet LyaranTV.
 - Sources **M3U/M3U8**, **Xtream Codes**, **Stalker/MAC**, démonstration intégrée et fichiers locaux.
-- Chargement des comptes Xtream **en parallèle** avec barre de progression, temps écoulé et **temps restant estimé** ; guide EPG chargé en arrière-plan. Une étape dédiée **« Chargement des affiches »** préchauffe en arrière-plan les couvertures des premiers films et séries, prêtes à l'ouverture.
+- Chargement des comptes Xtream **en parallèle** avec barre de progression, temps écoulé et **temps restant estimé** ; guide EPG chargé en arrière-plan. Une étape dédiée **« Chargement des affiches »** affiche sa progression réelle : les jaquettes du premier écran sont téléchargées avant l'ouverture, et une **file de fond** complète ensuite l'accueil puis la bibliothèque en continu. Les images sont conservées sur disque, donc les lancements suivants s'ouvrent avec toutes leurs affiches. Les téléchargements HTTPS passent par un client **IPv4 d'abord** (TLS 1.2, redirections, réponses chunked) : plus de jaquettes perdues sur les réseaux dont l'IPv6 est annoncé mais injoignable.
 - **Accueil « billboard »** : bannière plein cadre sur 486 px, rotation automatique entre les contenus à reprendre et les mieux notés, affiche portrait nette à droite quand seule une affiche existe, fond flou et fondu progressif vers la page, boutons d’action blancs, favori et pastilles cliquables. En dessous : salutation, raccourcis, **Top 10**, nouveautés, films, séries, rangée **En direct** avec programme en cours et barre de progression, puis les playlists.
 - **Ouverture de la bibliothèque avec chargement visible** : sur un gros catalogue, la page s'affiche immédiatement avec un indicateur, pendant que les listes et les catégories sont préparées en arrière-plan — la fenêtre reste réactive.
 - Bibliothèque repensée en mode découverte : hero cinématique avec rotation automatique et aperçu au survol, étagères horizontales avec flèches au survol, **grandes cartes de 236 × 354 px** (2:3 strict) dont l'affiche remplit tout le cadre, filtres rapides, vue « Tout parcourir » en grille et **toutes les catégories de chaînes, films et séries** réunies en blocs verticaux.
