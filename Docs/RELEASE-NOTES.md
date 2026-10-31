@@ -1,3 +1,12 @@
+# LyaranTV 1.1.8
+
+## Test de mise à jour depuis la 1.1.7
+
+- Version publiée pour vérifier le téléchargement authentifié, le suivi de redirection et le contrôle SHA-256 du correctif 1.1.7.
+- Installateur `setup-LyaranTV-1.1.8.exe` et empreintes SHA-256 joints à la Release.
+
+---
+
 # LyaranTV 1.1.7
 
 ## Correctif du téléchargement des mises à jour
