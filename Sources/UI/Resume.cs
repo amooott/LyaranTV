@@ -44,18 +44,6 @@ namespace LyaranTV
                     Logo = record.PosterUrl, PosterUrl = record.PosterUrl, Order = 0
                 };
             }
-            if (id.StartsWith("cli:", StringComparison.OrdinalIgnoreCase))
-            {
-                string path = id.Substring(4);
-                if (!String.IsNullOrWhiteSpace(path))
-                {
-                    return new Channel
-                    {
-                        Name = System.IO.Path.GetFileName(path), Group = "Médias locaux", Kind = "Local",
-                        Url = path, Id = id, Description = path, Order = 0
-                    };
-                }
-            }
             return null;
         }
 

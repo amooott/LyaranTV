@@ -14,7 +14,8 @@ Statut : **P0 terminé**, **P1 terminé**, **P2 partiel / non réalisable native
 | Chargement des comptes | ✅ | Xtream : compte puis catalogues live/VOD/séries **en parallèle** ; barre de progression lissée, temps écoulé, **temps restant estimé** ; guide EPG en arrière-plan. Fenêtre redessinée (charcoal, liseré accent, étapes colorées, note EPG encadrée) ; **cinquième étape « Chargement des affiches de films et séries »** avec état (en attente, mise en cache, ✓ prêtes), les visuels n'étant pas exposés comme un aperçu ; anneaux de chargement animés dans le lecteur et la page des épisodes. |
 | En-têtes de flux | ✅ | `#EXTVLCOPT:http-*` et suffixes `|User-Agent=…&Referer=…` transmis au proxy de lecture. |
 | Direct et EPG | ✅ | Chaînes, guide XMLTV, programmes en cours/à venir, navigation par jour. |
-| Recherche | ✅ | Recherche temporisée et tolérante aux accents ; résultats regroupés par films, séries, épisodes, chaînes, personnes et activité Letterboxd ; inclut titres originaux, synopsis, genres, casting, réalisation, critiques et notes locales lorsqu’ils sont disponibles. |
+| Recherche | ✅ | Recherche temporisée et tolérante aux accents ; résultats regroupés par films, séries, épisodes, chaînes, personnes ; inclut titres originaux, synopsis, genres, casting et réalisation lorsqu’ils sont disponibles. |
+| Mode langue | ✅ | Un code (`FR`, `EN`, `AR`, `ES`…) ne laisse visibles que les catégories qui le contiennent ; le réglage reste actif pendant la navigation et après un redémarrage. |
 | Catégories complètes | ✅ | Toutes les catégories de chaînes, films et séries sont affichées en trois blocs verticaux, sans limite de nombre ; chaque carte filtre le type et la catégorie correspondants. |
 | Favoris | ✅ | Ajout/retrait, page dédiée, séparation par profil. |
 | Thèmes | ✅ | Sombre, Clair, Noir AMOLED, Automatique. |
@@ -42,10 +43,6 @@ Statut : **P0 terminé**, **P1 terminé**, **P2 partiel / non réalisable native
 | Fiches de contenus | ✅ | Affiche/hero, année, genres, synopsis, note, actions. |
 | Fiches enrichies TMDb | ✅ | Chargement à la demande du titre original, casting, réalisation/création, durée, pays, classification et bande-annonce ; détails conservés dans le cache. |
 | Correspondance TMDb | ✅ | Score titre/année, détection des résultats ambigus, correction et réinitialisation manuelles ; correspondances corrigées séparées par profil et source IPTV. |
-| Activité Letterboxd locale | ✅ | Import des CSV personnels de liste à voir, notes, journal et critiques ; fiche intégrée avec note, statut vu/à voir et texte complet des critiques, boutons de suivi locaux et données isolées par profil. |
-| Avis publics Letterboxd | ✅ | Le nom d’utilisateur du compte suffit; jusqu’à sept profils d’amis sont facultatifs. Notes et critiques RSS récentes rapprochées par titre/année, cache local de six heures et affichage complet dans les fiches sans quitter LyaranTV. |
-| Rangées Letterboxd de l’accueil | ✅ | Liste à voir importée et films de la playlist correspondant aux avis RSS récents ; les rangées restent masquées si aucune donnée correspondante n’existe. |
-| Section API Letterboxd | ✅ | Le nom public suffit pour lire le RSS récent; les amis sont facultatifs. Liens vers la documentation et l’accès développeur, import CSV et gestion/suppression des données locales. |
 | Reprise de lecture | ✅ | Rangée « Reprendre la lecture » sur l'accueil (hero) et dans la bibliothèque : films, chaînes, fichiers locaux **et séries** (épisode en cours), avec affiche, saison/épisode, barre de progression et temps restant. Les épisodes en cours sont mémorisés dans `episodes.json`, donc retrouvés même après un redémarrage. |
 | Suppression d’une playlist | ✅ | La suppression efface l’historique, les positions de reprise, les durées et les épisodes en cours rattachés à cette playlist, **dans tous les profils**, sans toucher aux autres playlists. Les favoris et réglages sont conservés. |
 | Autres épisodes sous le lecteur | ✅ | Rangée d'épisodes sous le lecteur, ouverte par défaut quand on regarde un épisode : vignettes, progression, badges « EN COURS » / « À SUIVRE », sélecteur de saison, bouton « Épisode suivant », défilement qui se cale sur l'épisode courant et enchaînement automatique à la fin avec compte à rebours annulable. |
@@ -67,7 +64,6 @@ Statut : **P0 terminé**, **P1 terminé**, **P2 partiel / non réalisable native
 | Fonction | État | Commentaire |
 |---|---|---|
 | Changement de piste audio intégré | ✅ | Avec libVLC (installé avec VLC), les pistes se changent à la volée et tous les codecs courants sont décodés. Sans libVLC, `MediaElement`/Media Foundation n’expose pas la sélection de piste ; le menu `A` ouvre alors VLC avec `--audio-track` pour les pistes suivantes. |
-| Connexion OAuth Letterboxd, découverte automatique des amis et listes privées | ❌ | L’API est accordée sur demande et Letterboxd exclut actuellement les projets privés/personnels. Les noms publics doivent être saisis manuellement ; les flux RSS ne donnent que l’activité publique récente et ne permettent aucune écriture. |
 | Sous-titres image (PGS/VobSub) | ❌ | Formats bitmap sans texte exploitable ; le lecteur WPF ne peut pas les superposer. |
 | Multi-écrans simultanés | ❌ | Nécessiterait plusieurs instances MediaElement et une gestion de fenêtres dédiée. |
 | HLS (`.m3u8`) | ❌ | Non décodé nativement par `MediaElement` sur Windows desktop ; lecteur externe requis. |

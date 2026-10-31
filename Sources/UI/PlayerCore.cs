@@ -814,18 +814,5 @@ namespace LyaranTV
                 : String.Join("  ·  ", parts.ToArray()) + "  ·  A";
         }
 
-        // ------------------------------------------------------- médias locaux
-
-        internal void AddLocalRecent(string path)
-        {
-            if (String.IsNullOrWhiteSpace(path)) return;
-            string full = TextUtil.LocalPathFromUrl(path);
-            if (String.IsNullOrWhiteSpace(full) || !File.Exists(full)) return;
-            full = Path.GetFullPath(full);
-            recentLocal.RemoveAll(delegate(string item) { return String.Equals(item, full, StringComparison.OrdinalIgnoreCase); });
-            recentLocal.Insert(0, full);
-            while (recentLocal.Count > 40) recentLocal.RemoveAt(recentLocal.Count - 1);
-            StateStore.WriteList("local-files.txt", recentLocal);
-        }
     }
 }

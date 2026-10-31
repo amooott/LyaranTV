@@ -1,3 +1,43 @@
+# LyaranTV 1.3.0
+
+Version de consolidation : démarrage beaucoup plus rapide, chargements visibles, mode langue et nettoyage de l'interface.
+
+## Nouveautés
+
+- **Mode langue** : dans **Paramètres → Mode langue**, activez l'option et saisissez un code (`FR`, `EN`, `AR`, `ES`…). Seules les catégories dont le nom contient ce code restent visibles. Le choix est enregistré et reste actif en revenant à l'accueil, à la bibliothèque ou après un redémarrage.
+- **Bascule liste / grille** dans la bibliothèque : le mode choisi est mémorisé et retrouvé au retour du lecteur, d'une fiche ou au lancement suivant.
+- **Bannière toujours habillée** : quand un film ou une série n'a pas de photo panoramique, son affiche sert de fond flou accordé, avec l'affiche nette présentée à droite — plus de cadre vide ni de portrait étiré.
+- **Affiches plus complètes** : nouvelles sources de secours (iTunes en plus d'IMDb, TVmaze et Wikipédia) et nouvelle tentative automatique après cinq jours pour les titres précédemment introuvables. Le préchargement des affiches passe de 30 à 80 contenus.
+- **Indicateur de travail** : un voile animé avec libellé couvre les opérations longues (sauvegarde, restauration, export de playlist) au lieu de laisser croire que l'application est figée.
+
+## Performances
+
+Sur un compte Xtream de **239 662 éléments** mesuré sur la machine de développement :
+
+| Étape | Avant | Après |
+|---|---|---|
+| Restauration complète (interface) | 24,6 s | **2,2 s** |
+| Application du cache TMDb | 17,3 s | 6,9 s la première fois, puis ignorée |
+| Affichage de l'accueil | 6,1 s | 2,0 s |
+| Barre latérale | 0,1 s | 0,1 s |
+
+Le catalogue de l'accueil est désormais préparé pendant la restauration, les étagères ne reparcourent plus six fois les 240 000 éléments, le cache TMDb n'est réappliqué que s'il a changé et l'historique des sources est enregistré sans bloquer l'interface.
+
+## Corrections
+
+- **Plantait sur « Médias locaux »** avec « Caractères non conformes dans le chemin d'accès » : la page et ses fichiers de reprise corrompus ont été retirés.
+- Favoris et récents restent à zéro tant qu'aucune playlist n'est chargée, au lieu d'afficher des compteurs sans contenu.
+- Suppression complète de Letterboxd (interface, code et données) en attendant une intégration finalisée.
+- La bibliothèque restaurée n'est plus reconstruite deux fois au démarrage.
+
+## Technique
+
+- Les traitements lourds (cache TMDb, historique, catalogue d'accueil) quittent le fil d'interface.
+- Le cache de la bibliothèque est réenregistré une seule fois après application des fiches TMDb, pour que les lancements suivants n'aient plus rien à recalculer.
+- `Dist\LyaranTV.exe` est l'unique binaire produit ; la copie à la racine du dépôt est supprimée.
+
+---
+
 # LyaranTV 1.2.1
 
 ## Mises à jour publiques sans jeton

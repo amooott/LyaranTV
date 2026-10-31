@@ -125,7 +125,12 @@ namespace LyaranTV
         public static bool HasMissing(string key)
         {
             var record = Get(key);
-            return record != null && record.Source == "aucun";
+            if (record == null || record.Source != "aucun") return false;
+            DateTime updated;
+            if (!DateTime.TryParse(record.Updated, out updated)) return false;
+            // Un échec est retenté au bout de cinq jours : les catalogues
+            // en ligne évoluent et un titre peut désormais être référencé.
+            return (DateTime.Now - updated).TotalDays < 5;
         }
 
         public static int Count
@@ -208,9 +213,16 @@ namespace LyaranTV
             }
             string key = ArtworkStore.Key(clean, series);
             ArtworkRecord cached = ArtworkStore.Get(key);
-            if (cached != null)
+            if (cached != null && (cached.HasPoster || cached.Source != "aucun"))
             {
-                if (callback != null) callback(cached.HasPoster || cached.Source != "aucun" ? cached : null);
+                if (callback != null) callback(cached);
+                return;
+            }
+            // Une absence n'est plus définitive : après quelques jours, une
+            // nouvelle source ou une meilleure correspondance peut la combler.
+            if (cached != null && ArtworkStore.HasMissing(key))
+            {
+                if (callback != null) callback(null);
                 return;
             }
             lock (Gate)
@@ -366,9 +378,60 @@ namespace LyaranTV
         static ArtworkRecord FetchMovie(string title, string year)
         {
             ArtworkRecord record = FetchImdb(title, false, year);
+            if (record == null || !record.HasPoster)
+            {
+                // Le catalogue iTunes complète IMDb : il référence des films
+                // absents des suggestions et fournit une affiche de bonne taille.
+                var itunes = FetchItunes(title, year);
+                if (itunes != null)
+                {
+                    if (record == null) record = itunes;
+                    else if (String.IsNullOrWhiteSpace(record.Poster))
+                    {
+                        record.Poster = itunes.Poster;
+                        if (String.IsNullOrWhiteSpace(record.Year)) record.Year = itunes.Year;
+                        record.Source += "/iTunes";
+                    }
+                }
+            }
             if (record == null) return null;
             if (String.IsNullOrWhiteSpace(record.Overview)) record.Overview = FetchWikipedia(title, false);
             return record;
+        }
+
+        /// <summary>Affiche et année via le catalogue public iTunes, sans clé.</summary>
+        static ArtworkRecord FetchItunes(string title, string year)
+        {
+            string url = "https://itunes.apple.com/search?media=movie&entity=movie&limit=6&term=" + Uri.EscapeDataString(title);
+            Dictionary<string, object> root;
+            try { root = Json(HttpUtil.GetString(url, 12000, "LyaranTV/2.0")); }
+            catch { return null; }
+            if (root == null) return null;
+            Dictionary<string, object> best = null;
+            int bestScore = 0;
+            foreach (object entry in Arr(root, "results"))
+            {
+                var item = entry as Dictionary<string, object>;
+                if (item == null) continue;
+                string name = Val(item, "trackName");
+                if (!LooksSame(title, name)) continue;
+                string artwork = Val(item, "artworkUrl100");
+                if (String.IsNullOrWhiteSpace(artwork)) continue;
+                int score = 60;
+                string releaseYear = FirstYear(Val(item, "releaseDate"));
+                if (year.Length > 0 && releaseYear.Length > 0 && year == releaseYear) score += 30;
+                if (score > bestScore) { bestScore = score; best = item; }
+            }
+            if (best == null) return null;
+            string poster = Val(best, "artworkUrl100").Replace("100x100bb", "600x600bb");
+            if (String.IsNullOrWhiteSpace(poster)) return null;
+            return new ArtworkRecord
+            {
+                Title = Val(best, "trackName"),
+                Source = "iTunes",
+                Poster = poster,
+                Year = FirstYear(Val(best, "releaseDate"))
+            };
         }
 
         /// <summary>

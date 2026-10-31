@@ -37,13 +37,7 @@ namespace LyaranTV
             foreach (var item in BuildResumeItems(6)) AddHomeHeroItem(item);
             if (homeHeroItems.Count < 3)
             {
-                foreach (var item in VisibleChannels
-                    .Where(c => (c.Kind == "Films" || c.Kind == "Séries") && String.IsNullOrWhiteSpace(c.Season))
-                    .GroupBy(c => TextUtil.NormalizeKey(c.Name))
-                    .Select(g => g.OrderByDescending(c => c.TmdbRating).First())
-                    .OrderByDescending(c => c.TmdbRating)
-                    .ThenByDescending(c => !String.IsNullOrWhiteSpace(c.BackdropUrl))
-                    .Take(5)) AddHomeHeroItem(item);
+                foreach (var item in HomeHeroCandidates().Take(5)) AddHomeHeroItem(item);
             }
             if (homeHeroItems.Count == 0)
             {
@@ -312,8 +306,12 @@ namespace LyaranTV
             string image = hasBackdrop ? channel.BackdropUrl
                 : (!String.IsNullOrWhiteSpace(channel.StillUrl) ? channel.StillUrl : (hasPoster ? channel.PosterUrl : ""));
             bool hasImage = !String.IsNullOrWhiteSpace(image);
+            // Sans photo panoramique, l'affiche verticale ne doit pas être
+            // étirée : elle sert de fond flou accordé à l'œuvre, et sa version
+            // nette reste présentée à droite comme sur une fiche de film.
+            bool posterOnly = hasImage && !hasBackdrop && !String.IsNullOrWhiteSpace(channel.PosterUrl);
             homeHeroImage.Url = image;
-            homeHeroImage.Effect = null;
+            homeHeroImage.Effect = posterOnly ? (Effect)new System.Windows.Media.Effects.BlurEffect { Radius = 34 } : null;
             homeHeroImage.Stretch = Stretch.UniformToFill;
             homeHeroImage.Visibility = hasImage ? Visibility.Visible : Visibility.Collapsed;
             bool content = channel.Kind == "Films" || channel.Kind == "Séries"
@@ -321,8 +319,8 @@ namespace LyaranTV
             // L'affiche sert déjà de bannière : la vignette portrait ferait doublon.
             // Quand aucun visuel n'est encore connu, la jaquette dessinée (ou le
             // logo de la chaîne) prend sa place plutôt que de laisser un vide.
-            homeHeroPosterFrame.Child = content && !hasImage ? (UIElement)CoverArt(channel, 232, 348, false) : new Grid();
-            homeHeroPosterFrame.Visibility = content && !hasImage ? Visibility.Visible : Visibility.Collapsed;
+            homeHeroPosterFrame.Child = content && (!hasImage || posterOnly) ? (UIElement)CoverArt(channel, 232, 348, false) : new Grid();
+            homeHeroPosterFrame.Visibility = content && (!hasImage || posterOnly) ? Visibility.Visible : Visibility.Collapsed;
             homeHeroLogo.Url = hasImage ? null : channel.Logo;
             homeHeroLogo.Visibility = hasImage || content || String.IsNullOrWhiteSpace(channel.Logo) ? Visibility.Collapsed : Visibility.Visible;
             homeHeroGlyph.Visibility = String.IsNullOrWhiteSpace(channel.Name) ? Visibility.Collapsed : Visibility.Visible;
@@ -330,7 +328,7 @@ namespace LyaranTV
             if (hasImage)
             {
                 homeHeroImage.Opacity = 0;
-                UiMotion.Animate(homeHeroImage, UIElement.OpacityProperty, 0.86, 420);
+                UiMotion.Animate(homeHeroImage, UIElement.OpacityProperty, posterOnly ? 0.52 : 0.86, 420);
             }
             if (homeHeroLogo.Visibility == Visibility.Visible)
             {

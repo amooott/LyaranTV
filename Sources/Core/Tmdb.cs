@@ -326,6 +326,8 @@ namespace LyaranTV
             return key;
         }
 
+        public static int Count { get { lock (Gate) { return Entries().Count; } } }
+
         public static TmdbResult Get(Channel channel)
         {
             if (channel == null) return null;
@@ -709,15 +711,53 @@ namespace LyaranTV
                 channel.Rating = result.Rating.ToString("0.0", CultureInfo.InvariantCulture);
         }
 
+        /// <summary>
+        /// Applique le cache TMDb au catalogue relu depuis la copie locale. Pour
+        /// un compte de 240 000 éléments, le calcul du titre normalisé domine :
+        /// il n'est fait qu'une fois par couple titre/type/année, puis réutilisé
+        /// par tous les doublons de la playlist. Les contenus déjà enrichis sont
+        /// sautés immédiatement.
+        /// </summary>
         public static int ApplyCache(IEnumerable<Channel> channels)
         {
             int applied = 0;
             if (channels == null) return 0;
+            bool hasManualMatches = TmdbMatchStore.Count > 0;
+            var resolved = new Dictionary<string, TmdbResult>(StringComparer.OrdinalIgnoreCase);
+            // Les playlists IPTV répètent souvent le même nom des dizaines de
+            // fois (qualités, langues, doublons) : le nettoyage du titre et sa
+            // normalisation ne sont calculés qu'une fois par nom brut.
+            var cleanNames = new Dictionary<string, string>(StringComparer.Ordinal);
+            var baseKeys = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var channel in channels)
             {
-                if (!IsEligible(channel)) continue;
-                string key = TmdbCacheStore.CacheKey(channel);
-                var result = TmdbMatchStore.Get(channel) ?? TmdbCacheStore.GetForChannel(channel);
+                if (channel == null) continue;
+                if (channel.Kind != "Films" && channel.Kind != "Séries") continue;
+                if (!String.IsNullOrWhiteSpace(channel.Season) || !String.IsNullOrWhiteSpace(channel.Episode)) continue;
+                if (channel.TmdbChecked && !String.IsNullOrWhiteSpace(channel.TmdbId)) continue;
+                string rawName = channel.Name ?? "";
+                string clean;
+                if (!cleanNames.TryGetValue(rawName, out clean)) { clean = TmdbTitleCleaner.CleanTitle(rawName); cleanNames[rawName] = clean; }
+                if (String.IsNullOrWhiteSpace(clean)) continue;
+                bool series = channel.Kind == "Séries" || channel.IsSeries;
+                int year = TmdbTitleCleaner.ExtractYear(rawName);
+                string baseKey;
+                if (!baseKeys.TryGetValue(rawName, out baseKey))
+                {
+                    baseKey = TextUtil.NormalizeKey(clean) + "|" + (series ? "tv" : "movie");
+                    baseKeys[rawName] = baseKey;
+                }
+                string key = year > 0 ? baseKey + "|" + year.ToString(CultureInfo.InvariantCulture) : baseKey;
+                TmdbResult result;
+                if (!resolved.TryGetValue(key, out result))
+                {
+                    result = hasManualMatches ? TmdbMatchStore.Get(channel) : null;
+                    if (result == null) result = TmdbCacheStore.Get(key);
+                    if (result == null && year > 0) result = TmdbCacheStore.Get(baseKey);
+                    if (result != null && year > 0 && !String.IsNullOrWhiteSpace(result.Year)
+                        && result.Year != year.ToString(CultureInfo.InvariantCulture)) result = null;
+                    resolved[key] = result;
+                }
                 if (result == null) continue;
                 Apply(channel, result);
                 applied++;

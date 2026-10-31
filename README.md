@@ -1,4 +1,4 @@
-# LyaranTV 2.0
+# LyaranTV 1.3.0
 
 **LyaranTV** est un lecteur IPTV pour Windows, construit avec WPF et .NET Framework 4.x. Il reprend les usages essentiels d'un lecteur IPTV moderne — sources, bibliothèque, direct, guide EPG, recherche, favoris, reprise de lecture et fiches de contenus — avec une identité visuelle originale.
 
@@ -10,7 +10,7 @@
 - Huit accents prédéfinis et accent personnalisé, avec migration automatique de l'ancien ambre vers le violet LyaranTV.
 - Sources **M3U/M3U8**, **Xtream Codes**, **Stalker/MAC**, démonstration intégrée et fichiers locaux.
 - Chargement des comptes Xtream **en parallèle** avec barre de progression, temps écoulé et **temps restant estimé** ; guide EPG chargé en arrière-plan. Une étape dédiée **« Chargement des affiches »** préchauffe en arrière-plan les couvertures des premiers films et séries, prêtes à l'ouverture.
-- **Accueil « billboard »** : bannière plein cadre sur 486 px, rotation automatique entre les contenus à reprendre et les mieux notés, affiche portrait nette à droite quand seule une affiche existe, fond flou et fondu progressif vers la page, boutons d’action blancs, favori et pastilles cliquables. En dessous : salutation, raccourcis, **Top 10**, nouveautés, rangées **À voir · Letterboxd** et **Avis récents de vos profils** lorsqu’elles ont des données, films, séries, rangée **En direct** avec programme en cours et barre de progression, puis les playlists.
+- **Accueil « billboard »** : bannière plein cadre sur 486 px, rotation automatique entre les contenus à reprendre et les mieux notés, affiche portrait nette à droite quand seule une affiche existe, fond flou et fondu progressif vers la page, boutons d’action blancs, favori et pastilles cliquables. En dessous : salutation, raccourcis, **Top 10**, nouveautés, films, séries, rangée **En direct** avec programme en cours et barre de progression, puis les playlists.
 - Bibliothèque repensée en mode découverte : hero cinématique avec rotation automatique et aperçu au survol, étagères horizontales avec flèches au survol, **grandes cartes de 236 × 354 px** (2:3 strict) dont l'affiche remplit tout le cadre, filtres rapides, vue « Tout parcourir » en grille et **toutes les catégories de chaînes, films et séries** réunies en blocs verticaux.
 - **Palette cinéma neutre** : charcoal `#07080B`, surfaces `#101218`, accent violet conservé comme seule couleur d’action ; halo animé très lent, vignette et dégradés. Thèmes clair et AMOLED alignés.
 - Lecteur intégré Windows Media Foundation : sonde de connexion, proxy local, ordre des liens TS → MP4/MKV → HLS, reconnexion du direct, pause, volume, plein écran, reprise, raccourcis ±5 s, sous-titres SRT/WebVTT **et pistes texte embarquées MKV/MP4**, détection des pistes audio, lecteur externe. Les menus de pistes affichent toujours la **langue et le type technique** (par exemple `Français · 5.1 · AC-3`, `Japonais · stéréo · AAC`, `Français · VOSTFR · SubRip`). Les contrôles sont **superposés à la vidéo** (fenêtré comme plein écran), avec une **barre de progression interactive** (piste de 6 px qui s'épaissit à 10 px au survol, curseur lumineux de 15 px, infobulle et glissement) et un masquage automatique après 3,5 s en lecture ; le curseur disparaît aussi en plein écran.
@@ -20,7 +20,7 @@
 - Guide EPG XMLTV avec navigation par jour et programmes en cours.
 - Favoris, historique, positions de reprise, profils séparés et contrôle parental. Supprimer une playlist efface aussi son historique, ses reprises et ses épisodes en cours dans tous les profils, sans toucher aux autres playlists.
 - Fiches de contenus enrichies avec titre original, casting, réalisation, durée, pays, classification et bande-annonce via **TMDb** lorsque vous fournissez votre propre clé.
-- Activité Letterboxd facultative : import local des CSV d’export, note et critique personnelle intégrales, ainsi que notes et critiques publiques récentes de vos profils choisis via RSS, affichées dans les fiches avec auteur, date et note. Les avis se lisent directement dans LyaranTV; aucun renvoi vers la page du film ou de la critique n’est nécessaire. Les données sont séparées par profil.
+- **Mode langue** facultatif : un code (FR, EN, AR, ES…) ne laisse visibles que les catégories qui le contiennent. Le choix reste actif en changeant de page et après un redémarrage.
 - Affiches, vignettes et logos chargés **en ligne**, avec un cache disque borné (`%APPDATA%\LyaranTV\covers`) et un cache mémoire : aucun visuel n'est fourni avec le programme.
 - Barres de défilement personnalisées, champs de saisie lisibles dans tous les thèmes, animations discrètes et option de réduction des mouvements.
 - Sauvegarde complète `.lyaran`, export/import JSON portable et export M3U.
@@ -36,7 +36,7 @@ Sources\Reconstruire.bat
 Dist\LyaranTV.exe
 ```
 
-La compilation place aussi une copie de `LyaranTV.exe` à la racine du dépôt.
+La compilation produit `Dist\LyaranTV.exe` ; la racine ne contient que les sources et la documentation.
 
 Pour découvrir l'application sans compte ni fournisseur :
 
@@ -127,7 +127,7 @@ libVLC à côté de l'application installée.
 Dist\LyaranTV.exe --selftest
 ```
 
-Le rapport est écrit dans `%TEMP%\LyaranTV-selftest.log`. Les **33 auto-tests** couvrent notamment le nettoyage et les correspondances TMDb prudentes, la recherche par titre original/casting/réalisation/genres/synopsis, l’isolation par profil et source, l’import CSV Letterboxd avec critiques à plusieurs lignes et l’analyse locale de flux RSS publics.
+Le rapport est écrit dans `%TEMP%\LyaranTV-selftest.log`. Les **32 auto-tests** couvrent notamment le nettoyage et les correspondances TMDb prudentes, la recherche par titre original/casting/réalisation/genres/synopsis, l’isolation par profil et source, les pistes audio et sous-titres et la sauvegarde.
 
 ## Connexion et chargement
 
@@ -170,11 +170,9 @@ TMDb reste la source principale des affiches et des synopsis. Quand il n'y a pas
 
 Les résultats sont mis en cache dans `%APPDATA%\LyaranTV\artwork-cache.json` et les images dans `covers`. Les recherches partent en arrière-plan, à faible cadence, uniquement pour les contenus sans affiche. Si aucune source ne répond, une vignette dessinée (dégradé, initiales, titre) est affichée : une carte n'est jamais vide. Le cache se vide depuis **Paramètres → Métadonnées et sous-titres**.
 
-## Letterboxd
+## Mode langue
 
-Dans **Paramètres → API Letterboxd**, le nom public de votre compte suffit : LyaranTV charge automatiquement son flux RSS à l’ouverture de l’accueil, sans mot de passe. Les profils d’amis sont facultatifs. Le flux public contient l’activité récente; importez les CSV (`watchlist.csv`, `ratings.csv`, `diary.csv`, `reviews.csv`) pour récupérer l’historique complet. Dans la fiche d’un film, les notes, statuts vu/à voir et critiques importées apparaissent avec le texte complet; les avis RSS affichent aussi leur auteur, profil source et date. Ils sont mis en cache six heures et associés prudemment par titre et année, puis lus directement dans LyaranTV. L’activité importée et le cache RSS restent locaux et séparés par profil. Les actions « vu » et « liste à voir » de LyaranTV restent locales et ne modifient pas Letterboxd.
-
-La section **API Letterboxd** ouvre aussi la [documentation API](https://api-docs.letterboxd.com/) et la [page de demande d’accès](https://letterboxd.com/api-beta/access/). Les flux RSS ne donnent accès qu’à l’activité récente rendue publique; les listes privées et l’écriture vers le compte nécessitent un accès API approuvé.
+Dans **Paramètres → Mode langue**, activez l'option puis saisissez un code (`FR`, `EN`, `AR`, `ES`…). Seules les catégories dont le nom contient ce code restent visibles, ce qui guide un compte IPTV multilingue vers les groupes de la langue voulue. Le réglage est enregistré : il reste actif en revenant à l'accueil, à la bibliothèque ou après un redémarrage. « Tout afficher » le désactive.
 
 ## Sous-titres en ligne (OpenSubtitles)
 

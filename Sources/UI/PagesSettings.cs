@@ -30,8 +30,8 @@ namespace LyaranTV
                 BuildProfileSettings()));
             root.Children.Add(SettingsCard("Métadonnées et sous-titres", "Affiches, notes et synopsis (TMDb), recherche de sous-titres (OpenSubtitles). Facultatif.",
                 BuildTmdbSettings()));
-            root.Children.Add(SettingsCard("API Letterboxd", "Un nom d’utilisateur suffit pour vos avis publics récents; vous pouvez importer l’historique.",
-                BuildLetterboxdApiSettings()));
+            root.Children.Add(SettingsCard("Mode langue", "N’afficher que les catégories de la langue choisie (FR, EN, AR, ES…).",
+                BuildLanguageModeSettings()));
             root.Children.Add(SettingsCard("Démarrage", "Ce que LyaranTV ouvre au lancement.",
                 BuildStartupSettings()));
             root.Children.Add(SettingsCard("Lecteur externe", "Une solution de repli pour les flux et codecs non pris en charge par Windows.",
@@ -541,93 +541,68 @@ namespace LyaranTV
             return stack;
         }
 
-        StackPanel BuildLetterboxdApiSettings()
+        StackPanel BuildLanguageModeSettings()
         {
             var stack = new StackPanel();
-            stack.Children.Add(Text("ACTIVITÉ PUBLIQUE · NOM D’UTILISATEUR SUFFIT", 10, Brush(Accent), true));
-            var apiNotice = Text("Saisissez le nom public de votre compte : LyaranTV chargera automatiquement son flux RSS public, sans authentification ni mot de passe. Le flux contient l’activité publique récente; importez votre export CSV pour récupérer l’historique complet, vos notes et votre liste à voir.", 11, Brush(Muted), false);
-            apiNotice.TextWrapping = TextWrapping.Wrap;
-            apiNotice.Margin = new Thickness(0, 4, 0, 8);
-            stack.Children.Add(apiNotice);
-            var apiLinks = new StackPanel { Orientation = Orientation.Horizontal };
-            apiLinks.Children.Add(Button(Glyphs.External, "Documentation de l’API", delegate
+            stack.Children.Add(SettingToggle("Activer le mode langue", settings.LanguageModeEnabled, delegate(bool value)
             {
-                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://api-docs.letterboxd.com/") { UseShellExecute = true }); }
-                catch { ShowError("Impossible d’ouvrir la documentation Letterboxd."); }
-            }, false));
-            var access = Button(Glyphs.External, "Accès développeur Letterboxd", delegate
+                settings.LanguageModeEnabled = value;
+                SaveSettings();
+                RebuildSidebar();
+                UpdateStatusBar();
+                ShowToast(value
+                    ? "Mode langue activé · seules les catégories contenant « " + settings.LanguageModeCode + " » sont affichées."
+                    : "Mode langue désactivé · toutes les catégories sont affichées.", false, true);
+            }));
+            var code = StyledTextBox();
+            code.Width = 120;
+            code.CharacterCasing = CharacterCasing.Upper;
+            code.Text = String.IsNullOrWhiteSpace(settings.LanguageModeCode) ? "FR" : settings.LanguageModeCode;
+            code.ToolTip = "Code écrit dans le nom des catégories : FR, EN, AR, ES…";
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            row.Children.Add(code);
+            var apply = Button(Glyphs.Check, "Appliquer", delegate
             {
-                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://letterboxd.com/api-beta/access/") { UseShellExecute = true }); }
-                catch { ShowError("Impossible d’ouvrir la page d’accès développeur Letterboxd."); }
-            }, false);
-            access.Margin = new Thickness(7, 0, 0, 0);
-            apiLinks.Children.Add(access);
-            stack.Children.Add(apiLinks);
-
-            var accountHeader = Text("PROFIL ET ACTIVITÉ PUBLIQUE", 10, Brush(Accent), true);
-            accountHeader.Margin = new Thickness(0, 17, 0, 4);
-            stack.Children.Add(accountHeader);
-            var letterboxdUser = StyledTextBox();
-            letterboxdUser.Width = 220;
-            letterboxdUser.Text = LetterboxdActivityStore.Username;
-            letterboxdUser.ToolTip = "Votre nom public suffit pour charger l’activité récente; aucun mot de passe n’est demandé.";
-            var letterboxdRow = new StackPanel { Orientation = Orientation.Horizontal };
-            letterboxdRow.Children.Add(letterboxdUser);
-            var saveLetterboxd = Button(Glyphs.Save, "Enregistrer", delegate
-            {
-                LetterboxdActivityStore.SetUsername(letterboxdUser.Text);
-                Notice("Nom Letterboxd enregistré. Son flux public sera actualisé automatiquement à l’ouverture de l’Accueil.");
-            }, false);
-            saveLetterboxd.Margin = new Thickness(7, 0, 0, 0);
-            letterboxdRow.Children.Add(saveLetterboxd);
-            var importLetterboxd = Button(Glyphs.OpenFile, "Importer mes CSV", delegate
-            {
-                var picker = new OpenFileDialog
-                {
-                    Title = "Importer un export personnel Letterboxd",
-                    Filter = "Fichiers CSV Letterboxd (*.csv)|*.csv|Fichiers CSV (*.csv)|*.csv",
-                    Multiselect = true,
-                    CheckFileExists = true
-                };
-                if (picker.ShowDialog(this) != true) return;
-                int count = LetterboxdActivityStore.ImportFiles(picker.FileNames);
-                ShowToast(count + " ligne(s) importée(s) dans le profil « " + ProfileScope.Current + " ».", false, true);
-            }, false);
-            importLetterboxd.Margin = new Thickness(7, 0, 0, 0);
-            letterboxdRow.Children.Add(importLetterboxd);
-            stack.Children.Add(SettingsRow("Nom d’utilisateur Letterboxd", "Suffit pour charger automatiquement vos avis publics récents. Enregistrez-le, puis ouvrez l’Accueil.", letterboxdRow));
-
-            var letterboxdProfiles = StyledTextBox();
-            letterboxdProfiles.Width = 350;
-            letterboxdProfiles.Text = LetterboxdActivityStore.PublicUsernames;
-            letterboxdProfiles.ToolTip = "Facultatif : noms publics d’amis, séparés par des virgules. Maximum : 7 amis.";
-            var letterboxdProfilesRow = new StackPanel { Orientation = Orientation.Horizontal };
-            letterboxdProfilesRow.Children.Add(letterboxdProfiles);
-            var saveLetterboxdProfiles = Button(Glyphs.Save, "Enregistrer", delegate
-            {
-                LetterboxdActivityStore.SetPublicUsernames(letterboxdProfiles.Text);
-                letterboxdProfiles.Text = LetterboxdActivityStore.PublicUsernames;
-                Notice("Profils Letterboxd publics enregistrés dans le profil « " + ProfileScope.Current + " ».");
-            }, false);
-            saveLetterboxdProfiles.Margin = new Thickness(7, 0, 0, 0);
-            letterboxdProfilesRow.Children.Add(saveLetterboxdProfiles);
-            stack.Children.Add(SettingsRow("Autres profils publics (facultatif)", "Laissez ce champ vide pour ne suivre que votre compte. Vous pouvez ajouter jusqu’à 7 noms d’amis.", letterboxdProfilesRow));
-
-            var letterboxdActions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
-            var clearLetterboxd = Button(Glyphs.Delete, "Supprimer mes données Letterboxd", delegate
-            {
-                if (!AskConfirmation("Supprimer les données Letterboxd", "L’activité importée, les noms de profils et le cache RSS du profil « " + ProfileScope.Current + " » seront supprimés.", "Supprimer")) return;
-                LetterboxdActivityStore.Clear();
+                string value = (code.Text ?? "").Trim().ToUpperInvariant();
+                if (value.Length == 0) { ShowToast("Saisissez un code de langue (FR, EN…).", true, false); return; }
+                settings.LanguageModeCode = value;
+                SaveSettings();
+                RebuildSidebar();
+                UpdateStatusBar();
                 ShowSettings();
-                Notice("Données Letterboxd locales supprimées pour ce profil.");
+                ShowToast("Mode langue · catégories contenant « " + value + " ».", false, true);
+            }, true);
+            apply.Margin = new Thickness(7, 0, 0, 0);
+            row.Children.Add(apply);
+            var clear = Button(Glyphs.View, "Tout afficher", delegate
+            {
+                settings.LanguageModeEnabled = false;
+                SaveSettings();
+                RebuildSidebar();
+                UpdateStatusBar();
+                ShowSettings();
+                ShowToast("Toutes les catégories sont de nouveau visibles.", false, true);
             }, false);
-            letterboxdActions.Children.Add(clearLetterboxd);
-            stack.Children.Add(letterboxdActions);
+            clear.Margin = new Thickness(7, 0, 0, 0);
+            row.Children.Add(clear);
+            stack.Children.Add(SettingsRow("Code de langue", "Les catégories dont le nom contient ce code restent visibles ; le mode reste actif en changeant de page.", row));
 
-            var privacy = Text("Les noms et les données importées restent locaux et séparés par profil. Aucun mot de passe Letterboxd n’est demandé. Les flux publics sont mis en cache six heures; les données privées et l’écriture sur Letterboxd nécessitent un accès API approuvé.", 9.8, Brush(Muted), false);
-            privacy.TextWrapping = TextWrapping.Wrap;
-            privacy.Margin = new Thickness(0, 9, 0, 0);
-            stack.Children.Add(privacy);
+            int total = 0, matching = 0;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var channel in channels)
+            {
+                if (channel == null) continue;
+                string group = String.IsNullOrWhiteSpace(channel.Group) ? "Non classé" : channel.Group;
+                if (!seen.Add(group)) continue;
+                total++;
+                if (TextUtil.Contains(group, String.IsNullOrWhiteSpace(settings.LanguageModeCode) ? "FR" : settings.LanguageModeCode)) matching++;
+            }
+            var count = Text(channels.Count == 0
+                ? "Chargez une playlist pour voir les catégories correspondantes."
+                : matching + " catégorie(s) sur " + total + " contiennent « " + settings.LanguageModeCode + " »."
+                    + (settings.LanguageModeEnabled ? "  ·  Mode actif." : "  ·  Mode désactivé."), 10, Brush(Muted), false);
+            count.Margin = new Thickness(0, 8, 0, 0);
+            stack.Children.Add(count);
             return stack;
         }
 
@@ -705,7 +680,7 @@ namespace LyaranTV
             actions.Children.Add(Button(Glyphs.Delete, "Vider le cache mémoire des images", delegate { ImageCache.ClearAll(); ShowToast("Cache mémoire des images vidé.", false, true); }, false));
             actions.Children.Add(Button(Glyphs.Power, "Réinitialiser LyaranTV", ResetData, false));
             stack.Children.Add(actions);
-            var imagesNote = Text("Les affiches de films et de séries, les vignettes et les logos de chaînes sont chargés à la demande depuis leurs sources en ligne (TMDb ou URL de la playlist). Ils restent uniquement en mémoire : aucun fichier d'image n'est téléchargé sur le disque.", 9.8, Brush(Muted), false);
+            var imagesNote = Text("Les affiches de films et de séries, les vignettes et les logos de chaînes sont chargés à la demande depuis leurs sources en ligne (TMDb, IMDb, TVmaze, iTunes ou URL de la playlist). Ils sont conservés dans un cache disque borné sous %APPDATA%\\LyaranTV\\covers (purge après 45 jours, environ 1 200 images) et se vident avec le bouton ci-dessus.", 9.8, Brush(Muted), false);
             imagesNote.Margin = new Thickness(0, 9, 0, 0);
             stack.Children.Add(imagesNote);
             var note = Text("L'export JSON est portable : il contient les playlists, les favoris, les profils et les réglages, mais jamais les mots de passe, les adresses MAC ni les codes PIN. La sauvegarde complète (.lyaran) conserve les identifiants chiffrés pour cet utilisateur Windows.", 9.8, Brush(Muted), false);

@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
@@ -123,6 +124,105 @@ namespace LyaranTV
                 }
             };
             close.Start();
+        }
+
+        Grid busyOverlay;
+        TextBlock busyOverlayLabel;
+
+        /// <summary>
+        /// Voile de travail : couvre l'interface pendant une opération longue
+        /// (sauvegarde, restauration, export d'un gros catalogue) pour que
+        /// l'application ne paraisse jamais figée. Le libellé indique l'étape.
+        /// </summary>
+        internal void ShowBusy(string message)
+        {
+            if (rootGrid == null) return;
+            if (busyOverlay != null)
+            {
+                if (busyOverlayLabel != null) busyOverlayLabel.Text = String.IsNullOrWhiteSpace(message) ? "Traitement en cours…" : message;
+                return;
+            }
+            var overlay = new Grid
+            {
+                Background = Brush(Color.FromArgb(158, 7, 8, 12)),
+                IsHitTestVisible = true, Cursor = Cursors.Wait
+            };
+            var content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            var halo = new Border
+            {
+                Width = 54, Height = 54, CornerRadius = new CornerRadius(27),
+                Background = Brush(WithAlpha(Accent, 26)), BorderBrush = Brush(WithAlpha(Accent, 120)),
+                BorderThickness = new Thickness(1), HorizontalAlignment = HorizontalAlignment.Center
+            };
+            var dot = new Border
+            {
+                Width = 8, Height = 8, CornerRadius = new CornerRadius(4),
+                Background = Brush(Accent), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+            };
+            if (!UiMotion.Reduced)
+            {
+                var pulse = new DoubleAnimation(0.35, 1, TimeSpan.FromMilliseconds(720))
+                {
+                    AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever,
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+                };
+                dot.BeginAnimation(UIElement.OpacityProperty, pulse);
+            }
+            halo.Child = dot;
+            content.Children.Add(halo);
+            var label = Text(String.IsNullOrWhiteSpace(message) ? "Traitement en cours…" : message, 12.5, Brush(TextPrimary), true);
+            label.HorizontalAlignment = HorizontalAlignment.Center;
+            label.Margin = new Thickness(0, 14, 0, 0);
+            content.Children.Add(label);
+            var track = new Border
+            {
+                Width = 220, Height = 3, CornerRadius = new CornerRadius(2),
+                Background = Brush(WithAlpha(TextPrimary, 24)), Margin = new Thickness(0, 12, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Center, ClipToBounds = true
+            };
+            var fill = new Border
+            {
+                Width = 70, Height = 3, CornerRadius = new CornerRadius(2), HorizontalAlignment = HorizontalAlignment.Left,
+                Background = new LinearGradientBrush(WithAlpha(Accent, 90), Accent, 0)
+            };
+            track.Child = fill;
+            if (!UiMotion.Reduced)
+            {
+                var slide = new DoubleAnimation(-70, 220, TimeSpan.FromMilliseconds(1150))
+                {
+                    RepeatBehavior = RepeatBehavior.Forever,
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+                };
+                fill.BeginAnimation(FrameworkElement.WidthProperty, slide);
+            }
+            content.Children.Add(track);
+            overlay.Children.Add(content);
+            System.Windows.Controls.Panel.SetZIndex(overlay, 900);
+            rootGrid.Children.Add(overlay);
+            busyOverlay = overlay;
+            busyOverlayLabel = label;
+            Mouse.OverrideCursor = Cursors.Wait;
+        }
+
+        internal void HideBusy()
+        {
+            if (busyOverlay == null) return;
+            try { rootGrid.Children.Remove(busyOverlay); } catch { }
+            busyOverlay = null;
+            busyOverlayLabel = null;
+            Mouse.OverrideCursor = null;
+        }
+
+        /// <summary>Exécute une opération courte derrière le voile de travail.</summary>
+        internal void RunBusy(string message, Action work)
+        {
+            if (work == null) return;
+            ShowBusy(message);
+            Dispatcher.BeginInvoke(new Action(delegate
+            {
+                try { work(); }
+                finally { HideBusy(); }
+            }), DispatcherPriority.Background);
         }
 
         /// <summary>Petit éclat sur une carte mise en avant : ombre et liseré accentué.</summary>

@@ -32,7 +32,6 @@ namespace LyaranTV
         readonly HashSet<string> hiddenChannels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         readonly HashSet<string> hiddenGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         readonly List<string> recentIds = new List<string>();
-        readonly List<string> recentLocal = new List<string>();
         readonly Dictionary<string, double> positions = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         readonly Dictionary<string, double> durations = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         readonly List<EpisodeRecord> episodeHistory = new List<EpisodeRecord>();
@@ -146,8 +145,10 @@ namespace LyaranTV
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             FontFamily = new FontFamily("Inter, Segoe UI");
             SetValue(Window.IconProperty, CreateAppIcon());
+            var bootPerf = Stopwatch.StartNew();
             AppPaths.EnsureDataDir();
             LoadState();
+            try { HttpUtil.AppendLog("Perf démarrage · réglages et profil " + bootPerf.ElapsedMilliseconds + " ms"); } catch { }
             UiMotion.Reduced = settings.ReduceMotion;
             SetThemeColors(themeName);
             ConfigureSystemResources();
@@ -155,6 +156,7 @@ namespace LyaranTV
             searchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(280) };
             searchTimer.Tick += delegate { searchTimer.Stop(); ApplySearch(); };
             BuildShell();
+            try { HttpUtil.AppendLog("Perf démarrage · interface " + bootPerf.ElapsedMilliseconds + " ms"); } catch { }
             UpdateBackButton();
             if (settings.AlwaysOnTop) Topmost = true;
             appReady = true;
@@ -229,7 +231,6 @@ namespace LyaranTV
             LoadProfileState();
             hiddenChannels.Clear(); foreach (string value in StateStore.ReadSet("hidden-channels.txt")) hiddenChannels.Add(value);
             hiddenGroups.Clear(); foreach (string value in StateStore.ReadSet("hidden-groups.txt")) hiddenGroups.Add(value);
-            recentLocal.Clear(); recentLocal.AddRange(StateStore.ReadList("local-files.txt"));
             themeName = String.IsNullOrWhiteSpace(settings.Theme) ? "Sombre" : settings.Theme;
             accentHex = String.IsNullOrWhiteSpace(settings.Accent) ? "#8B5CF6" : settings.Accent;
             sortMode = String.IsNullOrWhiteSpace(settings.SortMode) ? "Nom (A → Z)" : settings.SortMode;
@@ -295,7 +296,6 @@ namespace LyaranTV
                 StateStore.WriteSet("hidden-channels.txt", hiddenChannels);
                 StateStore.WriteSet("hidden-groups.txt", hiddenGroups);
                 StateStore.WriteList("recent.txt", recentIds);
-                StateStore.WriteList("local-files.txt", recentLocal);
                 StateStore.SavePositions(positions);
                 StateStore.SaveDurations(durations);
                 StateStore.SaveEpisodes(episodeHistory);
@@ -500,10 +500,13 @@ namespace LyaranTV
             sidebar.Children.Add(nav);
             nav.Children.Add(NavItem(Glyphs.Home, "Accueil", "Accueil", -1));
             nav.Children.Add(NavItem(Glyphs.Library, "Bibliothèque", "Bibliothèque", channels.Count));
-            nav.Children.Add(NavItem(Glyphs.Favorite, "Ma liste", "Favoris", favorites.Count));
-            nav.Children.Add(NavItem(Glyphs.Recent, "Récents", "Récents", recentIds.Count));
+            // Tant qu'aucune playlist n'est chargée, favoris et récents restent
+            // à zéro : ils ne réapparaissent qu'une fois leurs contenus connus.
+            int favoriteCount = channels.Count == 0 ? 0 : favorites.Count;
+            int recentCount = channels.Count == 0 ? 0 : recentIds.Count;
+            nav.Children.Add(NavItem(Glyphs.Favorite, "Ma liste", "Favoris", favoriteCount));
+            nav.Children.Add(NavItem(Glyphs.Recent, "Récents", "Récents", recentCount));
             nav.Children.Add(NavItem(Glyphs.Guide, "Guide EPG", "Guide EPG", loadedEpg.Count));
-            nav.Children.Add(NavItem(Glyphs.Local, "Médias locaux", "Médias locaux", -1));
 
             var section = Text("MES PLAYLISTS", 9.5, Brush(Muted), true);
             section.Margin = new Thickness(22, 18, 0, 6); sidebar.Children.Add(section);
@@ -710,7 +713,6 @@ namespace LyaranTV
             if (page == "Accueil") ShowHome();
             else if (page == "Bibliothèque" || page == "Favoris" || page == "Récents") ShowLibrary(page);
             else if (page == "Recherche") ShowSearch();
-            else if (page == "Médias locaux") ShowLocalMedia();
             else if (page == "Catégories") ShowCategories();
             else if (page == "Chaînes masquées") ShowHiddenChannels();
             else if (page == "Guide EPG") ShowEpg();
@@ -819,9 +821,22 @@ namespace LyaranTV
             return !locked.Contains(String.IsNullOrWhiteSpace(channel.Group) ? "Non classé" : channel.Group);
         }
 
+        /// <summary>Vrai si la catégorie correspond au code du mode langue.</summary>
+        bool IsLanguageCategory(string group)
+        {
+            if (!settings.LanguageModeEnabled || String.IsNullOrWhiteSpace(settings.LanguageModeCode)) return true;
+            if (String.IsNullOrWhiteSpace(group)) return false;
+            return TextUtil.Contains(group, settings.LanguageModeCode.Trim());
+        }
+
         IEnumerable<Channel> VisibleChannels
         {
-            get { return channels.Where(IsChannelAllowed); }
+            get
+            {
+                var allowed = channels.Where(IsChannelAllowed);
+                if (!settings.LanguageModeEnabled || String.IsNullOrWhiteSpace(settings.LanguageModeCode)) return allowed;
+                return allowed.Where(c => c != null && IsLanguageCategory(c.Group));
+            }
         }
 
         ContextMenu BuildProfileMenu()
@@ -1012,7 +1027,7 @@ namespace LyaranTV
             int live = visible.Count(c => c.Kind == "Chaînes");
             int movies = visible.Count(c => c.Kind == "Films");
             int series = visible.Count(c => c.Kind == "Séries");
-            string text = TextUtil.HumanCount(live) + " chaînes · " + TextUtil.HumanCount(movies) + " films · " + TextUtil.HumanCount(series) + " séries · " + TextUtil.HumanCount(favorites.Count) + " favoris";
+            string text = TextUtil.HumanCount(live) + " chaînes · " + TextUtil.HumanCount(movies) + " films · " + TextUtil.HumanCount(series) + " séries · " + TextUtil.HumanCount(channels.Count == 0 ? 0 : favorites.Count) + " favoris";
             if (activeSource != null) text += "  ·  " + activeSource.Name;
             statusRight.Text = text;
         }
@@ -1027,7 +1042,6 @@ namespace LyaranTV
             else if (page == "Favoris") SetStatus("Ma liste · " + TextUtil.HumanCount(favorites.Count) + " élément(s).");
             else if (page == "Récents") SetStatus("Récemment regardés.");
             else if (page == "Recherche") SetStatus("Recherche dans la bibliothèque active.");
-            else if (page == "Médias locaux") SetStatus("Fichiers locaux et reprise de lecture.");
             else if (page == "Catégories") SetStatus("Gestion des catégories.");
             else if (page == "Chaînes masquées") SetStatus("Contenus masqués.");
             else if (page == "Guide rapide") SetStatus("Guide rapide de LyaranTV.");
@@ -1105,11 +1119,16 @@ namespace LyaranTV
         /// </summary>
         void RememberHistoryOwnership(IEnumerable<Channel> items)
         {
-            if (activeSource == null || items == null) return;
+            RememberHistoryOwnership(items, activeSource == null ? null : activeSource.Name);
+        }
+
+        void RememberHistoryOwnership(IEnumerable<Channel> items, string sourceName)
+        {
+            if (String.IsNullOrWhiteSpace(sourceName) || items == null) return;
             var ids = new List<string>();
             foreach (Channel item in items)
                 if (item != null && !String.IsNullOrWhiteSpace(item.Id)) ids.Add(item.Id);
-            if (ids.Count > 0) StateStore.RecordHistorySources(ids, activeSource.Name);
+            if (ids.Count > 0) StateStore.RecordHistorySources(ids, sourceName);
         }
 
         void ToggleFavorite(Channel channel)
@@ -1663,11 +1682,14 @@ namespace LyaranTV
             worker.DoWork += delegate(object sender, DoWorkEventArgs e)
             {
                 var bg = (BackgroundWorker)sender;
-                e.Result = PlaylistLoader.Load(source, delegate(int percent, int stage, string message, bool skipped)
+                var loaded = PlaylistLoader.Load(source, delegate(int percent, int stage, string message, bool skipped)
                 {
                     bg.ReportProgress(percent, new object[] { stage, message, skipped });
                 }, delegate { return loadCancelled; });
-                if (loadCancelled) e.Result = null;
+                // L'application du cache TMDb coûte plusieurs secondes sur un gros
+                // compte : elle reste dans ce fil de fond, jamais sur l'interface.
+                if (!loadCancelled && loaded != null) TmdbClient.ApplyCache(loaded.Items);
+                e.Result = loadCancelled ? null : loaded;
             };
             worker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs e)
             {
@@ -1798,7 +1820,35 @@ namespace LyaranTV
                 List<Channel> cached;
                 List<EpgProgram> cachedGuide;
                 DateTime savedUtc;
-                if (!LibraryCache.TryLoad(source, out cached, out cachedGuide, out savedUtc) || cached == null || cached.Count == 0)
+                var perf = Stopwatch.StartNew();
+                bool loaded = LibraryCache.TryLoad(source, out cached, out cachedGuide, out savedUtc);
+                try { HttpUtil.AppendLog("Perf cache · " + perf.ElapsedMilliseconds + " ms · " + (cached == null ? 0 : cached.Count) + " éléments"); } catch { }
+                if (loaded && cached != null && cached.Count > 0)
+                {
+                    // La copie locale contient déjà les fiches TMDb appliquées :
+                    // on ne les recalcule que si le cache TMDb a changé depuis
+                    // l'enregistrement du catalogue. Le travail se fait ici, hors
+                    // du fil d'interface, pour ne jamais figer la fenêtre.
+                    var applyPerf = Stopwatch.StartNew();
+                    try
+                    {
+                        string tmdbFile = AppPaths.File("tmdb-cache.json");
+                        DateTime tmdbStamp = File.Exists(tmdbFile) ? File.GetLastWriteTimeUtc(tmdbFile) : DateTime.MinValue;
+                        if (tmdbStamp > savedUtc)
+                        {
+                            TmdbClient.ApplyCache(cached);
+                            // La copie est réenregistrée avec les fiches appliquées :
+                            // le prochain démarrage n'aura plus rien à recalculer.
+                            LibraryCache.Save(source, cached, cachedGuide, DateTime.UtcNow);
+                            savedUtc = DateTime.UtcNow;
+                        }
+                        RememberHistoryOwnership(cached, source.Name);
+                    }
+                    catch (Exception applyError) { HttpUtil.AppendLog("Préparation locale : " + applyError.GetBaseException().Message); }
+                    try { HttpUtil.AppendLog("Perf cache · préparation " + applyPerf.ElapsedMilliseconds + " ms"); } catch { }
+                    if (loadCancelled) { e.Cancel = true; return; }
+                }
+                if (!loaded || cached == null || cached.Count == 0)
                 {
                     // Copie illisible, vide ou d'une version antérieure : le
                     // chargement réseau normal s'en occupe.
@@ -1806,6 +1856,10 @@ namespace LyaranTV
                     return;
                 }
                 if (loadCancelled) { e.Cancel = true; return; }
+                // Le catalogue de l'accueil est préparé ici, pendant que la barre
+                // de progression est encore visible, plutôt qu'à l'ouverture de
+                // la page sur le fil d'interface.
+                BuildHomeCatalog(cached);
                 bg.ReportProgress(58, new object[] { 58, "Copie locale lue · " + TextUtil.HumanCount(cached.Count) + " éléments et " + TextUtil.HumanCount(cachedGuide == null ? 0 : cachedGuide.Count) + " programmes de guide.", false });
                 e.Result = new RestoredLibrary { Channels = cached, Guide = cachedGuide, SavedUtc = savedUtc };
             };
@@ -1845,15 +1899,15 @@ namespace LyaranTV
                 }
 
                 finished = true;
+                var uiPerf = Stopwatch.StartNew();
                 dialog.Report(1, 66, "Indexation des catégories et des groupes…", false);
                 channels.Clear();
                 channels.AddRange(restored.Channels);
                 foreach (var channel in channels) channel.SourceName = source.Name;
+                try { HttpUtil.AppendLog("Perf restauration · copie " + uiPerf.ElapsedMilliseconds + " ms"); } catch { }
                 loadedEpg.Clear();
                 if (restored.Guide != null && restored.Guide.Count > 0) loadedEpg.AddRange(restored.Guide);
                 RebuildEpgIndex();
-                TmdbClient.ApplyCache(channels);
-                RememberHistoryOwnership(channels);
                 if (restored.Guide != null && restored.Guide.Count > 0)
                     dialog.Report(2, 80, TextUtil.HumanCount(restored.Guide.Count) + " programmes de guide indexés.", false);
                 else dialog.Report(2, 80, "Aucun guide EPG enregistré — étape ignorée.", true);
@@ -1862,8 +1916,10 @@ namespace LyaranTV
                 source.LastCount = channels.Count;
                 RebuildSidebar();
                 UpdateStatusBar();
+                try { HttpUtil.AppendLog("Perf restauration · barre latérale " + uiPerf.ElapsedMilliseconds + " ms"); } catch { }
                 dialog.Report(3, 90, "Ouverture de la bibliothèque…", false);
                 ShowStartPage();
+                try { HttpUtil.AppendLog("Perf restauration · " + uiPerf.ElapsedMilliseconds + " ms (interface)"); } catch { }
                 int live = channels.Count(c => c.Kind == "Chaînes");
                 int movies = channels.Count(c => c.Kind == "Films");
                 int series = channels.Count(c => c.Kind == "Séries");
@@ -1892,7 +1948,7 @@ namespace LyaranTV
                 };
                 closeTimer.Start();
                 StartTmdbEnrichment();
-                PrefetchArtwork(channels, 30);
+                PrefetchArtwork(channels, 80);
                 if (settings.AutoPlayLast)
                 {
                     var last = FindChannel(settings.LastChannelId);
@@ -1924,7 +1980,6 @@ namespace LyaranTV
             channels.Clear(); channels.AddRange(result.Items);
             foreach (var channel in channels) channel.SourceName = source == null ? "" : source.Name;
             loadedEpg.Clear(); loadedEpg.AddRange(result.Guide);
-            TmdbClient.ApplyCache(channels);
             RebuildEpgIndex();
             // Une playlist M3U reconnue comme Xtream est convertie durablement :
             // les prochains chargements utilisent directement l'API Xtream.
@@ -1982,7 +2037,7 @@ namespace LyaranTV
                 if (last != null && IsChannelAllowed(last)) Play(last);
             }
             StartTmdbEnrichment();
-            PrefetchArtwork(channels, 30);
+            PrefetchArtwork(channels, 80);
             if (loadingWindow != null) loadingWindow.CoversReport("affiches prêtes", true);
             StartBackgroundGuide(source, result);
             if (!silent && !String.IsNullOrWhiteSpace(pendingPageAfterLoad))
@@ -2145,6 +2200,8 @@ namespace LyaranTV
             if (channels.Count == 0) { ShowToast("Aucune chaîne à exporter.", true, false); return; }
             var dialog = new SaveFileDialog { Filter = "Playlist M3U (*.m3u)|*.m3u", FileName = TextUtil.SafeFileName(activeSource == null ? "lyarantv" : activeSource.Name) + ".m3u" };
             if (dialog.ShowDialog(this) != true) return;
+            RunBusy("Export de la playlist…", delegate
+            {
             try
             {
                 var builder = new StringBuilder();
@@ -2160,6 +2217,7 @@ namespace LyaranTV
                 ShowToast("Playlist exportée.", false, true);
             }
             catch (Exception ex) { ShowError("Export impossible : " + ex.Message); }
+            });
         }
 
         void Backup()
@@ -2169,8 +2227,11 @@ namespace LyaranTV
             try
             {
                 SaveState();
-                StateStore.CreateBackup(dialog.FileName);
-                ShowToast("Sauvegarde créée.", false, true);
+                RunBusy("Création de la sauvegarde…", delegate
+                {
+                    try { StateStore.CreateBackup(dialog.FileName); ShowToast("Sauvegarde créée.", false, true); }
+                    catch (Exception ex) { ShowError("Sauvegarde impossible : " + ex.Message); }
+                });
             }
             catch (Exception ex) { ShowError("Sauvegarde impossible : " + ex.Message); }
         }
@@ -2182,11 +2243,18 @@ namespace LyaranTV
             if (!AskConfirmation("Restaurer une sauvegarde", "Les playlists et réglages actuels seront remplacés par le contenu de la sauvegarde. Continuer ?", "Restaurer")) return;
             try
             {
-                StateStore.RestoreBackup(dialog.FileName);
-                // Les copies locales ne correspondent plus aux playlists restaurées.
-                LibraryCache.ClearAll();
-                ReloadEverything();
-                ShowToast("Sauvegarde restaurée.", false, true);
+                RunBusy("Restauration de la sauvegarde…", delegate
+                {
+                    try
+                    {
+                        StateStore.RestoreBackup(dialog.FileName);
+                        // Les copies locales ne correspondent plus aux playlists restaurées.
+                        LibraryCache.ClearAll();
+                        ReloadEverything();
+                        ShowToast("Sauvegarde restaurée.", false, true);
+                    }
+                    catch (Exception ex) { ShowError("Restauration impossible : " + ex.Message); }
+                });
             }
             catch (Exception ex) { ShowError("Restauration impossible : " + ex.Message); }
         }
@@ -2219,7 +2287,7 @@ namespace LyaranTV
             settings = new AppSettings();
             themeName = settings.Theme; accentHex = settings.Accent;
             sources.Clear(); channels.Clear(); loadedEpg.Clear(); favorites.Clear(); hiddenChannels.Clear(); hiddenGroups.Clear();
-            recentIds.Clear(); recentLocal.Clear(); positions.Clear(); durations.Clear(); episodeHistory.Clear(); activeSource = null; currentPlaying = null;
+            recentIds.Clear(); positions.Clear(); durations.Clear(); episodeHistory.Clear(); activeSource = null; currentPlaying = null;
             navHistory.Clear();
             RebuildEpgIndex();
             SetThemeColors(themeName); ConfigureSystemResources();

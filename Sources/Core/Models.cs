@@ -152,6 +152,11 @@ namespace LyaranTV
         // Langue de l'interface : « auto » suit celle de Windows, sinon fr, en,
         // es, ru ou pt. Le choix est mémorisé par profil d'ordinateur.
         [DataMember] public string Language = I18n.SystemDefault;
+        // Mode langue : n'affiche que les catégories dont le nom contient le
+        // code saisi (FR, EN, AR…). Pensé pour les comptes IPTV multilingues
+        // dont les groupes sont préfixés par la langue.
+        [DataMember] public bool LanguageModeEnabled = false;
+        [DataMember] public string LanguageModeCode = "FR";
         // Jeton GitHub du dépôt privé, chiffré par CredentialVault. Il n'est
         // jamais écrit en clair ni compilé dans le programme.
         [DataMember] public string UpdateTokenProtected = "";
@@ -167,6 +172,8 @@ namespace LyaranTV
         public void Normalize()
         {
             if (String.IsNullOrWhiteSpace(Theme)) Theme = "Sombre";
+            if (String.IsNullOrWhiteSpace(LanguageModeCode)) LanguageModeCode = "FR";
+            LanguageModeCode = LanguageModeCode.Trim().ToUpperInvariant();
             if (String.IsNullOrWhiteSpace(Accent)) Accent = "#8B5CF6";
             if (String.Equals(Accent, "#F2A33C", StringComparison.OrdinalIgnoreCase)) Accent = "#8B5CF6";
             if (String.IsNullOrWhiteSpace(SortMode)) SortMode = "Nom (A → Z)";

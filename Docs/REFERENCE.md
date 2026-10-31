@@ -25,7 +25,7 @@ LyaranTV.exe --example --detail "Carnet de Voyage"
 LyaranTV.exe --demo --screenshot "%TEMP%\lyarantv.png"
 ```
 
-Noms de pages reconnus : `Accueil`, `Bibliothèque`, `Favoris`, `Récents`, `Guide EPG`, `Médias locaux`, `Catégories`, `Chaînes masquées`, `Paramètres`, `Guide rapide`.
+Noms de pages reconnus : `Accueil`, `Bibliothèque`, `Favoris`, `Récents`, `Guide EPG`, `Catégories`, `Chaînes masquées`, `Paramètres`, `Guide rapide`.
 
 `--detail` attend que la bibliothèque soit chargée ; avec `--example`, la fiche s'ouvre après l'indexation. `--screenshot` ne capture que la fenêtre principale, pas les dialogues modaux.
 
@@ -101,7 +101,6 @@ Pour les séries, la rangée **Autres épisodes** s'ouvre automatiquement sous l
 - **Xtream Codes** : serveur, nom d'utilisateur, mot de passe ; catégories live, VOD et séries.
 - **Stalker / MAC** : portail, adresse MAC, type d'appareil.
 - **Démonstration** : bibliothèque fictive intégrée.
-- **Médias locaux** : fichiers vidéo ouverts depuis le disque.
 
 ### Lecture
 
@@ -168,12 +167,8 @@ Répertoire par défaut : `%APPDATA%\LyaranTV`. Surcharge : variable `LYARANTV_D
 | `positions.<profil>.json` | Positions d'un autre profil. |
 | `hidden-channels.txt` | Contenus masqués. |
 | `hidden-groups.txt` | Catégories masquées. |
-| `local-files.txt` | Médias locaux récents. |
 | `tmdb-cache.json` | Métadonnées TMDb en cache (pas les images). |
 | `tmdb-matches.<profil>.json` | Correspondances TMDb confirmées manuellement, séparées par profil et source. |
-| `letterboxd-activity.<profil>.json` | Activité importée et suivi local des films. |
-| `letterboxd-profile.<profil>.json` | Nom d’utilisateur Letterboxd public associé au profil local. |
-| `letterboxd-rss.<profil>.json` | Cache local des avis récupérés dans les flux RSS publics des profils configurés. |
 | `artwork-cache.json` | Affiches et synopsis de secours (TVmaze, IMDb, Wikipédia). |
 | `covers\` | Cache disque des affiches et vignettes (`.img`, purge automatique). |
 | `sous-titres\` | Sous-titres téléchargés depuis OpenSubtitles. |
@@ -211,10 +206,9 @@ Attribution affichée dans l'application :
 | `Sources/Core/Network.cs` | Requêtes HTTP, décodage de texte, journal. |
 | `Sources/Core/StreamProxy.cs` | Proxy HTTP local de lecture : User-Agent, Referer, Origin, Cookie, requêtes `Range`, sonde de flux. |
 | `Sources/Core/StreamPlanner.cs` | Ordre des liens de lecture : TS/MKV/MP4 avant HLS. |
-| `Sources/Core/PlaylistLoader.cs` | M3U, Xtream, XMLTV, démonstration, médias locaux. |
+| `Sources/Core/PlaylistLoader.cs` | M3U, Xtream, XMLTV et démonstration. |
 | `Sources/Core/StalkerClient.cs` | Portails MAC / Stalker. |
 | `Sources/Core/Tmdb.cs` | Nettoyage des titres, client TMDb, cache, enrichissement. |
-| `Sources/Core/Letterboxd.cs` | Import CSV personnel, flux RSS publics, association par titre/année, liens et activité locale par profil. |
 | `Sources/Core/Subtitles.cs` | Analyse SRT/WebVTT, sidecars, encodages. |
 | `Sources/Core/MediaTracks.cs` | Modèles de pistes, détection du conteneur, libellés de langue/codec, normalisation des cues. |
 | `Sources/Core/Mp4Tracks.cs` | Lecture ISO BMFF : pistes audio/sous-titres, extraction `tx3g`/`text`/`wvtt`. |
@@ -253,4 +247,4 @@ Dist\LyaranTV.exe --selftest
 
 Journal : `%TEMP%\LyaranTV-selftest.log`.
 
-La suite compte **33 auto-tests** et couvre : chemins, utilitaires texte, priorité des flux, erreurs réseau lisibles, chiffrement, réglages et migration d'accent, playlists, favoris/positions, **suppression de l'historique d'une playlist**, démonstration, M3U, en-têtes de flux M3U, Xtream, **conversion M3U vers Xtream**, XMLTV, **nettoyage et correspondance prudente des titres TMDb**, recherche dans les métadonnées, correspondances séparées par profil et source, import CSV Letterboxd avec critiques multi-lignes, analyse d'avis RSS publics et séparation par profil, **pistes audio et sous-titres en ligne**, **pistes audio universelles**, affiches et aperçus de secours, cache TMDb, profils/PIN, état par profil, export portable, sous-titres SRT/WebVTT, **pistes embarquées MKV et MP4**, thèmes/champs/scrollbars, décodage des images en mémoire et lecture du cache disque d'affiches, et sauvegarde ZIP.
+La suite compte **32 auto-tests** et couvre : chemins, utilitaires texte, priorité des flux, erreurs réseau lisibles, chiffrement, réglages et migration d'accent, playlists, favoris/positions, **suppression de l'historique d'une playlist**, démonstration, M3U, en-têtes de flux M3U, Xtream, **conversion M3U vers Xtream**, XMLTV, **nettoyage et correspondance prudente des titres TMDb**, recherche dans les métadonnées, correspondances séparées par profil et source, **pistes audio et sous-titres en ligne**, **pistes audio universelles**, affiches et aperçus de secours, cache TMDb, profils/PIN, état par profil, export portable, sous-titres SRT/WebVTT, **pistes embarquées MKV et MP4**, thèmes/champs/scrollbars, décodage des images en mémoire et lecture du cache disque d'affiches, et sauvegarde ZIP.

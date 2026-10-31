@@ -170,6 +170,19 @@ namespace LyaranTV
             };
             tools.Children.Add(sortPicker);
 
+            // Bascule liste/grille : le choix est enregistré et reste celui
+            // appliqué au retour du lecteur ou d'une fiche de contenu.
+            var viewToggle = IconButton(gridView ? Glyphs.List : Glyphs.Grid,
+                gridView ? "Afficher en liste" : "Afficher en grille", delegate
+                {
+                    gridView = !gridView;
+                    settings.GridView = gridView;
+                    SaveSettings();
+                    ShowLibrary(mode);
+                }, false);
+            viewToggle.Margin = new Thickness(0, 0, 7, 0);
+            tools.Children.Add(viewToggle);
+
             var browse = IconButton(Glyphs.Grid, "Tout parcourir en grille", delegate
             {
                 ShowLibraryCollection(CollectionTitle(activeKind, activeGroup), activeKind, activeGroup);
@@ -1180,7 +1193,9 @@ namespace LyaranTV
             StopLibraryHeroTimer();
             activeKind = kind; activeGroup = group;
             channelList = new StackPanel(); resultsScroll = null; moreHost = null;
-            gridView = true; renderLimit = 150;
+            gridView = true;
+            if (!settings.GridView) { settings.GridView = true; SaveSettings(); }
+            renderLimit = 150;
             RebuildSidebar(); UpdateStatusBar(); SetPageStatus();
 
             var modeBase = BaseViewForMode(page).ToList();

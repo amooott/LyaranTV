@@ -159,8 +159,7 @@ namespace LyaranTV
             SetContent(playerLayout);
             if (fullScreen) ApplyFullScreenLayout();
             SetStatus("Lecture de " + channel.Name + ".");
-            if (channel.Kind == "Local") AddLocalRecent(channel.Url);
-            else AddRecent(channel);
+            AddRecent(channel);
             RememberHistoryOwnership(new[] { channel });
             if (String.Equals(channel.Kind, "Épisodes", StringComparison.OrdinalIgnoreCase) || !String.IsNullOrWhiteSpace(channel.SeriesId))
                 RememberEpisode(channel);
@@ -2150,10 +2149,9 @@ namespace LyaranTV
             var channel = new Channel
             {
                 Name = String.IsNullOrWhiteSpace(name) ? "Flux externe" : name,
-                Group = "Médias locaux", Kind = "Local", Url = target,
+                Group = "Fichier local", Kind = "Local", Url = target,
                 Id = "cli:" + target, Description = target, Order = 0
             };
-            if (File.Exists(target)) AddLocalRecent(target);
             Play(channel, null, 0, false);
         }
     }
