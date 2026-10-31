@@ -369,8 +369,16 @@ namespace LyaranTV
         public static void Install(string path, bool silent)
         {
             if (String.IsNullOrWhiteSpace(path) || !File.Exists(path)) throw new FileNotFoundException(path);
-            string arguments = silent ? "/SILENT /UPDATE" : "/UPDATE";
-            Process.Start(new ProcessStartInfo(path, arguments) { UseShellExecute = true });
+            // Installe exactement dans le dossier depuis lequel cette copie
+            // tourne. Sans /DIR, le setup peut installer ailleurs (notamment
+            // si l'application est lancée depuis un dossier portable).
+            string installDirectory = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory).FullName;
+            string arguments = (silent ? "/SILENT " : "") + "/UPDATE /DIR=\"" + installDirectory + "\"";
+            Process.Start(new ProcessStartInfo(path, arguments)
+            {
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(path)
+            });
         }
     }
 }

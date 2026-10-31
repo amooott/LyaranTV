@@ -33,7 +33,7 @@ namespace LyaranTV.Setup
     internal static class SetupProgram
     {
         public const string ProductName = "LyaranTV";
-        public const string Version = "1.1.8";
+        public const string Version = "1.1.9";
         public const string Publisher = "Amooott";
         public const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\LyaranTV";
 
@@ -55,6 +55,9 @@ namespace LyaranTV.Setup
             Log("Démarrage · silent=" + silent + " · args=" + String.Join(" ", args));
             bool update = Has(args, "/UPDATE");
             bool uninstall = Has(args, "/UNINSTALL");
+            // Capture le chemin de l'application dès le démarrage du setup :
+            // l'ancien programme peut se fermer juste après Process.Start.
+            string silentTarget = silent && !uninstall ? ResolveInstallDirectory(Value(args, "/DIR"), update) : "";
 
             if (!HasDotNet())
             {
@@ -79,9 +82,17 @@ namespace LyaranTV.Setup
 
             if (silent)
             {
-                // /DIR permet une installation de test ou sur un autre disque.
-                string custom = Value(args, "/DIR");
-                return Install(String.IsNullOrWhiteSpace(custom) ? InstallDir : custom, true, update, null);
+                string target = String.IsNullOrWhiteSpace(silentTarget) ? InstallDir : silentTarget;
+                int result = Install(target, true, update, null);
+                if (update)
+                {
+                    if (result == 0) Launch(target);
+                    else if (Environment.UserInteractive)
+                        MessageBox.Show(Strings.Get(Strings.ErrorBody) + "\n\nJournal : "
+                            + Path.Combine(Path.GetTempPath(), "lyarantv-setup.log"), Strings.Get(Strings.ErrorTitle),
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                return result;
             }
 
             Application.EnableVisualStyles();
@@ -103,6 +114,51 @@ namespace LyaranTV.Setup
         public static string InstallDir
         {
             get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ProductName, "app"); }
+        }
+
+        static string ResolveInstallDirectory(string custom, bool update)
+        {
+            if (!String.IsNullOrWhiteSpace(custom)) return custom;
+            if (update)
+            {
+                // Les anciennes versions ne transmettaient pas /DIR. Tant que
+                // l'application se ferme, récupère son chemin depuis le
+                // processus actif pour mettre à jour la copie réellement lancée.
+                string runningDirectory = "";
+                Process[] running = Process.GetProcessesByName(ProductName);
+                try
+                {
+                    foreach (Process process in running)
+                    {
+                        try
+                        {
+                            string executable = process.MainModule == null ? "" : process.MainModule.FileName;
+                            if (String.Equals(Path.GetFileNameWithoutExtension(executable), ProductName, StringComparison.OrdinalIgnoreCase))
+                                runningDirectory = Path.GetDirectoryName(executable) ?? "";
+                        }
+                        catch { }
+                        if (!String.IsNullOrWhiteSpace(runningDirectory)) break;
+                    }
+                }
+                finally
+                {
+                    foreach (Process process in running)
+                        try { process.Dispose(); } catch { }
+                }
+                if (!String.IsNullOrWhiteSpace(runningDirectory)) return runningDirectory;
+
+                try
+                {
+                    using (RegistryKey key = Registry.CurrentUser.OpenSubKey(UninstallKey))
+                    {
+                        string registered = key == null ? "" : key.GetValue("InstallLocation") as string;
+                        if (!String.IsNullOrWhiteSpace(registered) && File.Exists(Path.Combine(registered, ProductName + ".exe")))
+                            return registered;
+                    }
+                }
+                catch { }
+            }
+            return InstallDir;
         }
 
         /// <summary>Taille décompressée de la charge utile, pour l'espace requis.</summary>
@@ -180,25 +236,41 @@ namespace LyaranTV.Setup
         static void WaitForRunningInstance(bool update)
         {
             // Une mise à jour ne doit pas échouer parce que le programme tourne :
-            // on lui laisse quelques secondes pour se fermer, puis on l'arrête.
+            // on lui laisse le temps de se fermer, puis on attend réellement
+            // la fin du processus avant de remplacer ses fichiers.
             Process[] running = Process.GetProcessesByName(ProductName);
             if (running.Length == 0) return;
-            DateTime limit = DateTime.Now.AddSeconds(update ? 20 : 8);
-            while (DateTime.Now < limit)
+            try
             {
-                bool alive = false;
+                DateTime limit = DateTime.Now.AddSeconds(update ? 20 : 8);
+                while (DateTime.Now < limit && AnyRunning(running))
+                    System.Threading.Thread.Sleep(250);
+                if (!AnyRunning(running)) return;
+
                 foreach (Process process in running)
                 {
-                    try { if (!process.HasExited) alive = true; } catch { }
+                    try { if (!process.HasExited) process.Kill(); } catch { }
                 }
-                if (!alive) return;
-                System.Threading.Thread.Sleep(500);
+                DateTime killLimit = DateTime.Now.AddSeconds(8);
+                while (DateTime.Now < killLimit && AnyRunning(running))
+                    System.Threading.Thread.Sleep(200);
+                if (AnyRunning(running))
+                    throw new InvalidOperationException("LyaranTV est toujours ouvert; ses fichiers ne peuvent pas être remplacés.");
             }
-            foreach (Process process in running)
+            finally
             {
-                try { if (!process.HasExited) process.Kill(); } catch { }
+                foreach (Process process in running)
+                    try { process.Dispose(); } catch { }
             }
-            System.Threading.Thread.Sleep(700);
+        }
+
+        static bool AnyRunning(IEnumerable<Process> processes)
+        {
+            foreach (Process process in processes)
+            {
+                try { if (!process.HasExited) return true; } catch { }
+            }
+            return false;
         }
 
         static void CopyTree(string source, string target, Action<int, string, int> progress)
@@ -334,7 +406,7 @@ namespace LyaranTV.Setup
         public static void Launch(string target)
         {
             try { Process.Start(new ProcessStartInfo(Path.Combine(target, ProductName + ".exe")) { WorkingDirectory = target }); }
-            catch { }
+            catch (Exception ex) { Log("Launch: " + ex.Message); }
         }
 
         // ------------------------------------------------------------ désinstallation

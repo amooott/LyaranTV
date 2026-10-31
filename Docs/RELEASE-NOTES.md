@@ -1,3 +1,13 @@
+# LyaranTV 1.1.9
+
+## Correctif de l’installation après téléchargement
+
+- Le setup silencieux installe maintenant dans le dossier de l’exécutable qui a lancé la mise à jour, y compris les copies portables.
+- Après une installation réussie, il relance la nouvelle version. En cas d’échec, il affiche le journal au lieu de fermer sans explication.
+- L’installateur et les empreintes SHA-256 de la version 1.1.9 sont joints à la Release.
+
+---
+
 # LyaranTV 1.1.8
 
 ## Test de mise à jour depuis la 1.1.7
