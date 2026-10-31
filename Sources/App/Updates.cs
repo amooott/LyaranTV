@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -100,13 +101,14 @@ namespace LyaranTV
                 info.Notes = Str(payload, "body");
                 info.PageUrl = Str(payload, "html_url");
 
-                var assets = payload.ContainsKey("assets") ? payload["assets"] as object[] : null;
+                object rawAssets;
+                var assets = payload.TryGetValue("assets", out rawAssets) ? rawAssets as IEnumerable : null;
                 Dictionary<string, object> sidecar = null;
                 if (assets != null)
                 {
                     foreach (object entry in assets)
                     {
-                        var asset = entry as Dictionary<string, object>;
+                        var asset = AsMap(entry);
                         if (asset == null) continue;
                         string name = Str(asset, "name");
                         if (name.EndsWith(".sha256", StringComparison.OrdinalIgnoreCase))
@@ -181,6 +183,21 @@ namespace LyaranTV
         {
             object value;
             return map != null && map.TryGetValue(key, out value) && value != null ? Convert.ToString(value, CultureInfo.InvariantCulture) : "";
+        }
+
+        static Dictionary<string, object> AsMap(object value)
+        {
+            var typed = value as Dictionary<string, object>;
+            if (typed != null) return typed;
+            var untyped = value as IDictionary;
+            if (untyped == null) return null;
+            var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            foreach (DictionaryEntry entry in untyped)
+            {
+                string key = Convert.ToString(entry.Key, CultureInfo.InvariantCulture);
+                if (!String.IsNullOrWhiteSpace(key)) result[key] = entry.Value;
+            }
+            return result;
         }
 
         static long Long(Dictionary<string, object> map, string key)

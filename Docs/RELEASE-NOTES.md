@@ -1,3 +1,12 @@
+# LyaranTV 1.1.5
+
+## Correctif des mises à jour
+
+- Le vérificateur prend désormais en charge les différentes représentations JSON de la liste des fichiers d’une Release GitHub privée.
+- L’installateur et les fichiers SHA-256 de la version 1.1.5 sont joints à la Release.
+
+---
+
 # LyaranTV 1.1.4
 
 ## Fiches Letterboxd intégrées
