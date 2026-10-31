@@ -25,10 +25,18 @@ namespace LyaranTV
         StackPanel libraryHeroContent, libraryHeroActions, libraryHeroDots;
         Channel libraryHeroChannel;
         int libraryLoadGeneration;
+        // « Tout parcourir » impose la grille sans modifier la préférence
+        // liste/grille enregistrée par l'utilisateur.
+        bool collectionGrid;
 
         void ShowLibrary(string mode)
         {
             page = mode;
+            // La présentation enregistrée fait foi dès qu'on revient sur une
+            // page de découverte : « Tout parcourir » peut forcer la grille
+            // sans modifier les préférences de l'utilisateur.
+            collectionGrid = false;
+            gridView = settings.GridView;
             StopLibraryHeroTimer();
             RebuildSidebar(); UpdateStatusBar(); SetPageStatus();
             channelList = null; resultsScroll = null; moreHost = null;
@@ -195,10 +203,36 @@ namespace LyaranTV
                 return;
             }
 
-            root.Children.Add(BuildLibraryHero());
-            long heroMs = libraryPerf.ElapsedMilliseconds;
             root.Children.Add(BuildLibraryFilters(mode, modeBase));
             long filtersMs = libraryPerf.ElapsedMilliseconds;
+
+            if (gridView)
+            {
+                // Mode grille : la sélection courante s'affiche d'un bloc, sans
+                // hero ni étagères. La bascule liste/grille des filtres change
+                // donc réellement la page, et « Afficher plus » complète la
+                // liste par tranches sans recharger le reste.
+                channelList = new StackPanel();
+                resultsScroll = null;
+                moreHost = null;
+                resultCountText = Text("", 12, Brush(Muted), false);
+                resultCountText.Margin = new Thickness(0, 0, 0, 12);
+                root.Children.Add(resultCountText);
+                root.Children.Add(channelList);
+                RenderChannels();
+                SetContent(root);
+                try
+                {
+                    HttpUtil.AppendLog("Perf bibliothèque (grille) @" + DateTime.Now.ToString("HH:mm:ss.fff")
+                        + " · préparation " + dataMs + " · filtres " + (filtersMs - headerMs)
+                        + " · rendu " + libraryPerf.ElapsedMilliseconds + " ms");
+                }
+                catch { }
+                return;
+            }
+
+            root.Children.Add(BuildLibraryHero());
+            long heroMs = libraryPerf.ElapsedMilliseconds;
             AddLibraryShelves(root, filtered, modeBase, mode);
             long shelvesMs = libraryPerf.ElapsedMilliseconds;
 
@@ -1293,10 +1327,17 @@ namespace LyaranTV
         void ShowLibraryCollection(string title, string kind, string group)
         {
             StopLibraryHeroTimer();
+            // « Tout voir » peut partir de l'accueil : la page de collection
+            // appartient alors à la bibliothèque, et le bouton retour ramène à
+            // l'écran d'origine.
+            string origin = page;
+            if (origin == "Accueil") page = "Bibliothèque";
             activeKind = kind; activeGroup = group;
             channelList = new StackPanel(); resultsScroll = null; moreHost = null;
-            gridView = true;
-            if (!settings.GridView) { settings.GridView = true; SaveSettings(); }
+            // « Tout parcourir » est toujours en grille, mais sans écraser le
+            // choix de l'utilisateur : le retour à la découverte restaure la
+            // présentation qu'il avait enregistrée.
+            collectionGrid = true;
             renderLimit = 150;
             RebuildSidebar(); UpdateStatusBar(); SetPageStatus();
 
@@ -1309,7 +1350,9 @@ namespace LyaranTV
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             var back = IconButton(Glyphs.Back, "Revenir à la découverte", delegate
             {
-                activeKind = "Tous"; activeGroup = AllGroups; ShowLibrary(page);
+                collectionGrid = false;
+                activeKind = "Tous"; activeGroup = AllGroups;
+                if (origin == "Accueil") ShowHome(); else ShowLibrary(origin);
             }, false);
             back.Margin = new Thickness(0, 1, 14, 0);
             Grid.SetColumn(back, 0); header.Children.Add(back);

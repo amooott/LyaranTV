@@ -96,7 +96,7 @@ Le logo LyaranTV est la piste **17 · Égaliseur** : un carré arrondi violet-bl
 - **Contenu du hero** : genre, année, note, programme en cours pour le direct, synopsis court, bouton principal, détails et favori.
 - **Rotation** : toutes les 8,5 s, avec pastilles de progression ; pause de 30 s au survol du hero et de 14 s après le survol d'une carte. Désactivée avec la réduction des animations.
 - **Étagères** : défilement horizontal à la molette et au trackpad, bords fondus, en-tête avec compteur et action « Tout voir ».
-- **Filtres** : chips de type, catégorie, tri et accès à la grille complète « Tout parcourir ».
+- **Filtres** : onglets de type, catégorie, tri, **bascule liste / grille** et accès à la grille complète « Tout parcourir ». La grille remplace le hero et les étagères par toutes les cartes de la sélection courante, avec pagination par tranches ; le choix liste/grille est mémorisé, tandis que « Tout parcourir » l'impose sans modifier la préférence enregistrée.
 - **Aperçu au survol** : la carte survolée remonte de 4 px, affiche un voile et un bouton lecture, et met immédiatement à jour le hero sans clic.
 - **Clavier** : `Tab` pour entrer dans les cartes, `←` / `→` pour parcourir une étagère, `Entrée` / `Espace` pour ouvrir. Le focus garde la bordure accent et fait défiler l'étagère.
 - **Toutes les catégories** : sous les étagères, trois blocs verticaux — **Chaînes**, **Films**, **Séries** — affichent l'intégralité des catégories, sans limite. Les cartes s'enroulent en grille fluide et la page grandit vers le bas ; chaque carte filtre le type et la catégorie, avec un compteur et un accès « Tout voir » par bloc.

@@ -410,7 +410,7 @@ namespace LyaranTV
             int limit = Math.Min(renderLimit, currentView.Count);
             if (groupedSearch)
                 RenderGroupedSearchResults(query, currentView, people, limit);
-            else if (gridView)
+            else if (gridView || collectionGrid)
             {
                 var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
                 for (int i = 0; i < limit; i++) wrap.Children.Add(RenderChannelCard(currentView[i]));
@@ -506,7 +506,7 @@ namespace LyaranTV
                 if (remaining <= 0) break;
                 channelList.Children.Add(SectionHeader(group.Key, TextUtil.HumanCount(group.Count()) + " résultat(s)", null));
                 int take = Math.Min(remaining, group.Count());
-                if (gridView)
+                if (gridView || collectionGrid)
                 {
                     var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
                     foreach (var channel in group.Take(take)) wrap.Children.Add(RenderChannelCard(channel));

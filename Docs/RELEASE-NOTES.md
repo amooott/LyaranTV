@@ -1,3 +1,21 @@
+# LyaranTV 1.3.5
+
+Le mode grille de la bibliothèque fonctionne de nouveau.
+
+## Correction
+
+- **Bascule liste / grille réparée** : le bouton en haut des filtres changeait bien l'icône et enregistrait le choix, mais la page continuait d'afficher le hero et les étagères. La bibliothèque affiche désormais réellement la grille complète de la sélection courante (avec « Afficher plus »), et revient aux étagères en mode liste.
+- **Choix mémorisé** : la présentation liste ou grille est conservée au redémarrage, au retour du lecteur et après une fiche de contenu.
+- **« Tout parcourir » sans effet de bord** : la vue grille reste imposée sur cette page, mais elle n'écrase plus la préférence enregistrée. Le bouton retour restaure la découverte, et « Tout voir » depuis l'accueil ramène bien à l'accueil.
+
+## Vérifications
+
+- Auto-test : **32/32**.
+- Bascule grille → liste et liste → grille vérifiée à la souris sur un catalogue de 26 792 éléments.
+- Rendu de 150 cartes en grille : environ 0,4 s.
+
+---
+
 # LyaranTV 1.3.4
 
 Interface plus calme, recherches TMDb/OpenSubtitles fiables et affiches préchargées.
