@@ -5,7 +5,7 @@ Affiches préchargées, et téléchargements HTTPS réparés sur les réseaux à
 ## Corrections
 
 - **Affiches vides qui ne se chargeaient jamais** : sur un réseau qui annonce une adresse IPv6 sans la router (fréquent chez certains fournisseurs), chaque téléchargement attendait ~20 s avant de basculer en IPv4, alors que les jaquettes abandonnaient au bout de 8 s. Un moteur de téléchargement HTTPS **IPv4 d'abord** (TLS 1.2 avec SNI, redirections, réponses chunked, gzip) remplace cette attente ; le moteur historique reste utilisé derrière un proxy ou en repli. Une jaquette passe ainsi de « jamais chargée » à **~250 ms**. TMDb, TVmaze, iTunes et OpenSubtitles sont réparés par la même occasion.
-- **Drapeau TLS 1.3 invalide** retiré du démarrage : .NET Framework ne le négocie pas, et son ajout à l'énumération pouvait bloquer toutes les connexions HTTPS internes.
+- **Drapeau TLS 1.3 non pris en charge** retiré du démarrage : .NET Framework ne le négocie pas, son maintien dans l'énumération était au mieux inutile.
 - **Jaquette morte réessayée sans fin** : une ancienne URL TMDb en 404 est désormais écartée après le premier échec ; la carte bascule sur ses autres visuels puis sur son affiche dessinée.
 
 ## Nouveautés
