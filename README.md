@@ -25,6 +25,7 @@
 - Barres de défilement personnalisées, champs de saisie lisibles dans tous les thèmes, animations discrètes et option de réduction des mouvements.
 - Sauvegarde complète `.lyaran`, export/import JSON portable et export M3U.
 - Aucun compte LyaranTV, aucun serveur obligatoire, aucune télémétrie et aucun paywall.
+- Mises à jour par GitHub Releases : une Release publique fonctionne sans compte ni jeton GitHub; l'installateur est contrôlé par SHA-256 avant son lancement.
 
 ## Démarrage rapide
 

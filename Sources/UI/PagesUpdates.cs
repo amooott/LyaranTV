@@ -200,7 +200,7 @@ namespace LyaranTV
 
             var stack = new StackPanel { Margin = new Thickness(22, 18, 22, 18) };
             stack.Children.Add(Text(I18n.T("Jeton GitHub"), 17, Brush(TextPrimary), true));
-            var hint = Text("Pour un jeton à granularité fine (github_pat_), sélectionnez le dépôt " + AppInfo.Repository
+            var hint = Text("Pour un dépôt public, aucun jeton n'est nécessaire. Si le dépôt reste privé, utilisez un jeton à granularité fine (github_pat_) autorisé pour " + AppInfo.Repository
                 + " et accordez Contents : Read. Pour un jeton classique (ghp_), utilisez la portée repo. "
                 + I18n.T("Le jeton reste chiffré sur cet ordinateur."), 11, Brush(Muted), false);
             hint.TextWrapping = TextWrapping.Wrap;

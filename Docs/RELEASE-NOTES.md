@@ -1,3 +1,15 @@
+# LyaranTV 1.2.1
+
+## Mises à jour publiques sans jeton
+
+- Le vérificateur essaie d'abord l'accès anonyme aux Releases publiques.
+- Un jeton enregistré n'est utilisé qu'en secours pour les dépôts privés; un jeton expiré ne bloque donc plus les Releases publiques.
+- Les téléchargements des installateurs et des empreintes SHA-256 utilisent le même accès anonyme avec secours authentifié.
+- Les paramètres précisent qu'aucun jeton GitHub n'est nécessaire pour une Release publique.
+- Installateur `setup-LyaranTV-1.2.1.exe` et empreintes SHA-256 joints à la Release.
+
+---
+
 # LyaranTV 1.2.0
 
 ## Test de mise à jour depuis la 1.1.9

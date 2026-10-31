@@ -758,7 +758,7 @@ namespace LyaranTV
             stack.Children.Add(actions);
 
             var tokenState = Text(String.IsNullOrWhiteSpace(settings.UpdateTokenProtected)
-                ? I18n.T("Dépôt privé : jeton GitHub requis.")
+                ? I18n.T("Aucun jeton requis pour un dépôt public.")
                 : "Jeton enregistré · " + I18n.T("Le jeton reste chiffré sur cet ordinateur."), 10, Brush(Muted), false);
             tokenState.Margin = new Thickness(0, 8, 0, 0);
             tokenState.TextWrapping = TextWrapping.Wrap;
@@ -772,7 +772,7 @@ namespace LyaranTV
             }));
 
             var note = Text("Le programme interroge les Releases du dépôt " + AppInfo.Repository
-                + " ; le fichier téléchargé est comparé à l'empreinte SHA-256 publiée avant d'être exécuté. Pour un jeton à granularité fine, autorisez ce dépôt et Contents : Read; pour un jeton classique, utilisez repo.", 9.8, Brush(Muted), false);
+                + " sans jeton si elles sont publiques ; le fichier téléchargé est comparé à son empreinte SHA-256 avant exécution. Si le dépôt reste privé, un jeton GitHub autorisé est nécessaire.", 9.8, Brush(Muted), false);
             note.Margin = new Thickness(0, 9, 0, 0);
             note.TextWrapping = TextWrapping.Wrap;
             stack.Children.Add(note);

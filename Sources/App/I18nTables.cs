@@ -181,7 +181,7 @@ namespace LyaranTV
             d["Empreinte SHA-256 incorrecte"] = "SHA-256 mismatch";
             d["Redémarrer pour terminer"] = "Restart to finish";
             d["Impossible de vérifier les mises à jour."] = "Unable to check for updates.";
-            d["Dépôt privé : jeton GitHub requis."] = "Private repository: GitHub token required.";
+            d["Aucun jeton requis pour un dépôt public."] = "No token is required for a public repository.";
             d["Jeton GitHub"] = "GitHub token";
             d["Le jeton reste chiffré sur cet ordinateur."] = "The token stays encrypted on this computer.";
             d["Vérifier au démarrage"] = "Check at startup";
@@ -383,7 +383,7 @@ namespace LyaranTV
             d["Empreinte SHA-256 incorrecte"] = "SHA-256 incorrecto";
             d["Redémarrer pour terminer"] = "Reiniciar para terminar";
             d["Impossible de vérifier les mises à jour."] = "No se pueden comprobar las actualizaciones.";
-            d["Dépôt privé : jeton GitHub requis."] = "Repositorio privado: se necesita un token de GitHub.";
+            d["Aucun jeton requis pour un dépôt public."] = "No se necesita un token para un repositorio público.";
             d["Jeton GitHub"] = "Token de GitHub";
             d["Le jeton reste chiffré sur cet ordinateur."] = "El token queda cifrado en este ordenador.";
             d["Vérifier au démarrage"] = "Comprobar al iniciar";
@@ -584,7 +584,7 @@ namespace LyaranTV
             d["Empreinte SHA-256 incorrecte"] = "Неверный SHA-256";
             d["Redémarrer pour terminer"] = "Перезапустите для завершения";
             d["Impossible de vérifier les mises à jour."] = "Не удалось проверить обновления.";
-            d["Dépôt privé : jeton GitHub requis."] = "Закрытый репозиторий: нужен токен GitHub.";
+            d["Aucun jeton requis pour un dépôt public."] = "Для общедоступного репозитория токен не нужен.";
             d["Jeton GitHub"] = "Токен GitHub";
             d["Le jeton reste chiffré sur cet ordinateur."] = "Токен хранится зашифрованным на этом компьютере.";
             d["Vérifier au démarrage"] = "Проверять при запуске";
@@ -785,7 +785,7 @@ namespace LyaranTV
             d["Empreinte SHA-256 incorrecte"] = "SHA-256 incorreto";
             d["Redémarrer pour terminer"] = "Reiniciar para concluir";
             d["Impossible de vérifier les mises à jour."] = "Não foi possível verificar as atualizações.";
-            d["Dépôt privé : jeton GitHub requis."] = "Repositório privado: é necessário um token do GitHub.";
+            d["Aucun jeton requis pour un dépôt public."] = "Não é necessário token para um repositório público.";
             d["Jeton GitHub"] = "Token do GitHub";
             d["Le jeton reste chiffré sur cet ordinateur."] = "O token fica cifrado neste computador.";
             d["Vérifier au démarrage"] = "Verificar ao iniciar";

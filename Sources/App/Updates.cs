@@ -38,10 +38,11 @@ namespace LyaranTV
     }
 
     /// <summary>
-    /// Mises à jour par GitHub Releases. Le dépôt est privé : la lecture exige un
-    /// jeton personnel, saisi dans les réglages et conservé chiffré par
-    /// CredentialVault (DPAPI, compte Windows courant). Aucun jeton n'est compilé
-    /// dans le programme.
+    /// Mises à jour par GitHub Releases. Les Releases publiques sont consultées
+    /// sans authentification. Un jeton personnel, saisi dans les réglages et
+    /// conservé chiffré par CredentialVault (DPAPI, compte Windows courant), peut
+    /// être utilisé si le dépôt de distribution reste privé. Aucun jeton n'est
+    /// compilé dans le programme.
     /// </summary>
     internal static class Updates
     {
@@ -72,26 +73,14 @@ namespace LyaranTV
             try
             {
                 string token = Token(settings);
-                if (token.Length == 0)
-                {
-                    info.Error = "Dépôt privé : jeton GitHub requis.";
-                    return info;
-                }
-
-                var request = (HttpWebRequest)WebRequest.Create(ApiLatest);
-                request.UserAgent = UserAgent;
-                request.Accept = "application/vnd.github+json";
-                request.Headers["X-GitHub-Api-Version"] = "2022-11-28";
-                request.Headers["Authorization"] = "Bearer " + token;
-                request.Timeout = 15000;
-                request.ReadWriteTimeout = 15000;
-                request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
 
                 string json;
-                using (var response = (HttpWebResponse)request.GetResponse())
-                using (var stream = response.GetResponseStream())
-                using (var reader = new StreamReader(stream, Encoding.UTF8))
-                    json = reader.ReadToEnd();
+                try { json = FetchLatestRelease(""); }
+                catch (WebException ex)
+                {
+                    if (String.IsNullOrWhiteSpace(token) || !IsAccessFailure(ex)) throw;
+                    json = FetchLatestRelease(token);
+                }
 
                 var serializer = new JavaScriptSerializer { MaxJsonLength = 8 * 1024 * 1024 };
                 var payload = serializer.Deserialize<Dictionary<string, object>>(json);
@@ -156,10 +145,11 @@ namespace LyaranTV
             {
                 var response = ex.Response as HttpWebResponse;
                 int status = response == null ? 0 : (int)response.StatusCode;
+                if (response != null) response.Close();
                 if (status == 401 || status == 403) info.Error = "Jeton GitHub refusé ou droits insuffisants. Pour un jeton à granularité fine, autorisez le dépôt "
                     + AppInfo.Repository + " avec Contents : Read; pour un jeton classic, utilisez la portée repo.";
-                else if (status == 404) info.Error = "GitHub ne trouve aucune Release accessible. Vérifiez qu’une Release est publiée et, pour un jeton à granularité fine, autorisez le dépôt "
-                    + AppInfo.Repository + " avec Contents : Read.";
+                else if (status == 404) info.Error = "GitHub ne trouve aucune Release accessible. Vérifiez qu’une Release est publiée et que le dépôt "
+                    + AppInfo.Repository + " est public. S’il reste privé, un jeton autorisé est requis (Contents : Read pour un jeton fin, repo pour un jeton classique).";
                 else info.Error = "Réseau indisponible : " + ex.GetBaseException().Message;
                 return info;
             }
@@ -170,16 +160,56 @@ namespace LyaranTV
             }
         }
 
+        static string FetchLatestRelease(string token)
+        {
+            var request = (HttpWebRequest)WebRequest.Create(ApiLatest);
+            request.UserAgent = UserAgent;
+            request.Accept = "application/vnd.github+json";
+            request.Headers["X-GitHub-Api-Version"] = "2022-11-28";
+            if (!String.IsNullOrWhiteSpace(token))
+                request.Headers["Authorization"] = "Bearer " + token;
+            request.Timeout = 15000;
+            request.ReadWriteTimeout = 15000;
+            request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+
+            using (var response = (HttpWebResponse)request.GetResponse())
+            using (var stream = response.GetResponseStream())
+            using (var reader = new StreamReader(stream, Encoding.UTF8))
+                return reader.ReadToEnd();
+        }
+
+        static bool IsAccessFailure(WebException error)
+        {
+            var response = error == null ? null : error.Response as HttpWebResponse;
+            if (response == null) return false;
+            int status = (int)response.StatusCode;
+            response.Close();
+            return status == 401 || status == 403 || status == 404;
+        }
+
         static string FetchSidecar(string apiUrl, string browserUrl, string token)
         {
             try
             {
-                using (var response = OpenAssetResponse(apiUrl, browserUrl, token))
+                using (var response = OpenAssetResponseWithFallback(apiUrl, browserUrl, token))
                 using (var stream = response.GetResponseStream())
                 using (var reader = new StreamReader(stream, Encoding.UTF8))
                     return reader.ReadToEnd();
             }
             catch { return ""; }
+        }
+
+        static HttpWebResponse OpenAssetResponseWithFallback(string apiUrl, string browserUrl, string token)
+        {
+            try { return OpenAssetResponse(apiUrl, browserUrl, ""); }
+            catch (WebException ex)
+            {
+                var response = ex.Response as HttpWebResponse;
+                int status = response == null ? 0 : (int)response.StatusCode;
+                if (response != null) response.Close();
+                if (String.IsNullOrWhiteSpace(token) || (status != 401 && status != 403 && status != 404)) throw;
+                return OpenAssetResponse(apiUrl, browserUrl, token);
+            }
         }
 
         static HttpWebResponse OpenAssetResponse(string apiUrl, string browserUrl, string token)
@@ -230,8 +260,8 @@ namespace LyaranTV
                 }
                 if (status != 200)
                 {
-                    response.Close();
-                    throw new WebException("GitHub a refusé le téléchargement (HTTP " + status.ToString(CultureInfo.InvariantCulture) + ").");
+                    throw new WebException("GitHub a refusé le téléchargement (HTTP " + status.ToString(CultureInfo.InvariantCulture) + ").",
+                        null, WebExceptionStatus.ProtocolError, response);
                 }
                 return response;
             }
@@ -322,7 +352,7 @@ namespace LyaranTV
             try
             {
                 string token = Token(settings);
-                using (var response = OpenAssetResponse(info.AssetApiUrl, info.AssetUrl, token))
+                using (var response = OpenAssetResponseWithFallback(info.AssetApiUrl, info.AssetUrl, token))
                 using (var input = response.GetResponseStream())
                 using (var output = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
