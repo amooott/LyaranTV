@@ -1,3 +1,13 @@
+# LyaranTV 1.1.7
+
+## Correctif du téléchargement des mises à jour
+
+- Le téléchargement d’un asset de dépôt privé passe par l’API GitHub authentifiée, puis suit sa redirection signée sans transmettre le jeton.
+- Le programme exige une empreinte SHA-256 valide avant de proposer le fichier et vérifie le binaire téléchargé avant son lancement.
+- Installateur `setup-LyaranTV-1.1.7.exe` et empreintes SHA-256 joints à la Release.
+
+---
+
 # LyaranTV 1.1.6
 
 ## Validation du vérificateur de mises à jour

@@ -21,6 +21,7 @@ namespace LyaranTV
         public string Notes = "";
         public string AssetName = "";
         public string AssetUrl = "";
+        public string AssetApiUrl = "";
         public string Sha256 = "";
         public long Size;
         public string PageUrl = "";
@@ -125,6 +126,7 @@ namespace LyaranTV
                         {
                             info.AssetName = name;
                             info.AssetUrl = Str(asset, "browser_download_url");
+                            info.AssetApiUrl = Str(asset, "url");
                             info.Size = Long(asset, "size");
                             info.Sha256 = Digest(asset);
                             if (isSetup) break;
@@ -139,7 +141,13 @@ namespace LyaranTV
                 }
 
                 if (info.Sha256.Length == 0 && sidecar != null)
-                    info.Sha256 = FetchSidecar(Str(sidecar, "browser_download_url"), token).Trim().Split(' ')[0];
+                    info.Sha256 = ParseSidecar(FetchSidecar(Str(sidecar, "url"), Str(sidecar, "browser_download_url"), token));
+                if (!IsSha256(info.Sha256))
+                {
+                    info.Error = "Empreinte SHA-256 introuvable dans cette Release; téléchargement annulé.";
+                    return info;
+                }
+                info.Sha256 = info.Sha256.ToLowerInvariant();
 
                 info.Ok = true;
                 return info;
@@ -162,21 +170,100 @@ namespace LyaranTV
             }
         }
 
-        static string FetchSidecar(string url, string token)
+        static string FetchSidecar(string apiUrl, string browserUrl, string token)
         {
             try
             {
-                if (String.IsNullOrWhiteSpace(url)) return "";
-                var request = (HttpWebRequest)WebRequest.Create(url);
-                request.UserAgent = UserAgent;
-                request.Headers["Authorization"] = "Bearer " + token;
-                request.Timeout = 15000;
-                using (var response = (HttpWebResponse)request.GetResponse())
+                using (var response = OpenAssetResponse(apiUrl, browserUrl, token))
                 using (var stream = response.GetResponseStream())
                 using (var reader = new StreamReader(stream, Encoding.UTF8))
                     return reader.ReadToEnd();
             }
             catch { return ""; }
+        }
+
+        static HttpWebResponse OpenAssetResponse(string apiUrl, string browserUrl, string token)
+        {
+            bool useApi = IsGitHubAssetApiUrl(apiUrl);
+            string currentUrl = useApi ? apiUrl : browserUrl;
+            if (String.IsNullOrWhiteSpace(currentUrl)) throw new InvalidOperationException("URL du fichier de mise à jour manquante.");
+
+            for (int redirects = 0; redirects <= 5; redirects++)
+            {
+                Uri uri = new Uri(currentUrl, UriKind.Absolute);
+                if (!String.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("GitHub a renvoyé une URL de téléchargement non sécurisée.");
+
+                var request = (HttpWebRequest)WebRequest.Create(uri);
+                request.UserAgent = UserAgent;
+                request.Accept = "application/octet-stream";
+                request.Headers["X-GitHub-Api-Version"] = "2022-11-28";
+                request.Timeout = 30000;
+                request.ReadWriteTimeout = 30000;
+                request.AllowAutoRedirect = false;
+                request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+                // Le jeton n'est envoyé qu'à l'API GitHub. Une redirection vers
+                // l'hôte signé des assets est suivie sans transmettre le jeton.
+                if (useApi && String.Equals(uri.Host, "api.github.com", StringComparison.OrdinalIgnoreCase)
+                    && !String.IsNullOrWhiteSpace(token))
+                    request.Headers["Authorization"] = "Bearer " + token;
+
+                HttpWebResponse response;
+                try { response = (HttpWebResponse)request.GetResponse(); }
+                catch (WebException ex)
+                {
+                    response = ex.Response as HttpWebResponse;
+                    if (response == null) throw;
+                }
+
+                int status = (int)response.StatusCode;
+                bool redirect = status == 301 || status == 302 || status == 303 || status == 307 || status == 308;
+                if (redirect)
+                {
+                    string location = response.Headers[HttpResponseHeader.Location];
+                    response.Close();
+                    if (String.IsNullOrWhiteSpace(location)) throw new InvalidOperationException("Redirection GitHub sans destination.");
+                    if (redirects == 5) throw new InvalidOperationException("Trop de redirections pendant le téléchargement.");
+                    currentUrl = new Uri(uri, location).AbsoluteUri;
+                    useApi = false;
+                    continue;
+                }
+                if (status != 200)
+                {
+                    response.Close();
+                    throw new WebException("GitHub a refusé le téléchargement (HTTP " + status.ToString(CultureInfo.InvariantCulture) + ").");
+                }
+                return response;
+            }
+            throw new InvalidOperationException("Le téléchargement GitHub n'a pas abouti.");
+        }
+
+        static bool IsGitHubAssetApiUrl(string value)
+        {
+            Uri uri;
+            if (!Uri.TryCreate(value, UriKind.Absolute, out uri)
+                || !String.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+                || !String.Equals(uri.Host, "api.github.com", StringComparison.OrdinalIgnoreCase)) return false;
+            string expectedPath = "/repos/" + AppInfo.Repository + "/releases/assets/";
+            return uri.AbsolutePath.StartsWith(expectedPath, StringComparison.OrdinalIgnoreCase);
+        }
+
+        static string ParseSidecar(string value)
+        {
+            if (String.IsNullOrWhiteSpace(value)) return "";
+            string[] parts = value.Trim().Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length > 0 && IsSha256(parts[0]) ? parts[0].ToLowerInvariant() : "";
+        }
+
+        static bool IsSha256(string value)
+        {
+            if (String.IsNullOrWhiteSpace(value) || value.Length != 64) return false;
+            for (int i = 0; i < value.Length; i++)
+            {
+                char c = value[i];
+                if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) return false;
+            }
+            return true;
         }
 
         static string Str(Dictionary<string, object> map, string key)
@@ -223,22 +310,40 @@ namespace LyaranTV
         /// </summary>
         public static string Download(UpdateInfo info, AppSettings settings, Action<long, long> progress)
         {
-            if (info == null || !info.Ok || info.AssetUrl.Length == 0) return "";
+            if (info == null || !info.Ok || (info.AssetApiUrl.Length == 0 && info.AssetUrl.Length == 0)) return "";
+            if (!IsSha256(info.Sha256)) throw new InvalidOperationException("Empreinte SHA-256 manquante; installation annulée.");
             string directory = Path.Combine(Path.GetTempPath(), "LyaranTV-update");
             Directory.CreateDirectory(directory);
-            string path = Path.Combine(directory, String.IsNullOrWhiteSpace(info.AssetName) ? "LyaranTV-Setup.exe" : info.AssetName);
+            string assetName = Path.GetFileName(info.AssetName);
+            if (String.IsNullOrWhiteSpace(assetName)) assetName = "LyaranTV-Setup.exe";
+            string path = Path.Combine(directory, assetName);
 
-            using (var client = new WebClient())
+            bool completed = false;
+            try
             {
-                client.Headers["User-Agent"] = UserAgent;
-                client.Headers["Accept"] = "application/octet-stream";
                 string token = Token(settings);
-                if (token.Length > 0) client.Headers["Authorization"] = "Bearer " + token;
-                if (progress != null) client.DownloadProgressChanged += delegate(object sender, DownloadProgressChangedEventArgs e) { progress(e.BytesReceived, e.TotalBytesToReceive); };
-                client.DownloadFile(info.AssetUrl, path);
+                using (var response = OpenAssetResponse(info.AssetApiUrl, info.AssetUrl, token))
+                using (var input = response.GetResponseStream())
+                using (var output = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    if (input == null) throw new InvalidOperationException("GitHub n'a renvoyé aucun fichier.");
+                    byte[] buffer = new byte[65536];
+                    long received = 0;
+                    int read;
+                    while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        output.Write(buffer, 0, read);
+                        received += read;
+                        if (progress != null) progress(received, response.ContentLength);
+                    }
+                }
+                completed = true;
+            }
+            finally
+            {
+                if (!completed) { try { File.Delete(path); } catch { } }
             }
 
-            if (String.IsNullOrEmpty(info.Sha256)) return path;
             string actual = Sha256(path);
             if (!String.Equals(actual, info.Sha256, StringComparison.OrdinalIgnoreCase))
             {
