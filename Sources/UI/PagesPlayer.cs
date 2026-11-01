@@ -25,6 +25,7 @@ namespace LyaranTV
         TextBlock subtitleText;
         Button subtitleButton;
         Button audioButton;
+        Button playerLiveButton;
         // Surface affichée à la place de la vidéo pour un fichier audio seul
         // (MP3, FLAC, WAV, M4A, OGG, Opus, MKA, AC-3/DTS brut…).
         Border audioOnlyPanel;
@@ -392,6 +393,12 @@ namespace LyaranTV
             playerTopBackButton.Margin = new Thickness(0, 0, 14, 0);
             DockPanel.SetDock(playerTopBackButton, Dock.Left);
             playerTopBar.Children.Add(playerTopBackButton);
+            // Direct : retour immédiat au bord du flux, sans quitter le lecteur.
+            playerLiveButton = PlayerButton(Glyphs.Refresh, "Revenir au direct", ResyncLiveStream, false, 34);
+            playerLiveButton.Margin = new Thickness(12, 0, 0, 0);
+            playerLiveButton.Visibility = playerLive ? Visibility.Visible : Visibility.Collapsed;
+            DockPanel.SetDock(playerLiveButton, Dock.Right);
+            playerTopBar.Children.Add(playerLiveButton);
             var topTitles = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             playerTopTitle = Text(TextUtil.DisplayTitle(currentPlaying.Name), 15.5, Brushes.White, true);
             playerTopTitle.TextTrimming = TextTrimming.CharacterEllipsis;
@@ -853,12 +860,14 @@ namespace LyaranTV
                 VerticalAlignment = VerticalAlignment.Center
             };
             root.Children.Add(scrubTrack);
-            // Tampon réseau : la partie déjà téléchargée s'éclaire avant le curseur.
+            // Tampon réseau : la partie déjà téléchargée s'éclaire en blanc avant
+            // le curseur. Le contraste avec le rail et le remplissage accentué
+            // rend la progression du chargement immédiatement lisible.
             scrubBuffer = new Border
             {
                 Height = 6, CornerRadius = new CornerRadius(3), HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Center, Width = 0, IsHitTestVisible = false,
-                Background = Brush(Color.FromArgb(64, 255, 255, 255))
+                Background = Brush(Color.FromArgb(168, 255, 255, 255))
             };
             root.Children.Add(scrubBuffer);
             scrubFill = new Border
@@ -1068,7 +1077,7 @@ namespace LyaranTV
             favButton = Button(favorites.Contains(currentPlaying.Id) ? Glyphs.FavoriteFill : Glyphs.Favorite,
                 favorites.Contains(currentPlaying.Id) ? "Favori" : "Ajouter aux favoris", delegate { ToggleFavorite(currentPlaying); }, false);
             actions.Children.Add(favButton);
-            actions.Children.Add(Button(Glyphs.Info, "Informations", delegate { ShowChannelInfo(currentPlaying); }, false));
+            actions.Children.Add(Button(Glyphs.Info, "Informations", delegate { ScrollToPlayerInfo(); }, false));
             actions.Children.Add(Button(Glyphs.External, "Lecteur externe", delegate { OpenInExternalPlayer(CurrentPlaybackUrl()); }, false));
             if (series) actions.Children.Add(Button(Glyphs.List, "Épisodes", delegate { ScrollToEpisodes(); }, false));
             stack.Children.Add(actions);
@@ -1202,6 +1211,19 @@ namespace LyaranTV
             if (mainScroll != null) mainScroll.ScrollToTop();
             if (playbackPaused) TogglePlayback();
             ShowFullscreenControls();
+        }
+
+        /// <summary>Fait défiler la page jusqu'à la fiche détaillée sous la vidéo.</summary>
+        void ScrollToPlayerInfo()
+        {
+            if (playerInfoCard == null || mainScroll == null) return;
+            try
+            {
+                var point = playerInfoCard.TranslatePoint(new Point(0, 0), playerLayout);
+                mainScroll.ScrollToVerticalOffset(mainScroll.VerticalOffset + point.Y - 16);
+            }
+            catch { }
+            if (playerControlWrap != null) ShowFullscreenControls();
         }
 
         /// <summary>Fait défiler la page jusqu'à la rangée d'épisodes.</summary>
@@ -1413,6 +1435,30 @@ namespace LyaranTV
         }
 
         // ------------------------------------------------------------ ouverture
+
+        /// <summary>
+        /// Recharge le flux direct au bord du live. Les compteurs d'essais sont
+        /// remis à zéro : l'utilisateur demande explicitement une reprise propre,
+        /// même après plusieurs reconnexions automatiques.
+        /// </summary>
+        void ResyncLiveStream()
+        {
+            if (player == null || currentPlaying == null || !playerLive) return;
+            playbackCandidateIndex = 0;
+            liveReconnectCount = 0;
+            resumePosition = 0;
+            resumePaused = false;
+            resumeApplied = false;
+            playbackProbeGeneration++;
+            playbackOpenedAt = DateTime.MinValue;
+            scrubValue = 0;
+            scrubDuration = 0;
+            try { player.Stop(); } catch { }
+            if (playerStatusText != null) playerStatusText.Text = "Retour au direct";
+            ShowToast("Retour au direct…", false, false);
+            StartCurrentCandidate();
+            ShowFullscreenControls();
+        }
 
         void StartCurrentCandidate()
         {
@@ -2001,6 +2047,8 @@ namespace LyaranTV
             menu.Items.Add(new Separator());
             menu.Items.Add(MenuItem("Ouvrir un fichier de sous-titres…", ChooseSubtitle, Glyphs.OpenFile));
             menu.Items.Add(MenuItem("Chercher sur OpenSubtitles…", ShowSubtitleSearch, Glyphs.Globe));
+            menu.Items.Add(new Separator());
+            menu.Items.Add(MenuItem("Réglages des sous-titres…", OpenSubtitleSettings, Glyphs.Settings));
         }
 
         MenuItem SectionItem(string label)

@@ -450,7 +450,7 @@ namespace LyaranTV
                 string[] arguments = new[]
                 {
                     "--no-osd", "--no-video-title-show", "--quiet", "--no-snapshot-preview",
-                    "--no-sub-autodetect-file", "--no-stats", "--network-caching=1200",
+                    "--no-sub-autodetect-file", "--network-caching=1200",
                     // Aucun flux audio n'est envoyé tel quel à un décodeur externe :
                     // VLC décode toujours la piste (AC-3, E-AC-3, DTS, TrueHD, MLP,
                     // AAC, Opus, FLAC, PCM…), puis la convertit pour le périphérique.
@@ -564,6 +564,30 @@ namespace LyaranTV
         public long LengthMs
         {
             get { return disposed || mediaPlayer == IntPtr.Zero ? 0 : Native.libvlc_media_player_get_length(mediaPlayer); }
+        }
+
+        /// <summary>
+        /// Secondes de contenu déjà lues par le démultiplexeur. Le rapport entre
+        /// les octets lus et le débit moyen donne une estimation du tampon réseau,
+        /// utilisée pour la partie claire de la barre de progression. -1 quand
+        /// les statistiques ne sont pas encore disponibles.
+        /// </summary>
+        public double BufferedSeconds
+        {
+            get
+            {
+                if (disposed || mediaPlayer == IntPtr.Zero) return -1;
+                IntPtr current = Native.libvlc_media_player_get_media(mediaPlayer);
+                if (current == IntPtr.Zero) return -1;
+                var stats = new Native.MediaStats();
+                if (Native.libvlc_media_get_stats(current, ref stats) == 0) return -1;
+                if (stats.DemuxBitrate <= 0.000001f || stats.DemuxReadBytes <= 0) return -1;
+                // libVLC expose un débit en octets par microseconde : le rapport
+                // donne des microsecondes, converties en secondes.
+                double seconds = stats.DemuxReadBytes / (stats.DemuxBitrate * 1000000.0);
+                if (seconds <= 0 || Double.IsNaN(seconds) || Double.IsInfinity(seconds)) return -1;
+                return seconds;
+            }
         }
 
         public void SeekTo(double seconds)
@@ -1250,6 +1274,27 @@ namespace LyaranTV
                 public uint Rate;
             }
 
+            /// <summary>libvlc_media_stats_t (libVLC 3) : compteurs de lecture.</summary>
+            [StructLayout(LayoutKind.Sequential)]
+            public struct MediaStats
+            {
+                public int ReadBytes;
+                public float InputBitrate;
+                public int DemuxReadBytes;
+                public float DemuxBitrate;
+                public int DemuxCorrupted;
+                public int DemuxDiscontinuity;
+                public int DecodedVideo;
+                public int DecodedAudio;
+                public int DisplayedPictures;
+                public int LostPictures;
+                public int PlayedAbuffers;
+                public int LostAbuffers;
+                public int SentPackets;
+                public int SentBytes;
+                public float SendBitrate;
+            }
+
             [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
             public static extern IntPtr SetDllDirectory(string path);
 
@@ -1282,6 +1327,9 @@ namespace LyaranTV
 
             [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
             public static extern IntPtr libvlc_media_player_get_media(IntPtr player);
+
+            [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+            public static extern int libvlc_media_get_stats(IntPtr media, ref MediaStats stats);
 
             [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
             public static extern uint libvlc_media_tracks_get(IntPtr media, out IntPtr tracks);

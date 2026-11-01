@@ -1,3 +1,24 @@
+# LyaranTV 1.3.6
+
+Une mise à jour centrée sur le lecteur, les sous-titres et les fiches de contenus.
+
+## Nouveautés
+
+- **Fenêtre de mise à jour épurée** : seule la section de la version publiée est affichée, mise en forme avec titres, puces et gras au lieu d'un pavé de texte brut.
+- **Tampon de lecture visible** : la partie déjà chargée de la barre de progression s'affiche en blanc. Avec libVLC, elle est estimée à partir des octets lus et du débit moyen ; un fichier local apparaît comme entièrement chargé.
+- **Retour au direct** : un bouton dans la barre supérieure et une entrée du menu contextuel rechargent le flux au bord du live. Les compteurs de reconnexion sont remis à zéro pour repartir proprement.
+- **Réglages des sous-titres dans le lecteur** : taille, couleur du texte, couleur du fond, opacité, affichage du fond et contour, avec aperçu en direct, réinitialisation et application immédiate. Accessible depuis le menu des sous-titres.
+- **Fiche de contenu pleine page** : image d'ambiance, affiche, synopsis, métadonnées, programme EPG, actions et informations TMDb dans une page intégrée à la navigation. Le retour est conservé et « Informations » dans le lecteur fait défiler la fiche sans arrêter la lecture.
+- **Page de série repensée** : en-tête cinématographique, onglets de saison, compteur d'épisodes et cartes d'épisodes interactives avec survol, focus clavier, progression de reprise et états « En cours » et « À suivre ».
+
+## Vérifications
+
+- Auto-test : **34/34**.
+- Compilation avec `Sources\Reconstruire.bat`.
+- Fiche, épisodes et réglages de sous-titres vérifiés sur la démonstration et un catalogue Xtream.
+
+---
+
 # LyaranTV 1.3.5
 
 Le mode grille de la bibliothèque fonctionne de nouveau.

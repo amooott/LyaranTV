@@ -87,7 +87,7 @@ Sous les étagères, **Toutes les catégories** présente l'intégralité des ca
 | `+` / `-` | Chaîne suivante / précédente. |
 | `Échap` | Quitter le plein écran, puis quitter le lecteur et revenir à l'interface. |
 
-La barre de progression se pilote à la souris : le survol épaissit la piste et affiche l'infobulle du temps visé, le glissement déplace la lecture. Les contrôles sont superposés à la vidéo et s'effacent après 3,5 s en lecture ; un mouvement de souris, une touche ou l'ouverture d'un menu les ramènent. En plein écran, le curseur disparaît avec eux. Deux boutons **− 5 s** / **+ 5 s** encadrent la lecture, comme les boutons `←` / `→` du clavier.
+La barre de progression se pilote à la souris : le survol épaissit la piste et affiche l'infobulle du temps visé, le glissement déplace la lecture. La partie déjà chargée apparaît en blanc devant le curseur — progression réelle de `MediaElement`, estimation par les octets lus et le débit avec libVLC, et chargement complet pour un fichier local. Les contrôles sont superposés à la vidéo et s'effacent après 3,5 s en lecture ; un mouvement de souris, une touche ou l'ouverture d'un menu les ramènent. En plein écran, le curseur disparaît avec eux. Deux boutons **− 5 s** / **+ 5 s** encadrent la lecture, comme les boutons `←` / `→` du clavier. En direct, le bouton **Retour au direct** de la barre supérieure (ou du menu contextuel) recharge le flux au bord du live et réinitialise les reconnexions.
 
 Un **clic droit** sur l'image ouvre le menu complet du lecteur : lecture, sauts, pistes audio et sous-titres, vitesse, boucle, séquence A-B, minuterie de veille, format d'image, raccourcis, fiche du contenu et lecteur externe. Le bouton de vitesse affiche la valeur courante et ouvre les vitesses prédéfinies ; le bouton de veille propose 15 à 90 minutes ou la fin de l'épisode ; le bouton de boucle reste accentué quand il est actif. La séquence A-B se matérialise par un segment coloré sur la barre de progression et ramène automatiquement au point A.
 
@@ -140,6 +140,7 @@ La fenêtre affiche le pourcentage lissé, le temps écoulé et une estimation d
 - **Pistes audio** : détection des pistes MKV/MP4 et de leur langue, canaux et codec dans le menu `A`, par exemple `Français · 5.1 · AC-3`. Avec libVLC, les métadonnées du flux sont complétées par l’analyse locale et la piste se change à la volée ; avec `MediaElement`, les pistes suivantes s’ouvrent dans VLC avec `--audio-track` et reprennent à la position courante.
 - **Sous-titres voisins** : chaque fichier est libellé avec sa langue, sa version et son format (`Français · VOSTFR · SubRip`, `Langue non déclarée · WebVTT`).
 - Sélection manuelle via le bouton `CC` / `S` pour les sous-titres, et le bouton audio / `A` pour les pistes.
+- **Apparence** : le menu des sous-titres ouvre « Réglages des sous-titres… » — taille, couleur du texte, couleur du fond, opacité, affichage du fond et contour, avec aperçu en direct. Les valeurs sont enregistrées dans `settings.json` et appliquées immédiatement, y compris en plein écran.
 
 ### Images
 
@@ -218,9 +219,13 @@ Attribution affichée dans l'application :
 | `Sources/UI/PagesHome.cs` | Accueil, recherche, cartes de l'accueil, catégories et chaînes masquées. |
 | `Sources/UI/PagesLibrary.cs` | Bibliothèque découverte : hero rotatif, étagères, filtres, cartes et vue « Tout parcourir ». |
 | `Sources/UI/PagesPlayer.cs` | Lecteur, reprise, sous-titres, épisodes, lecture locale. |
+| `Sources/UI/PagesSeries.cs` | Page de série : hero, saisons, cartes d'épisodes et rangée sous le lecteur. |
+| `Sources/UI/ChannelDetail.cs` | Fiche de contenu pleine page, actions et réinitialisation TMDb. |
+| `Sources/UI/SubtitleSettings.cs` | Réglages d'apparence des sous-titres avec aperçu. |
+| `Sources/UI/PagesUpdates.cs` | Vérification des mises à jour et notes de version mises en forme. |
 | `Sources/UI/PagesGuide.cs` | Guide EPG. |
 | `Sources/UI/PagesSettings.cs` | Paramètres, profils, TMDb, données, à propos. |
-| `Sources/UI/Dialogs.cs` | Sources, fiches, TMDb manuel, chargement, dialogues. |
+| `Sources/UI/Dialogs.cs` | Sources, TMDb manuel, chargement, dialogues. |
 | `Sources/UI/UiKit.cs` | Thèmes, styles, champs, scrollbars, logo, toasts, composants. |
 | `Sources/UI/Images.cs` | Chargement d'images en ligne, cache mémoire, cache disque et affiches de l'écran de chargement. |
 
@@ -247,4 +252,4 @@ Dist\LyaranTV.exe --selftest
 
 Journal : `%TEMP%\LyaranTV-selftest.log`.
 
-La suite compte **32 auto-tests** et couvre : chemins, utilitaires texte, priorité des flux, erreurs réseau lisibles, chiffrement, réglages et migration d'accent, playlists, favoris/positions, **suppression de l'historique d'une playlist**, démonstration, M3U, en-têtes de flux M3U, Xtream, **conversion M3U vers Xtream**, XMLTV, **nettoyage et correspondance prudente des titres TMDb**, recherche dans les métadonnées, correspondances séparées par profil et source, **pistes audio et sous-titres en ligne**, **pistes audio universelles**, affiches et aperçus de secours, cache TMDb, profils/PIN, état par profil, export portable, sous-titres SRT/WebVTT, **pistes embarquées MKV et MP4**, thèmes/champs/scrollbars, décodage des images en mémoire et lecture du cache disque d'affiches, et sauvegarde ZIP.
+La suite compte **34 auto-tests** et couvre : chemins, utilitaires texte, priorité des flux, erreurs réseau lisibles, chiffrement, réglages et migration d'accent, **apparence des sous-titres**, **extraction des notes de version**, playlists, favoris/positions, **suppression de l'historique d'une playlist**, démonstration, M3U, en-têtes de flux M3U, Xtream, **conversion M3U vers Xtream**, XMLTV, **nettoyage et correspondance prudente des titres TMDb**, recherche dans les métadonnées, correspondances séparées par profil et source, **pistes audio et sous-titres en ligne**, **pistes audio universelles**, affiches et aperçus de secours, cache TMDb, profils/PIN, état par profil, export portable, sous-titres SRT/WebVTT, **pistes embarquées MKV et MP4**, thèmes/champs/scrollbars, décodage des images en mémoire et lecture du cache disque d'affiches, et sauvegarde ZIP.

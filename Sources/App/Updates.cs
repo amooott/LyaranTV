@@ -38,6 +38,76 @@ namespace LyaranTV
     }
 
     /// <summary>
+    /// Extrait la section de la version publiée dans un corps de Release.
+    /// GitHub peut renvoyer tout l'historique quand le corps reprend le fichier
+    /// complet : la fenêtre de mise à jour ne doit montrer que la nouveauté.
+    /// </summary>
+    internal static class UpdateNotes
+    {
+        public static string Latest(string notes, string version)
+        {
+            if (String.IsNullOrWhiteSpace(notes)) return "";
+            string text = notes.Replace("\r\n", "\n").Replace('\r', '\n');
+            string[] lines = text.Split('\n');
+            string wanted = NormalizeVersion(version);
+            int start = -1, first = -1;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (!IsReleaseHeading(lines[i])) continue;
+                if (first < 0) first = i;
+                if (wanted.Length > 0 && String.Equals(HeadingVersion(lines[i]), wanted, StringComparison.OrdinalIgnoreCase))
+                {
+                    start = i;
+                    break;
+                }
+            }
+            if (start < 0) start = first;
+            if (start < 0) return text.Trim();
+
+            int end = lines.Length;
+            for (int i = start + 1; i < lines.Length; i++)
+            {
+                if (!IsReleaseHeading(lines[i])) continue;
+                end = i;
+                break;
+            }
+
+            var builder = new StringBuilder();
+            for (int i = start; i < end; i++)
+            {
+                string line = lines[i].TrimEnd();
+                if (line.Trim() == "---") continue;
+                builder.AppendLine(line);
+            }
+            return builder.ToString().Trim();
+        }
+
+        static bool IsReleaseHeading(string line)
+        {
+            string value = (line ?? "").Trim();
+            if (!value.StartsWith("# ", StringComparison.Ordinal)) return false;
+            return value.IndexOf("LyaranTV", StringComparison.OrdinalIgnoreCase) >= 0
+                || value.IndexOf("version", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        static string HeadingVersion(string line)
+        {
+            string value = (line ?? "").Trim();
+            var match = System.Text.RegularExpressions.Regex.Match(value, @"(\d+\.\d+(?:\.\d+)?)");
+            return match.Success ? NormalizeVersion(match.Groups[1].Value) : "";
+        }
+
+        static string NormalizeVersion(string value)
+        {
+            string version = (value ?? "").Trim();
+            if (version.StartsWith("v", StringComparison.OrdinalIgnoreCase)) version = version.Substring(1);
+            int cut = version.IndexOfAny(new[] { '-', '+', ' ' });
+            if (cut > 0) version = version.Substring(0, cut);
+            return version;
+        }
+    }
+
+    /// <summary>
     /// Mises à jour par GitHub Releases. Les Releases publiques sont consultées
     /// sans authentification. Un jeton personnel, saisi dans les réglages et
     /// conservé chiffré par CredentialVault (DPAPI, compte Windows courant), peut

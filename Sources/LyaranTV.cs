@@ -392,6 +392,36 @@ namespace LyaranTV
                     Assert(migrated.Accent == "#8B5CF6", "L’ancien accent ambre n’a pas été migré vers le violet LyaranTV.");
                 });
 
+                test("Réglages des sous-titres", delegate
+                {
+                    var defaults = new AppSettings();
+                    Assert(defaults.SubtitleTextColor == "#FFFFFF", "Couleur de sous-titre par défaut incorrecte.");
+                    Assert(defaults.SubtitleBackgroundColor == "#000000", "Couleur de fond par défaut incorrecte.");
+                    Assert(Math.Abs(defaults.SubtitleBackgroundOpacity - 0.70) < 0.001, "Opacité de fond par défaut incorrecte.");
+
+                    var adjusted = new AppSettings
+                    {
+                        SubtitleSize = 99, SubtitleTextColor = " ", SubtitleBackgroundColor = "",
+                        SubtitleBackgroundOpacity = 3.5
+                    };
+                    adjusted.Normalize();
+                    Assert(Math.Abs(adjusted.SubtitleSize - 16) < 0.001, "La taille de sous-titre hors bornes n'a pas été corrigée.");
+                    Assert(adjusted.SubtitleTextColor == "#FFFFFF", "La couleur de texte vide n'a pas été corrigée.");
+                    Assert(adjusted.SubtitleBackgroundColor == "#000000", "La couleur de fond vide n'a pas été corrigée.");
+                    Assert(Math.Abs(adjusted.SubtitleBackgroundOpacity - 1) < 0.001, "L'opacité de fond n'a pas été bornée.");
+                });
+
+                test("Notes de version ciblées", delegate
+                {
+                    string notes = "# LyaranTV 1.3.6\r\n\r\nNouveautés.\r\n\r\n## Corrigé\r\n\r\n- Détail\r\n\r\n---\r\n\r\n# LyaranTV 1.3.5\r\n\r\nAnciennes notes.";
+                    string latest = UpdateNotes.Latest(notes, "1.3.6");
+                    Assert(latest.StartsWith("# LyaranTV 1.3.6", StringComparison.Ordinal), "La section de la version courante n'a pas été extraite.");
+                    Assert(latest.Contains("Nouveautés") && latest.Contains("Détail"), "Le contenu de la version courante est incomplet.");
+                    Assert(!latest.Contains("1.3.5") && !latest.Contains("Anciennes"), "Les anciennes notes ne doivent pas être affichées.");
+                    string fallback = UpdateNotes.Latest("# LyaranTV 1.3.5\n\nAnciennes notes.", "9.9.9");
+                    Assert(fallback.Contains("1.3.5") && fallback.Contains("Anciennes"), "La section la plus récente doit servir de repli.");
+                });
+
                 test("Playlists persistantes", delegate
                 {
                     var list = new List<PlaylistSource>

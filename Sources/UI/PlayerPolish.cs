@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 
 namespace LyaranTV
 {
@@ -21,6 +22,7 @@ namespace LyaranTV
             menu.Items.Add(MenuItem("Lecture / pause  ·  Espace", TogglePlayback, Glyphs.Play));
             menu.Items.Add(MenuItem("Reculer de 10 secondes  ·  J", delegate { SeekRelative(-10); }, Glyphs.Back));
             menu.Items.Add(MenuItem("Avancer de 10 secondes  ·  L", delegate { SeekRelative(10); }, Glyphs.Forward));
+            if (playerLive) menu.Items.Add(MenuItem("Revenir au direct", ResyncLiveStream, Glyphs.Refresh));
             menu.Items.Add(MenuItem("Revenir au point précédent  ·  Retour arrière", ReturnToPreviousPoint, Glyphs.Back));
             menu.Items.Add(new Separator());
             menu.Items.Add(MenuItem("Pistes audio  ·  A", OpenAudioTrackMenu, Glyphs.Music));
@@ -54,7 +56,7 @@ namespace LyaranTV
             menu.Items.Add(MenuItem("Plein écran  ·  F11", ToggleFullScreen, Glyphs.FullScreen));
             menu.Items.Add(MenuItem("Tous les raccourcis  ·  ?", ShowShortcutsDialog, Glyphs.Help));
             menu.Items.Add(new Separator());
-            menu.Items.Add(MenuItem("Fiche du contenu", delegate { if (currentPlaying != null) ShowChannelInfo(currentPlaying); }, Glyphs.Info));
+            menu.Items.Add(MenuItem("Fiche du contenu", delegate { ScrollToPlayerInfo(); }, Glyphs.Info));
             if (currentPlaying != null && !String.IsNullOrWhiteSpace(currentPlaying.Url))
                 menu.Items.Add(MenuItem("Ouvrir dans le lecteur externe", delegate { OpenInExternalPlayer(currentPlaying.Url); }, Glyphs.External));
             return menu;
@@ -114,11 +116,28 @@ namespace LyaranTV
             double size = settings.SubtitleSize <= 0 ? 16 : settings.SubtitleSize;
             if (size < 12) size = 12;
             if (size > 30) size = 30;
-            bool background = settings.SubtitleBackground;
-            subtitleBox.Background = background ? Brush(Color.FromArgb(178, 0, 0, 0)) : Brushes.Transparent;
+
+            Color textColor;
+            if (!TryParseHexColor(settings.SubtitleTextColor, out textColor)) textColor = Colors.White;
+            Color backgroundColor;
+            if (!TryParseHexColor(settings.SubtitleBackgroundColor, out backgroundColor)) backgroundColor = Colors.Black;
+            double opacity = settings.SubtitleBackgroundOpacity;
+            if (opacity < 0) opacity = 0;
+            if (opacity > 1) opacity = 1;
+
+            bool background = settings.SubtitleBackground && opacity > 0.001;
+            subtitleBox.Background = background
+                ? Brush(Color.FromArgb((byte)Math.Round(opacity * 255), backgroundColor.R, backgroundColor.G, backgroundColor.B))
+                : Brushes.Transparent;
             subtitleBox.Padding = background ? new Thickness(13, 5, 13, 6) : new Thickness(8, 2, 8, 2);
+            subtitleText.Foreground = Brush(textColor);
             subtitleText.FontSize = fullScreen ? size + 4 : size;
             subtitleText.LineHeight = (fullScreen ? size + 4 : size) * 1.36;
+            // Un contour noir fin détache le texte des images claires sans
+            // ajouter de seconde couche de texte.
+            subtitleText.Effect = settings.SubtitleOutline
+                ? new DropShadowEffect { BlurRadius = 3.5, ShadowDepth = 0, Opacity = 0.96, Color = Colors.Black }
+                : null;
         }
 
         void ShowPlayerCursor()

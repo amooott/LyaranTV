@@ -466,7 +466,7 @@ namespace LyaranTV
             double position = 0;
             try { position = player.Position.TotalSeconds; } catch { }
             double buffer = 0;
-            try { buffer = Math.Max(player.DownloadProgress, player.BufferingProgress) * 100; } catch { }
+            try { buffer = player.BufferedFraction * 100; } catch { }
             string lines = "LECTURE · " + (playerLive ? "DIRECT" : "VOD") + "\n";
             string engine = player == null ? "—" : (player.UsingVlc ? "VLC intégré" : "Media Foundation");
             lines += "Moteur     " + engine + "\n";

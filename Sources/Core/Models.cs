@@ -130,6 +130,11 @@ namespace LyaranTV
         [DataMember] public bool AutoPlayNext = true;
         [DataMember] public double SubtitleSize = 16;
         [DataMember] public bool SubtitleBackground = true;
+        // Mise en forme fine des sous-titres, réglable depuis le lecteur.
+        [DataMember] public string SubtitleTextColor = "#FFFFFF";
+        [DataMember] public string SubtitleBackgroundColor = "#000000";
+        [DataMember] public double SubtitleBackgroundOpacity = 0.70;
+        [DataMember] public bool SubtitleOutline = false;
         [DataMember] public bool AlwaysOnTop = false;
         [DataMember] public string SubtitleLanguage = "fr";
         [DataMember] public bool AutoSubtitles = true;
@@ -189,6 +194,12 @@ namespace LyaranTV
             if (Volume <= 0 || Volume > 1) Volume = 1.0;
             if (PlaybackSpeed < 0.5 || PlaybackSpeed > 2.0) PlaybackSpeed = 1.0;
             if (SubtitleSize < 12 || SubtitleSize > 30) SubtitleSize = 16;
+            if (String.IsNullOrWhiteSpace(SubtitleTextColor)) SubtitleTextColor = "#FFFFFF";
+            if (String.IsNullOrWhiteSpace(SubtitleBackgroundColor)) SubtitleBackgroundColor = "#000000";
+            SubtitleTextColor = SubtitleTextColor.Trim();
+            SubtitleBackgroundColor = SubtitleBackgroundColor.Trim();
+            if (SubtitleBackgroundOpacity < 0) SubtitleBackgroundOpacity = 0;
+            if (SubtitleBackgroundOpacity > 1) SubtitleBackgroundOpacity = 1;
             if (String.IsNullOrWhiteSpace(SubtitleLanguage)) SubtitleLanguage = "fr";
             if (String.IsNullOrWhiteSpace(PreferredAudioLanguage)) PreferredAudioLanguage = "auto";
             if (PlaybackEngine != "auto" && PlaybackEngine != "windows" && PlaybackEngine != "vlc") PlaybackEngine = "auto";

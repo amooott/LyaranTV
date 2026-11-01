@@ -559,10 +559,8 @@ namespace LyaranTV
                 double buffered = fraction;
                 try
                 {
-                    double download = player == null ? 0 : player.DownloadProgress;
-                    double buffer = player == null ? 0 : player.BufferingProgress;
-                    if (download > buffered) buffered = download;
-                    else if (download <= 0.01 && buffer > buffered) buffered = buffer;
+                    double available = player == null ? 0 : player.BufferedFraction;
+                    if (available > buffered) buffered = available;
                 }
                 catch { }
                 if (buffered < 0) buffered = 0;

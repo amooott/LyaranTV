@@ -1,4 +1,4 @@
-# LyaranTV 1.3.5
+# LyaranTV 1.3.6
 
 **LyaranTV** est un lecteur IPTV pour Windows, construit avec WPF et .NET Framework 4.x. Il reprend les usages essentiels d'un lecteur IPTV moderne — sources, bibliothèque, direct, guide EPG, recherche, favoris, reprise de lecture et fiches de contenus — avec une identité visuelle originale.
 
@@ -14,13 +14,13 @@
 - **Ouverture de la bibliothèque avec chargement visible** : sur un gros catalogue, la page s'affiche immédiatement avec un indicateur, pendant que les listes et les catégories sont préparées en arrière-plan — la fenêtre reste réactive.
 - Bibliothèque repensée en mode découverte : hero cinématique avec rotation automatique et aperçu au survol, étagères horizontales avec flèches au survol, **grandes cartes de 236 × 354 px** (2:3 strict) dont l'affiche remplit tout le cadre, filtres en onglets texte, **bascule liste / grille** qui affiche toute la sélection dans une grille paginée, vue « Tout parcourir » en grille et **toutes les catégories de chaînes, films et séries** réunies en blocs verticaux.
 - **Palette cinéma neutre** : charcoal `#07080B`, surfaces `#101218`, accent violet conservé comme seule couleur d’action ; halo animé très lent, vignette et dégradés. Thèmes clair et AMOLED alignés.
-- Lecteur intégré Windows Media Foundation : sonde de connexion, proxy local, ordre des liens TS → MP4/MKV → HLS, reconnexion du direct, pause, volume, plein écran, reprise, raccourcis ±5 s, sous-titres SRT/WebVTT **et pistes texte embarquées MKV/MP4**, détection des pistes audio, lecteur externe. Les menus de pistes affichent toujours la **langue et le type technique** (par exemple `Français · 5.1 · AC-3`, `Japonais · stéréo · AAC`, `Français · VOSTFR · SubRip`). Les contrôles sont **superposés à la vidéo** (fenêtré comme plein écran), avec une **barre de progression interactive** (piste de 6 px qui s'épaissit à 10 px au survol, curseur lumineux de 15 px, infobulle et glissement) et un masquage automatique après 3,5 s en lecture ; le curseur disparaît aussi en plein écran.
+- Lecteur intégré Windows Media Foundation : sonde de connexion, proxy local, ordre des liens TS → MP4/MKV → HLS, reconnexion du direct, pause, volume, plein écran, reprise, raccourcis ±5 s, sous-titres SRT/WebVTT **et pistes texte embarquées MKV/MP4**, détection des pistes audio, lecteur externe. Les menus de pistes affichent toujours la **langue et le type technique** (par exemple `Français · 5.1 · AC-3`, `Japonais · stéréo · AAC`, `Français · VOSTFR · SubRip`). Les contrôles sont **superposés à la vidéo** (fenêtré comme plein écran), avec une **barre de progression interactive** (piste de 6 px qui s'épaissit à 10 px au survol, curseur lumineux de 15 px, infobulle et glissement), une **partie tampon blanche** indiquant ce qui est déjà chargé, et un masquage automatique après 3,5 s en lecture ; le curseur disparaît aussi en plein écran. Pour le direct, un bouton **Retour au direct** recharge le flux au bord du live.
 - **Outils de lecteur classiques** : vitesse de 0,5× à 2× mémorisée, lecture en boucle, **séquence A-B** avec repères sur la timeline, **minuterie de veille** (15–90 min ou fin de l’épisode), avance **image par image**, sauts ±10 s, menu contextuel complet au clic droit et aide des raccourcis (`?`).
-- **Sous-titres personnalisables** : taille de 14 à 28 px, fond sombre activable, langue préférée utilisée par la recherche OpenSubtitles et les fichiers voisins. L’enchaînement automatique de l’épisode suivant est réglable.
+- **Sous-titres personnalisables depuis le lecteur** : taille, couleur du texte, couleur et opacité du fond, affichage du fond et contour, avec aperçu en direct. La langue préférée est utilisée par la recherche OpenSubtitles et les fichiers voisins. L’enchaînement automatique de l’épisode suivant est réglable.
 - **Bouton Retour du lecteur** : il quitte la lecture et retrouve l’interface, avec la page, les filtres et la position de défilement d’origine. Le retour au dernier point de saut reste disponible avec `Retour arrière` et dans le menu contextuel du lecteur.
 - Guide EPG XMLTV avec navigation par jour et programmes en cours.
 - Favoris, historique, positions de reprise, profils séparés et contrôle parental. Supprimer une playlist efface aussi son historique, ses reprises et ses épisodes en cours dans tous les profils, sans toucher aux autres playlists.
-- Fiches de contenus enrichies avec titre original, casting, réalisation, durée, pays, classification et bande-annonce via **TMDb** lorsque vous fournissez votre propre clé.
+- Fiches de contenus en page pleine avec image d'ambiance, affiche, synopsis, métadonnées, programme EPG et actions ; titre original, casting, réalisation, durée, pays, classification et bande-annonce via **TMDb** lorsque vous fournissez votre propre clé. Les séries disposent d'un en-tête cinématographique et de cartes d'épisodes interactives.
 - **Mode langue** facultatif : un code (FR, EN, AR, ES…) ne laisse visibles que les catégories qui le contiennent. Le choix reste actif en changeant de page et après un redémarrage.
 - Affiches, vignettes et logos chargés **en ligne**, avec un cache disque borné (`%APPDATA%\LyaranTV\covers`) et un cache mémoire : aucun visuel n'est fourni avec le programme.
 - Barres de défilement personnalisées, champs de saisie lisibles dans tous les thèmes, animations discrètes et option de réduction des mouvements.
@@ -139,7 +139,7 @@ libVLC à côté de l'application installée.
 Dist\LyaranTV.exe --selftest
 ```
 
-Le rapport est écrit dans `%TEMP%\LyaranTV-selftest.log`. Les **32 auto-tests** couvrent notamment le nettoyage et les correspondances TMDb prudentes, la recherche par titre original/casting/réalisation/genres/synopsis, l’isolation par profil et source, les pistes audio et sous-titres et la sauvegarde.
+Le rapport est écrit dans `%TEMP%\LyaranTV-selftest.log`. Les **34 auto-tests** couvrent notamment le nettoyage et les correspondances TMDb prudentes, la recherche par titre original/casting/réalisation/genres/synopsis, l’isolation par profil et source, les pistes audio et sous-titres, l’apparence des sous-titres, l’extraction des notes de version et la sauvegarde.
 
 ## Connexion et chargement
 

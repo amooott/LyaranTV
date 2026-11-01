@@ -279,6 +279,40 @@ namespace LyaranTV
             }
         }
 
+        /// <summary>
+        /// Part du média déjà disponible. MediaElement donne directement sa
+        /// progression de téléchargement ; libVLC n'expose pas cette notion, on
+        /// l'estime avec les octets lus par le démultiplexeur et le débit moyen.
+        /// Un fichier local est toujours considéré comme entièrement chargé.
+        /// </summary>
+        public double BufferedFraction
+        {
+            get
+            {
+                try
+                {
+                    if (source != null && source.IsFile) return 1;
+                    if (usingVlc && vlc != null)
+                    {
+                        double duration = 0;
+                        if (NaturalDuration.HasTimeSpan) duration = NaturalDuration.TimeSpan.TotalSeconds;
+                        if (duration <= 0) return 0;
+                        double buffered = vlc.BufferedSeconds;
+                        if (buffered <= 0) return 0;
+                        double fraction = buffered / duration;
+                        if (fraction < 0) fraction = 0;
+                        if (fraction > 1) fraction = 1;
+                        return fraction;
+                    }
+                    double download = element.DownloadProgress;
+                    if (download < 0) download = 0;
+                    if (download > 1) download = 1;
+                    return download;
+                }
+                catch { return 0; }
+            }
+        }
+
         public Duration NaturalDuration
         {
             get

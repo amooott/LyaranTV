@@ -654,9 +654,10 @@ namespace LyaranTV
 
         void PushNavFrame()
         {
-            // « Lecture » et « Épisodes » sont reconstruits à partir d'un contexte
-            // (flux en cours, saison) : Navigate() ne peut pas les restaurer.
-            if (page == "Lecture" || page == "Épisodes") return;
+            // « Lecture » est reconstruite à partir du flux en cours : Navigate()
+            // ne peut pas la restaurer. La page « Épisodes » garde sa série et son
+            // cache, elle peut donc être empilée comme les autres.
+            if (page == "Lecture") return;
             var frame = new NavFrame
             {
                 Page = page,
@@ -725,6 +726,14 @@ namespace LyaranTV
             else if (page == "Guide EPG") ShowEpg();
             else if (page == "Paramètres") ShowSettings();
             else if (page == "Guide rapide") ShowGuide();
+            else if (page == "Fiche" && detailChannel != null) ShowChannelInfo(detailChannel);
+            else if (page == "Épisodes" && episodesSeries != null)
+            {
+                List<Channel> cached;
+                if (seriesEpisodes.TryGetValue(SeriesKey(episodesSeries), out cached) && cached != null && cached.Count > 0)
+                    ShowSeriesEpisodes(episodesSeries, cached);
+                else LoadSeriesEpisodes(episodesSeries);
+            }
             else ShowHome();
         }
 
@@ -1063,6 +1072,7 @@ namespace LyaranTV
             else if (page == "Catégories") SetStatus("Catégories");
             else if (page == "Chaînes masquées") SetStatus("Contenus masqués");
             else if (page == "Guide rapide") SetStatus("Guide rapide");
+            else if (page == "Fiche") SetStatus(detailChannel == null ? "Fiche" : "Fiche · " + TextUtil.DisplayTitle(detailChannel.Name));
             else if (page == "Lecture") SetStatus(currentPlaying == null ? "Lecteur" : "Lecture de « " + TextUtil.DisplayTitle(currentPlaying.Name) + " »");
         }
 

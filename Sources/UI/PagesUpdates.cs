@@ -68,52 +68,97 @@ namespace LyaranTV
                 Title = I18n.T("Mises à jour"),
                 Owner = this,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Width = 620,
-                Height = 520,
-                Background = Brush(Panel),
-                ShowInTaskbar = false
+                Width = 680,
+                Height = 620,
+                WindowStyle = WindowStyle.None,
+                ResizeMode = ResizeMode.NoResize,
+                AllowsTransparency = true,
+                Background = Brushes.Transparent,
+                ShowInTaskbar = false,
+                FontFamily = new FontFamily("Inter, Segoe UI")
             };
+            var frame = new Border
+            {
+                Margin = new Thickness(2),
+                Background = Brush(Panel),
+                BorderBrush = Brush(BorderColor),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(20),
+                Padding = new Thickness(26, 22, 26, 22),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    BlurRadius = 34, ShadowDepth = 10, Opacity = 0.38, Color = Colors.Black
+                }
+            };
+            window.MouseLeftButtonDown += delegate { try { window.DragMove(); } catch { } };
 
-            var root = new Grid { Margin = new Thickness(22, 18, 22, 18) };
+            var root = new Grid();
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            var header = new StackPanel();
-            header.Children.Add(Text(I18n.T("Mise à jour disponible"), 20, Brush(TextPrimary), true));
-            header.Children.Add(Text(AppInfo.Name + " · " + I18n.T("Version installée") + " " + AppInfo.Version
-                + " → " + I18n.T("Nouvelle version") + " " + info.VersionText, 12, Brush(Muted), false));
-            if (info.Size > 0) header.Children.Add(Text(I18n.T("Télécharger") + " · " + FormatSize(info.Size), 10, Brush(Muted), false));
-            Grid.SetRow(header, 0); root.Children.Add(header);
+            // En-tête : version, taille et fermeture discrète.
+            var header = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 16) };
+            var close = IconButton(Glyphs.Close, I18n.T("Fermer"), delegate { window.Close(); }, false);
+            close.Width = 34; close.Height = 34; close.Margin = new Thickness(0);
+            DockPanel.SetDock(close, Dock.Right);
+            header.Children.Add(close);
 
-            var notes = new TextBox
+            var head = new StackPanel();
+            var eyebrow = Text(I18n.T("MISE À JOUR DISPONIBLE"), 12.5, Brush(Accent), true);
+            eyebrow.Margin = new Thickness(0, 0, 0, 5);
+            head.Children.Add(eyebrow);
+            var title = Text(AppInfo.Name + " " + info.VersionText, 27, Brush(TextPrimary), true);
+            head.Children.Add(title);
+            string details = I18n.T("Version installée") + " " + AppInfo.Version
+                + "  ·  " + I18n.T("Nouvelle version") + " " + info.VersionText;
+            if (info.Size > 0) details += "  ·  " + FormatSize(info.Size);
+            var subtitle = Text(details, 12.5, Brush(Muted), false);
+            subtitle.Margin = new Thickness(0, 4, 0, 0);
+            head.Children.Add(subtitle);
+            header.Children.Add(head);
+            Grid.SetRow(header, 0);
+            root.Children.Add(header);
+
+            // Notes de la seule version publiée, mises en forme plutôt qu'un
+            // pavé de texte brut : titres, puces et gras ressortent.
+            var notesHost = new Border
             {
-                Text = String.IsNullOrWhiteSpace(info.Notes) ? I18n.T("Notes de version") + "…" : info.Notes,
-                IsReadOnly = true,
-                TextWrapping = TextWrapping.Wrap,
-                AcceptsReturn = true,
-                Background = Brush(WithAlpha(TextPrimary, 8)),
-                Foreground = Brush(TextPrimary),
+                Background = Brush(WithAlpha(TextPrimary, 7)),
                 BorderBrush = Brush(BorderColor),
                 BorderThickness = new Thickness(1),
-                Padding = new Thickness(12),
-                Margin = new Thickness(0, 14, 0, 14),
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                FontSize = 11.5
+                CornerRadius = new CornerRadius(14),
+                Padding = new Thickness(18, 15, 18, 15)
             };
-            Grid.SetRow(notes, 1); root.Children.Add(notes);
-
-            var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var progress = new ProgressBar
+            var notesScroll = new ScrollViewer
             {
-                Width = 200, Height = 6, Margin = new Thickness(0, 0, 12, 0),
-                Foreground = Brush(Accent), Background = Brush(WithAlpha(TextPrimary, 12)),
-                Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center
+                Content = BuildReleaseNotesPanel(info.Notes, info.VersionText),
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
             };
-            footer.Children.Add(progress);
+            notesHost.Child = notesScroll;
+            Grid.SetRow(notesHost, 1);
+            root.Children.Add(notesHost);
 
+            var footer = new StackPanel { Margin = new Thickness(0, 18, 0, 0) };
+            var progress = StyledProgressBar();
+            progress.Width = 210;
+            progress.Margin = new Thickness(0, 0, 12, 0);
+            progress.Visibility = Visibility.Collapsed;
+            progress.VerticalAlignment = VerticalAlignment.Center;
+
+            var actionRow = new DockPanel { LastChildFill = false };
+            var hint = Text(I18n.T("L’installation vérifie l’empreinte SHA-256 et conserve vos données."), 12.5, Brush(Muted), false);
+            hint.TextWrapping = TextWrapping.Wrap;
+            hint.MaxWidth = 330;
+            hint.VerticalAlignment = VerticalAlignment.Center;
+            DockPanel.SetDock(hint, Dock.Left);
+            actionRow.Children.Add(hint);
+
+            var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            actions.Children.Add(progress);
             Button install = null;
-            var later = Button(I18n.T("Fermer"), delegate { window.Close(); }, false);
+            var later = Button(I18n.T("Plus tard"), delegate { window.Close(); }, false);
             later.Margin = new Thickness(0, 0, 8, 0);
             install = Button(I18n.T("Télécharger et installer"), delegate
             {
@@ -167,13 +212,115 @@ namespace LyaranTV
                 };
                 worker.RunWorkerAsync();
             }, true);
-            footer.Children.Add(later);
-            footer.Children.Add(install);
-            Grid.SetRow(footer, 2); root.Children.Add(footer);
+            actions.Children.Add(later);
+            actions.Children.Add(install);
+            DockPanel.SetDock(actions, Dock.Right);
+            actionRow.Children.Add(actions);
+            footer.Children.Add(actionRow);
+            Grid.SetRow(footer, 2);
+            root.Children.Add(footer);
 
-            window.Content = root;
+            window.Content = frame;
+            frame.Child = root;
             window.ShowDialog();
         }
+
+        /// <summary>
+        /// Rend les notes de version en Markdown léger : titres, puces et gras.
+        /// Le corps complet de la Release est réduit à la section publiée.
+        /// </summary>
+        FrameworkElement BuildReleaseNotesPanel(string notes, string version)
+        {
+            var panel = new StackPanel();
+            string body = UpdateNotes.Latest(notes, version);
+            if (String.IsNullOrWhiteSpace(body))
+            {
+                panel.Children.Add(Text(I18n.T("Aucune note de version n’est fournie pour cette Release."), 13, Brush(Muted), false));
+                return panel;
+            }
+
+            bool skippedTitle = false;
+            foreach (string raw in body.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
+            {
+                string line = raw.Trim();
+                if (line.Length == 0)
+                {
+                    panel.Children.Add(new Border { Height = 5 });
+                    continue;
+                }
+                if (line.StartsWith("### ", StringComparison.Ordinal))
+                {
+                    var sub = MarkdownLine(line.Substring(4), 13.5, Brush(TextPrimary), true);
+                    sub.Margin = new Thickness(0, 10, 0, 4);
+                    panel.Children.Add(sub);
+                    continue;
+                }
+                if (line.StartsWith("## ", StringComparison.Ordinal))
+                {
+                    var section = Text(line.Substring(3), 14.5, Brush(Accent), true);
+                    section.Margin = new Thickness(0, 14, 0, 5);
+                    panel.Children.Add(section);
+                    continue;
+                }
+                if (line.StartsWith("# ", StringComparison.Ordinal))
+                {
+                    // Le titre de la version est déjà dans l'en-tête de la fenêtre.
+                    if (!skippedTitle) { skippedTitle = true; continue; }
+                    var heading = Text(line.Substring(2), 17, Brush(TextPrimary), true);
+                    heading.Margin = new Thickness(0, 8, 0, 6);
+                    panel.Children.Add(heading);
+                    continue;
+                }
+                if (line.StartsWith("- ", StringComparison.Ordinal) || line.StartsWith("* ", StringComparison.Ordinal))
+                {
+                    panel.Children.Add(BuildReleaseBullet(line.Substring(2)));
+                    continue;
+                }
+                var paragraph = MarkdownLine(line, 13, Brush(TextPrimary), false);
+                paragraph.Margin = new Thickness(0, 2, 0, 3);
+                panel.Children.Add(paragraph);
+            }
+            return panel;
+        }
+
+        FrameworkElement BuildReleaseBullet(string value)
+        {
+            var grid = new Grid { Margin = new Thickness(0, 3, 0, 5) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var dot = new Border
+            {
+                Width = 5, Height = 5, CornerRadius = new CornerRadius(3), Background = Brush(Accent),
+                VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(2, 7, 0, 0)
+            };
+            Grid.SetColumn(dot, 0);
+            grid.Children.Add(dot);
+            var text = MarkdownLine(value, 13, Brush(TextPrimary), false);
+            Grid.SetColumn(text, 1);
+            grid.Children.Add(text);
+            return grid;
+        }
+
+        TextBlock MarkdownLine(string value, double size, Brush color, bool bold)
+        {
+            var block = Text("", size, color, bold);
+            block.Inlines.Clear();
+            string text = value ?? "";
+            // Les liens Markdown gardent leur libellé, sans URL brute.
+            text = Regex.Replace(text, @"\[([^\]]+)\]\([^\)]+\)", "$1");
+            text = text.Replace("`", "");
+            string[] parts = text.Split(new[] { "**" }, StringSplitOptions.None);
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].Length == 0) continue;
+                var run = new System.Windows.Documents.Run(parts[i]);
+                if (bold || i % 2 == 1) run.FontWeight = FontWeights.SemiBold;
+                block.Inlines.Add(run);
+            }
+            return block;
+        }
+
 
         static string FormatSize(long bytes)
         {

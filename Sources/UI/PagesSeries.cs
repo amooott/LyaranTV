@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -173,6 +174,7 @@ namespace LyaranTV
         void ShowSeriesEpisodes(Channel series, List<Channel> episodes)
         {
             if (series == null || episodes == null) return;
+            if (page != "Épisodes") PushNavFrame();
             episodesSeries = series;
             page = "Épisodes";
             RebuildSidebar();
@@ -190,97 +192,198 @@ namespace LyaranTV
                     episode.PosterUrl = series.PosterUrl;
             }
 
-            var root = new StackPanel { Margin = new Thickness(30, 22, 30, 32) };
+            var seasons = episodes.Select(ep => String.IsNullOrWhiteSpace(ep.Season) ? "1" : ep.Season)
+                .Distinct().ToList();
+            if (seasons.Count == 0) seasons.Add("1");
+            string active = String.IsNullOrWhiteSpace(episodesSeason) || !seasons.Contains(episodesSeason) ? seasons[0] : episodesSeason;
+            episodesSeason = active;
+            Channel next = NextEpisodeToWatch(series, episodes);
 
-            var back = Button(Glyphs.Back, "Retour", delegate { NavBack(); }, false);
-            back.HorizontalAlignment = HorizontalAlignment.Left;
-            root.Children.Add(back);
+            var root = new StackPanel { Margin = new Thickness(0) };
+            root.Children.Add(BuildSeriesHero(series, episodes, seasons, next));
 
-            var head = new Grid { Margin = new Thickness(0, 14, 0, 6) };
-            head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(202) });
-            head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var content = new StackPanel { Margin = new Thickness(30, 18, 30, 34), MaxWidth = 1180, HorizontalAlignment = HorizontalAlignment.Left };
 
-            var posterHost = new Border
+            // Sélecteur de saison : des onglets texte, sans pastille, comme la
+            // navigation d'une plateforme de streaming.
+            var seasonRow = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 10) };
+            var seasonLabel = Text("SAISONS", 12.5, Brush(Muted), true);
+            seasonLabel.VerticalAlignment = VerticalAlignment.Center;
+            seasonLabel.Margin = new Thickness(0, 0, 14, 0);
+            DockPanel.SetDock(seasonLabel, Dock.Left);
+            seasonRow.Children.Add(seasonLabel);
+            var seasonBar = new StackPanel { Orientation = Orientation.Horizontal };
+            foreach (string season in seasons)
             {
-                Width = 188, Height = 282, CornerRadius = new CornerRadius(14), Background = Brush(Raised),
-                BorderBrush = Brush(BorderColor), BorderThickness = new Thickness(1), ClipToBounds = true,
-                HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top
-            };
-            RoundClip(posterHost, 14);
-            posterHost.Child = PosterVisual(series, 188, 282);
-            Grid.SetColumn(posterHost, 0);
-            head.Children.Add(posterHost);
+                string captured = season;
+                seasonBar.Children.Add(FilterTab("Saison " + season, String.Equals(season, active), delegate
+                {
+                    episodesSeason = captured;
+                    ShowSeriesEpisodes(series, episodes);
+                }, "Afficher les épisodes de la saison " + season));
+            }
+            seasonRow.Children.Add(seasonBar);
+            content.Children.Add(seasonRow);
 
-            var copy = new StackPanel { Margin = new Thickness(22, 4, 0, 0) };
-            var title = Text(TextUtil.DisplayTitle(series.Name), 25, Brush(TextPrimary), true);
+            var list = episodes.Where(ep => String.Equals(String.IsNullOrWhiteSpace(ep.Season) ? "1" : ep.Season, active))
+                .OrderBy(ep => TextUtil.ParseInt(ep.Episode, 0)).ToList();
+            if (list.Count == 0) list = episodes;
+
+            var countLine = Text(TextUtil.HumanCount(list.Count) + (list.Count > 1 ? " épisodes" : " épisode")
+                + "  ·  Saison " + active, 12.5, Brush(Muted), false);
+            countLine.Margin = new Thickness(2, 0, 0, 10);
+            content.Children.Add(countLine);
+
+            var stack = new StackPanel();
+            foreach (Channel episode in list) stack.Children.Add(EpisodeRow(episode, list, currentPlaying));
+            content.Children.Add(stack);
+
+            root.Children.Add(content);
+            SetContent(root);
+            SetStatus(series.Name + " · " + TextUtil.HumanCount(episodes.Count) + " épisode(s).");
+            EnsureSeriesEpisodeArtwork(series, episodes);
+        }
+
+        /// <summary>
+        /// En-tête cinématographique de la série : image d'ambiance, affiche,
+        /// titre, informations et actions principales, dans l'esprit d'une fiche
+        /// Netflix.
+        /// </summary>
+        FrameworkElement BuildSeriesHero(Channel series, List<Channel> episodes, List<string> seasons, Channel next)
+        {
+            string backdrop = !String.IsNullOrWhiteSpace(series.BackdropUrl) ? series.BackdropUrl : series.PosterUrl;
+            var hero = new Grid { Height = 356, ClipToBounds = true, Background = Brush(Color.FromRgb(8, 8, 14)) };
+            if (!String.IsNullOrWhiteSpace(backdrop))
+            {
+                hero.Children.Add(new AsyncImage { Url = backdrop, Stretch = Stretch.UniformToFill });
+            }
+            else
+            {
+                hero.Children.Add(new Border
+                {
+                    Background = new LinearGradientBrush(new GradientStopCollection
+                    {
+                        new GradientStop(Color.FromRgb(25, 18, 46), 0),
+                        new GradientStop(Color.FromRgb(8, 8, 14), 1)
+                    }, new Point(0, 0), new Point(1, 1))
+                });
+                var mark = Icon(Glyphs.Series, 86, Brush(Color.FromArgb(105, 255, 255, 255)));
+                mark.HorizontalAlignment = HorizontalAlignment.Center;
+                mark.VerticalAlignment = VerticalAlignment.Center;
+                hero.Children.Add(mark);
+            }
+            hero.Children.Add(new Border
+            {
+                Background = new LinearGradientBrush(new GradientStopCollection
+                {
+                    new GradientStop(Color.FromArgb(150, 3, 3, 8), 0),
+                    new GradientStop(Color.FromArgb(24, 3, 3, 8), 0.35),
+                    new GradientStop(Color.FromArgb(92, 3, 3, 8), 0.7),
+                    new GradientStop(Color.FromArgb(248, Panel.R, Panel.G, Panel.B), 1)
+                }, new Point(0.5, 0), new Point(0.5, 1))
+            });
+            hero.Children.Add(new Border
+            {
+                Background = new LinearGradientBrush(new GradientStopCollection
+                {
+                    new GradientStop(Color.FromArgb(210, 3, 3, 8), 0),
+                    new GradientStop(Color.FromArgb(40, 3, 3, 8), 0.6),
+                    new GradientStop(Color.FromArgb(0, 3, 3, 8), 1)
+                }, new Point(0, 0.5), new Point(1, 0.5))
+            });
+
+            var back = PlayerButton(Glyphs.Back, "Retour", delegate { NavBack(); }, false, 38);
+            back.HorizontalAlignment = HorizontalAlignment.Left;
+            back.VerticalAlignment = VerticalAlignment.Top;
+            back.Margin = new Thickness(26, 20, 0, 0);
+            hero.Children.Add(back);
+
+            var content = new Grid { Margin = new Thickness(30, 0, 30, 24), VerticalAlignment = VerticalAlignment.Bottom };
+            content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
+            content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var poster = new Border
+            {
+                Width = 158, Height = 236, CornerRadius = new CornerRadius(12), Background = Brush(Raised),
+                BorderBrush = Brush(Color.FromArgb(95, 255, 255, 255)), BorderThickness = new Thickness(1),
+                ClipToBounds = true, VerticalAlignment = VerticalAlignment.Bottom,
+                Child = PosterVisual(series, 158, 236)
+            };
+            RoundClip(poster, 12);
+            Grid.SetColumn(poster, 0);
+            content.Children.Add(poster);
+
+            var copy = new StackPanel { Margin = new Thickness(20, 0, 0, 0), VerticalAlignment = VerticalAlignment.Bottom };
+            var eyebrow = Text("SÉRIE", 12.5, Brush(Color.FromArgb(225, 255, 255, 255)), true);
+            copy.Children.Add(eyebrow);
+            var title = Text(TextUtil.DisplayTitle(series.Name), 31, Brushes.White, true);
+            title.Margin = new Thickness(0, 3, 0, 0);
             title.TextWrapping = TextWrapping.Wrap;
+            title.MaxHeight = 82;
+            title.TextTrimming = TextTrimming.CharacterEllipsis;
             copy.Children.Add(title);
-            var seasons = episodes.Select(ep => String.IsNullOrWhiteSpace(ep.Season) ? "1" : ep.Season).Distinct().ToList();
-            string meta = KindLabel(series.Kind) + "  ·  " + TextUtil.HumanCount(episodes.Count) + " épisode(s)";
-            if (seasons.Count > 1) meta += "  ·  " + TextUtil.HumanCount(seasons.Count) + " saisons";
-            else meta += "  ·  Saison " + seasons[0];
-            if (!String.IsNullOrWhiteSpace(series.Year)) meta = series.Year + "  ·  " + meta;
-            if (!String.IsNullOrWhiteSpace(series.Rating)) meta += "  ·  " + series.Rating + "/10";
-            copy.Children.Add(Text(meta, 11.5, Brush(Muted), false));
+
+            var metaParts = new List<string>();
+            if (!String.IsNullOrWhiteSpace(series.Year)) metaParts.Add(series.Year);
+            metaParts.Add(seasons.Count > 1 ? TextUtil.HumanCount(seasons.Count) + " saisons" : "Saison " + seasons[0]);
+            metaParts.Add(TextUtil.HumanCount(episodes.Count) + " épisodes");
+            if (!String.IsNullOrWhiteSpace(series.Rating)) metaParts.Add(series.Rating + "/10");
+            if (series.TmdbRating > 0) metaParts.Add("★ " + series.TmdbRating.ToString("0.0", CultureInfo.InvariantCulture));
+            if (!String.IsNullOrWhiteSpace(series.Genres)) metaParts.Add(TextUtil.Ellipsis(series.Genres, 60));
+            var meta = Text(String.Join("  ·  ", metaParts.ToArray()), 12.5, Brush(Color.FromArgb(232, 244, 244, 248)), false);
+            meta.Margin = new Thickness(0, 6, 0, 0);
+            copy.Children.Add(meta);
+
             string description = !String.IsNullOrWhiteSpace(series.Description) ? series.Description : series.Overview;
             if (!String.IsNullOrWhiteSpace(description))
             {
-                var body = Text(description, 12, Brush(TextPrimary), false);
-                body.Margin = new Thickness(0, 10, 0, 0);
+                var body = Text(description, 12.5, Brush(Color.FromArgb(225, 244, 244, 248)), false);
+                body.Margin = new Thickness(0, 8, 0, 0);
                 body.MaxWidth = 760;
+                body.MaxHeight = 58;
+                body.LineHeight = 18;
                 body.TextWrapping = TextWrapping.Wrap;
+                body.TextTrimming = TextTrimming.CharacterEllipsis;
                 copy.Children.Add(body);
             }
-            var resume = Text("", 12, Brush(TextPrimary), false);
-            var next = NextEpisodeToWatch(series, episodes);
-            var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 16, 0, 0) };
+
+            var actions = new WrapPanel { Margin = new Thickness(0, 14, 0, 0) };
             if (next != null)
             {
                 double saved = GetSavedPosition(next);
                 string label = saved > 1 ? "Reprendre l’épisode " + (String.IsNullOrWhiteSpace(next.Episode) ? "" : next.Episode) : "Lire le premier épisode";
-                actions.Children.Add(Button(Glyphs.Play, label.Trim(), delegate { Play(next, episodes, saved, false); }, true));
+                var play = Button(Glyphs.Play, label.Trim(), delegate { Play(next, episodes, saved, false); }, true);
+                play.Margin = new Thickness(0, 0, 8, 8);
+                actions.Children.Add(play);
             }
-            actions.Children.Add(Button(Glyphs.Favorite, favorites.Contains(series.Id) ? "Retirer des favoris" : "Ajouter aux favoris",
-                delegate { ToggleFavorite(series); }, false));
-            // La correction TMDb était uniquement accessible depuis la fiche :
-            // elle est désormais directement sur la page des épisodes.
-            if (TmdbClient.IsConfigured(settings))
-                actions.Children.Add(Button(Glyphs.Search, "Corriger TMDb", delegate { ShowTmdbMatchDialog(series); }, false));
-            if (!String.IsNullOrWhiteSpace(series.Url)) actions.Children.Add(Button(Glyphs.External, "Lecteur externe", delegate { OpenInExternalPlayer(series.Url); }, false));
-            copy.Children.Add(actions);
-            Grid.SetColumn(copy, 1);
-            head.Children.Add(copy);
-            root.Children.Add(head);
-
-            if (seasons.Count > 1)
-            {
-                var seasonBar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 16, 0, 2) };
-                string active = String.IsNullOrWhiteSpace(episodesSeason) || !seasons.Contains(episodesSeason) ? seasons[0] : episodesSeason;
-                foreach (string season in seasons)
+            Button favorite = null;
+            favorite = Button(favorites.Contains(series.Id) ? Glyphs.FavoriteFill : Glyphs.Favorite,
+                favorites.Contains(series.Id) ? "Favori" : "Ajouter aux favoris", delegate
                 {
-                    string captured = season;
-                    seasonBar.Children.Add(FilterTab("Saison " + season, String.Equals(season, active), delegate
-                    {
-                        episodesSeason = captured;
-                        ShowSeriesEpisodes(series, episodes);
-                    }, "Afficher les épisodes de la saison " + season));
-                }
-                root.Children.Add(seasonBar);
+                    ToggleFavorite(series);
+                    favorite.Content = IconText(favorites.Contains(series.Id) ? Glyphs.FavoriteFill : Glyphs.Favorite,
+                        favorites.Contains(series.Id) ? "Favori" : "Ajouter aux favoris", Brush(TextPrimary), 12.5);
+                }, false);
+            favorite.Margin = new Thickness(0, 0, 8, 8);
+            actions.Children.Add(favorite);
+            if (TmdbClient.IsConfigured(settings))
+            {
+                var match = Button(Glyphs.Search, "Corriger TMDb", delegate { ShowTmdbMatchDialog(series); }, false);
+                match.Margin = new Thickness(0, 0, 8, 8);
+                actions.Children.Add(match);
             }
-            else episodesSeason = seasons[0];
+            if (!String.IsNullOrWhiteSpace(series.Url))
+            {
+                var external = IconButton(Glyphs.External, "Ouvrir dans le lecteur externe", delegate { OpenInExternalPlayer(series.Url); }, false);
+                external.Margin = new Thickness(0, 0, 8, 8);
+                actions.Children.Add(external);
+            }
+            copy.Children.Add(actions);
 
-            string selected = String.IsNullOrWhiteSpace(episodesSeason) ? seasons[0] : episodesSeason;
-            var list = episodes.Where(ep => String.Equals(String.IsNullOrWhiteSpace(ep.Season) ? "1" : ep.Season, selected))
-                .OrderBy(ep => TextUtil.ParseInt(ep.Episode, 0)).ToList();
-            if (list.Count == 0) list = episodes;
-
-            var stack = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
-            foreach (Channel episode in list) stack.Children.Add(EpisodeRow(episode, list, currentPlaying));
-            root.Children.Add(stack);
-
-            SetContent(root);
-            SetStatus(series.Name + " · " + TextUtil.HumanCount(episodes.Count) + " épisode(s).");
-            EnsureSeriesEpisodeArtwork(series, episodes);
+            Grid.SetColumn(copy, 1);
+            content.Children.Add(copy);
+            hero.Children.Add(content);
+            return hero;
         }
 
         Channel NextEpisodeToWatch(Channel series, List<Channel> episodes)
@@ -297,51 +400,182 @@ namespace LyaranTV
         Border EpisodeRow(Channel episode, List<Channel> siblings, Channel playing)
         {
             bool current = playing != null && String.Equals(playing.Id, episode.Id, StringComparison.OrdinalIgnoreCase);
-            var row = new Grid { Margin = new Thickness(0, 0, 0, 6) };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(178) });
+            int index = siblings == null ? -1 : siblings.FindIndex(delegate(Channel item)
+            {
+                return item != null && String.Equals(item.Id, episode.Id, StringComparison.OrdinalIgnoreCase);
+            });
+            Channel next = index >= 0 && index + 1 < siblings.Count ? siblings[index + 1] : null;
+            bool upcoming = !current && next != null
+                && String.Equals(next.Id, episode.Id, StringComparison.OrdinalIgnoreCase);
+            double saved = GetSavedPosition(episode);
+            double progress = ResumeProgress(episode);
+
+            var row = new Grid { Margin = new Thickness(0) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
+            // Vignette 16:9 avec numéro, état et progression de reprise.
             var thumb = new Border
             {
-                Width = 168, Height = 95, CornerRadius = new CornerRadius(10), Background = Brush(Raised),
+                Width = 176, Height = 99, CornerRadius = new CornerRadius(10), Background = Brush(Raised),
                 ClipToBounds = true, VerticalAlignment = VerticalAlignment.Center
             };
             RoundClip(thumb, 10);
-            thumb.Child = PosterVisual(episode, 168, 95);
+            var thumbGrid = new Grid();
+            thumbGrid.Children.Add(PosterVisual(episode, 176, 99));
+            thumbGrid.Children.Add(new Border
+            {
+                Background = new LinearGradientBrush(new GradientStopCollection
+                {
+                    new GradientStop(Color.FromArgb(0, 0, 0, 0), 0.35),
+                    new GradientStop(Color.FromArgb(150, 0, 0, 0), 1)
+                }, new Point(0.5, 0), new Point(0.5, 1))
+            });
+            var numberBadge = new Border
+            {
+                Background = Brush(current ? Accent : Color.FromArgb(178, 8, 8, 14)),
+                CornerRadius = new CornerRadius(5), Padding = new Thickness(6, 2, 6, 3),
+                HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(7)
+            };
+            numberBadge.Child = Text(String.IsNullOrWhiteSpace(episode.Episode) ? "É" : "É" + episode.Episode,
+                10, current ? Brush(Color.FromRgb(12, 12, 18)) : Brushes.White, true);
+            thumbGrid.Children.Add(numberBadge);
+
+            var playBadge = new Border
+            {
+                Width = 32, Height = 32, CornerRadius = new CornerRadius(16),
+                Background = Brush(Color.FromArgb(196, 0, 0, 0)),
+                BorderBrush = Brush(Color.FromArgb(120, 255, 255, 255)), BorderThickness = new Thickness(1),
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                Child = Icon(Glyphs.Play, 13, Brushes.White), IsHitTestVisible = false,
+                Opacity = current ? 1 : 0.82
+            };
+            thumbGrid.Children.Add(playBadge);
+
+            if (current || upcoming)
+            {
+                var stateBadge = new Border
+                {
+                    Background = Brush(current ? Accent : WithAlpha(Accent, 225)),
+                    CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 2, 6, 3),
+                    HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(7)
+                };
+                stateBadge.Child = Text(current ? "EN COURS" : "À SUIVRE", 9, Brush(Color.FromRgb(12, 12, 18)), true);
+                thumbGrid.Children.Add(stateBadge);
+            }
+
+            if (progress > 0)
+            {
+                var bar = new Grid { VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(9, 0, 9, 7) };
+                bar.Children.Add(new Border
+                {
+                    Height = 3, CornerRadius = new CornerRadius(2), Background = Brush(Color.FromArgb(110, 255, 255, 255))
+                });
+                bar.Children.Add(new Border
+                {
+                    Height = 3, CornerRadius = new CornerRadius(2), Background = Brush(Accent),
+                    HorizontalAlignment = HorizontalAlignment.Left, Width = 158 * progress
+                });
+                thumbGrid.Children.Add(bar);
+            }
+            thumb.Child = thumbGrid;
             Grid.SetColumn(thumb, 0);
             row.Children.Add(thumb);
 
-            var copy = new StackPanel { Margin = new Thickness(14, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
-            string number = String.IsNullOrWhiteSpace(episode.Episode) ? "" : "É" + episode.Episode + "  ·  ";
-            var name = Text(number + episode.Name, 13.5, Brush(current ? Accent : TextPrimary), true);
+            var copy = new StackPanel { Margin = new Thickness(16, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center };
+            string eyebrow = String.IsNullOrWhiteSpace(episode.Episode) ? "ÉPISODE" : "ÉPISODE " + episode.Episode;
+            if (!String.IsNullOrWhiteSpace(episode.Season)) eyebrow += "  ·  SAISON " + episode.Season;
+            copy.Children.Add(Text(eyebrow, 11, Brush(current ? Accent : Muted), true));
+
+            string displayName = (episode.Name ?? "").Trim().TrimEnd(' ', '-', '–', '—', '·', ':', '|');
+            if (displayName.Length == 0)
+                displayName = String.IsNullOrWhiteSpace(episode.Episode) ? "Épisode" : "Épisode " + episode.Episode;
+            var name = Text(displayName, 14, Brush(current ? Accent : TextPrimary), true);
+            name.Margin = new Thickness(0, 2, 0, 0);
             name.TextWrapping = TextWrapping.Wrap;
+            name.MaxHeight = 40;
             copy.Children.Add(name);
+
             string detail = "";
             if (!String.IsNullOrWhiteSpace(episode.Runtime)) detail = episode.Runtime;
-            else if (!String.IsNullOrWhiteSpace(episode.Description)) detail = TextUtil.Ellipsis(episode.Description, 170);
-            if (detail.Length > 0) copy.Children.Add(Text(detail, 11, Brush(Muted), false));
-            double saved = GetSavedPosition(episode);
-            if (saved > 1) copy.Children.Add(Text("Reprendre à " + TextUtil.FormatPosition(TimeSpan.FromSeconds(saved)), 10.5, Brush(Accent), true));
+            if (!String.IsNullOrWhiteSpace(episode.Description))
+            {
+                string synopsis = TextUtil.Ellipsis(episode.Description, 190);
+                detail = detail.Length > 0 ? detail + "  ·  " + synopsis : synopsis;
+            }
+            if (detail.Length > 0)
+            {
+                var line = Text(detail, 12, Brush(Muted), false);
+                line.Margin = new Thickness(0, 4, 0, 0);
+                line.TextWrapping = TextWrapping.Wrap;
+                line.MaxHeight = 34;
+                copy.Children.Add(line);
+            }
+            if (saved > 1)
+            {
+                var resume = Text((current ? "Lecture en cours" : "Reprendre") + " à "
+                    + TextUtil.FormatPosition(TimeSpan.FromSeconds(saved)), 12, Brush(Accent), true);
+                resume.Margin = new Thickness(0, 5, 0, 0);
+                copy.Children.Add(resume);
+            }
             Grid.SetColumn(copy, 1);
             row.Children.Add(copy);
 
+            Action launch = delegate { Play(episode, siblings, GetSavedPosition(episode), false); };
             var play = current
-                ? Button(Glyphs.Stop, "En cours", delegate { Play(episode, siblings, GetSavedPosition(episode), false); }, true)
-                : Button(Glyphs.Play, "Lire", delegate { Play(episode, siblings, GetSavedPosition(episode), false); }, false);
+                ? Button(Glyphs.Play, "En cours", launch, true)
+                : upcoming ? Button(Glyphs.Play, "Lire", launch, true)
+                : Button(Glyphs.Play, "Lire", launch, false);
             play.Margin = new Thickness(0);
             play.VerticalAlignment = VerticalAlignment.Center;
             Grid.SetColumn(play, 2);
             row.Children.Add(play);
 
+            Brush restingBorder = Brush(current ? WithAlpha(Accent, 150)
+                : upcoming ? WithAlpha(Accent, 85) : BorderColor);
             var card = new Border
             {
-                Child = row, Padding = new Thickness(10), CornerRadius = new CornerRadius(12),
-                Background = Brush(current ? WithAlpha(Accent, 26) : Panel),
-                BorderBrush = Brush(current ? WithAlpha(Accent, 140) : BorderColor), BorderThickness = new Thickness(1),
-                Margin = new Thickness(0, 0, 0, 8), Cursor = Cursors.Hand
+                Child = row, Padding = new Thickness(10), CornerRadius = new CornerRadius(14),
+                Background = Brush(current ? WithAlpha(Accent, 24) : upcoming ? WithAlpha(Accent, 10) : Panel),
+                BorderBrush = restingBorder, BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 0, 0, 8), Cursor = Cursors.Hand,
+                Focusable = true, FocusVisualStyle = null, SnapsToDevicePixels = true
             };
-            card.MouseLeftButtonUp += delegate { Play(episode, siblings, GetSavedPosition(episode), false); };
+            var lift = new TranslateTransform();
+            card.RenderTransform = lift;
+            card.MouseEnter += delegate
+            {
+                card.BorderBrush = Brush(Accent);
+                card.Background = Brush(current ? WithAlpha(Accent, 34) : WithAlpha(TextPrimary, 9));
+                playBadge.Opacity = 1;
+                LiftCard(lift, -2);
+            };
+            card.MouseLeave += delegate
+            {
+                if (!card.IsKeyboardFocusWithin)
+                {
+                    card.BorderBrush = restingBorder;
+                    card.Background = Brush(current ? WithAlpha(Accent, 24) : upcoming ? WithAlpha(Accent, 10) : Panel);
+                    playBadge.Opacity = current ? 1 : 0.82;
+                }
+                LiftCard(lift, 0);
+            };
+            card.GotKeyboardFocus += delegate { card.BorderBrush = Brush(Accent); };
+            card.LostKeyboardFocus += delegate
+            {
+                card.BorderBrush = restingBorder;
+                card.Background = Brush(current ? WithAlpha(Accent, 24) : upcoming ? WithAlpha(Accent, 10) : Panel);
+            };
+            card.KeyDown += delegate(object sender, KeyEventArgs e)
+            {
+                if (e.Key != Key.Enter && e.Key != Key.Space) return;
+                launch();
+                e.Handled = true;
+            };
+            card.MouseLeftButtonUp += delegate { launch(); };
             return card;
         }
 
