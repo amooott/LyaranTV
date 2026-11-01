@@ -16,7 +16,7 @@ namespace LyaranTV
         public const string Description = "Lecteur IPTV et vidéo : M3U, Xtream, portails MAC, guide EPG, films et séries.";
 
         /// <summary>Version commerciale, sans métadonnée de pré-version.</summary>
-        public const string Version = "1.3.6";
+        public const string Version = "1.3.7";
 
         /// <summary>Dépôt GitHub consulté pour les mises à jour.</summary>
         public const string Repository = "amooott/LyaranTV";

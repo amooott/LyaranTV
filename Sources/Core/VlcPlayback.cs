@@ -579,14 +579,23 @@ namespace LyaranTV
                 if (disposed || mediaPlayer == IntPtr.Zero) return -1;
                 IntPtr current = Native.libvlc_media_player_get_media(mediaPlayer);
                 if (current == IntPtr.Zero) return -1;
-                var stats = new Native.MediaStats();
-                if (Native.libvlc_media_get_stats(current, ref stats) == 0) return -1;
-                if (stats.DemuxBitrate <= 0.000001f || stats.DemuxReadBytes <= 0) return -1;
-                // libVLC expose un débit en octets par microseconde : le rapport
-                // donne des microsecondes, converties en secondes.
-                double seconds = stats.DemuxReadBytes / (stats.DemuxBitrate * 1000000.0);
-                if (seconds <= 0 || Double.IsNaN(seconds) || Double.IsInfinity(seconds)) return -1;
-                return seconds;
+                try
+                {
+                    var stats = new Native.MediaStats();
+                    if (Native.libvlc_media_get_stats(current, ref stats) == 0) return -1;
+                    if (stats.DemuxBitrate <= 0.000001f || stats.DemuxReadBytes <= 0) return -1;
+                    // libVLC expose un débit en octets par microseconde : le rapport
+                    // donne des microsecondes, converties en secondes.
+                    double seconds = stats.DemuxReadBytes / (stats.DemuxBitrate * 1000000.0);
+                    if (seconds <= 0 || Double.IsNaN(seconds) || Double.IsInfinity(seconds)) return -1;
+                    return seconds;
+                }
+                finally
+                {
+                    // get_media incrémente la référence : sans ce release, chaque
+                    // rafraîchissement de la barre garderait le média en vie.
+                    try { Native.libvlc_media_release(current); } catch { }
+                }
             }
         }
 
@@ -882,10 +891,11 @@ namespace LyaranTV
             var streams = new List<AudioStream>();
             if (disposed || mediaPlayer == IntPtr.Zero) return streams;
             IntPtr tracks = IntPtr.Zero;
+            IntPtr mediaPtr = IntPtr.Zero;
             uint count = 0;
             try
             {
-                IntPtr mediaPtr = Native.libvlc_media_player_get_media(mediaPlayer);
+                mediaPtr = Native.libvlc_media_player_get_media(mediaPlayer);
                 if (mediaPtr == IntPtr.Zero) return streams;
                 count = Native.libvlc_media_tracks_get(mediaPtr, out tracks);
                 if (tracks == IntPtr.Zero || count == 0) return streams;
@@ -921,6 +931,7 @@ namespace LyaranTV
                 {
                     try { Native.libvlc_media_tracks_release(tracks, count); } catch { }
                 }
+                if (mediaPtr != IntPtr.Zero) { try { Native.libvlc_media_release(mediaPtr); } catch { } }
             }
             return streams;
         }
@@ -1000,10 +1011,11 @@ namespace LyaranTV
             var streams = new List<SubtitleStream>();
             if (disposed || mediaPlayer == IntPtr.Zero) return streams;
             IntPtr tracks = IntPtr.Zero;
+            IntPtr mediaPtr = IntPtr.Zero;
             uint count = 0;
             try
             {
-                IntPtr mediaPtr = Native.libvlc_media_player_get_media(mediaPlayer);
+                mediaPtr = Native.libvlc_media_player_get_media(mediaPlayer);
                 if (mediaPtr == IntPtr.Zero) return streams;
                 count = Native.libvlc_media_tracks_get(mediaPtr, out tracks);
                 if (tracks == IntPtr.Zero || count == 0) return streams;
@@ -1029,6 +1041,7 @@ namespace LyaranTV
                 {
                     try { Native.libvlc_media_tracks_release(tracks, count); } catch { }
                 }
+                if (mediaPtr != IntPtr.Zero) { try { Native.libvlc_media_release(mediaPtr); } catch { } }
             }
             return streams;
         }

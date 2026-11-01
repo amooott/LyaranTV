@@ -1,3 +1,18 @@
+# LyaranTV 1.3.7
+
+Correction interne de la lecture libVLC.
+
+## Correction
+
+- **Références média libérées** : la lecture des statistiques de tampon et l'analyse des pistes audio et de sous-titres demandaient le média à libVLC sans relâcher sa référence. Ces références sont maintenant libérées après usage, ce qui évite une rétention progressive pendant les longues sessions et les changements de contenu répétés.
+
+## Vérifications
+
+- Auto-test : **34/34**.
+- Compilation avec `Sources\Reconstruire.bat`.
+
+---
+
 # LyaranTV 1.3.6
 
 Une mise à jour centrée sur le lecteur, les sous-titres et les fiches de contenus.
