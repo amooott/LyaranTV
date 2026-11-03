@@ -105,24 +105,29 @@ namespace LyaranTV
             content.Children.Add(track);
 
             overlay.Children.Add(content);
-            System.Windows.Controls.Panel.SetZIndex(overlay, 500);
-            rootGrid.Children.Add(overlay);
 
-            // Certaines pages reconstruisent la coquille pendant le démarrage :
-            // on rattache le générique tant qu'il n'est pas terminé.
-            bool dismissed = false;
-            EventHandler keep = null;
-            keep = delegate(object sender, EventArgs args)
+            // Fenêtre dédiée posée sur la fenêtre principale : elle s'affiche en
+            // fenêtré comme en plein écran et ne peut pas être recouverte par
+            // les reconstructions de page du démarrage.
+            var splash = new Window
             {
-                if (dismissed || overlay == null || rootGrid == null)
-                {
-                    if (rootGrid != null) rootGrid.LayoutUpdated -= keep;
-                    return;
-                }
-                if (overlay.Parent == null) rootGrid.Children.Add(overlay);
-                System.Windows.Controls.Panel.SetZIndex(overlay, 500);
+                // Owner garantit que le générique reste au-dessus de la fenêtre
+                // principale, sans lui voler le focus.
+                Owner = this,
+                WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize,
+                WindowStartupLocation = WindowStartupLocation.Manual,
+                ShowInTaskbar = false, ShowActivated = false, Focusable = false,
+                Background = Brush(Back), Content = overlay, Title = "LyaranTV"
             };
-            rootGrid.LayoutUpdated += keep;
+            try
+            {
+                splash.Left = Left;
+                splash.Top = Top;
+                splash.Width = ActualWidth > 0 ? ActualWidth : Width;
+                splash.Height = ActualHeight > 0 ? ActualHeight : Height;
+            }
+            catch { }
+            bool dismissed = false;
 
             if (!animate)
             {
@@ -158,14 +163,14 @@ namespace LyaranTV
             {
                 if (dismissed) return;
                 dismissed = true;
-                if (rootGrid != null) rootGrid.LayoutUpdated -= keep;
                 var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(340)) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn } };
-                fade.Completed += delegate { try { rootGrid.Children.Remove(overlay); } catch { } };
-                overlay.BeginAnimation(UIElement.OpacityProperty, fade);
+                fade.Completed += delegate { try { splash.Close(); } catch { } };
+                splash.BeginAnimation(UIElement.OpacityProperty, fade);
             };
-            // Un clic ou une touche passe le générique : l'application reste
-            // accessible immédiatement.
-            overlay.MouseLeftButtonDown += delegate { dismiss(); };
+            // Un clic passe le générique : l'application reste accessible
+            // immédiatement.
+            splash.MouseLeftButtonDown += delegate { dismiss(); };
+            splash.Show();
 
             var close = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(animate ? 1550 : 520) };
             close.Tick += delegate { close.Stop(); dismiss(); };
