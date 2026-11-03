@@ -407,7 +407,7 @@ namespace LyaranTV
             DockPanel.SetDock(playerChannelsButton, Dock.Left);
             playerTopBar.Children.Add(playerChannelsButton);
             // Direct : retour immédiat au bord du flux, sans quitter le lecteur.
-            playerLiveButton = PlayerButton(Glyphs.Refresh, "Revenir au direct", ResyncLiveStream, false, 34);
+            playerLiveButton = BuildLivePillButton();
             playerLiveButton.Margin = new Thickness(12, 0, 0, 0);
             playerLiveButton.Visibility = playerLive ? Visibility.Visible : Visibility.Collapsed;
             DockPanel.SetDock(playerLiveButton, Dock.Right);
@@ -1452,6 +1452,35 @@ namespace LyaranTV
         // ------------------------------------------------------------ ouverture
 
         /// <summary>
+        /// Bouton « DIRECT » du lecteur, réservé aux chaînes en direct : un clic
+        /// recharge le flux au bord du live, après une pause ou une coupure.
+        /// </summary>
+        Button BuildLivePillButton()
+        {
+            var dot = new Border
+            {
+                Width = 7, Height = 7, CornerRadius = new CornerRadius(4),
+                Background = Brush(Success), VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 0)
+            };
+            var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            row.Children.Add(dot);
+            row.Children.Add(Text("DIRECT", 10.5, Brushes.White, true));
+            var button = new Button
+            {
+                Content = row, Height = 34, Padding = new Thickness(11, 0, 12, 0),
+                Background = Brush(Color.FromArgb(132, 12, 12, 18)),
+                BorderBrush = Brush(WithAlpha(Success, 190)), BorderThickness = new Thickness(1),
+                Cursor = Cursors.Hand, FocusVisualStyle = null, IsTabStop = false, Template = RoundedButtonTemplate(9),
+                VerticalAlignment = VerticalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                ToolTip = "Revenir au direct · recharger le flux à l'instant présent"
+            };
+            button.Click += delegate { ResyncLiveStream(); };
+            return button;
+        }
+
+        /// <summary>
         /// Recharge le flux direct au bord du live. Les compteurs d'essais sont
         /// remis à zéro : l'utilisateur demande explicitement une reprise propre,
         /// même après plusieurs reconnexions automatiques.
@@ -1464,6 +1493,7 @@ namespace LyaranTV
             resumePosition = 0;
             resumePaused = false;
             resumeApplied = false;
+            playbackPaused = false;
             playbackProbeGeneration++;
             playbackOpenedAt = DateTime.MinValue;
             scrubValue = 0;

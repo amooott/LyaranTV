@@ -19,7 +19,30 @@ namespace LyaranTV
 
         void AddLanguageSidebarItem(StackPanel host)
         {
-            var button = LanguageRow(I18n.Name(settings.Language), "", false, delegate { OpenLanguageDialog(); });
+            string language = I18n.Name(settings.Language);
+            // Mode cinéma : la colonne ne garde que les logos. Le nom de la
+            // langue passe dans l'infobulle, sinon il s'écrivait à la verticale
+            // et débordait de la barre réduite.
+            if (sidebarCompact)
+            {
+                var compact = new Button
+                {
+                    Content = Icon(Glyphs.Language, 17, Brush(Muted)),
+                    Width = 44, Height = 40, Padding = new Thickness(0), Margin = new Thickness(0, 4, 0, 6),
+                    Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                    Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(10),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    HorizontalContentAlignment = HorizontalAlignment.Center,
+                    VerticalContentAlignment = VerticalAlignment.Center,
+                    ToolTip = I18n.T("Langue de l'interface") + " · " + language
+                };
+                compact.MouseEnter += delegate { compact.Background = HoverBrush; };
+                compact.MouseLeave += delegate { compact.Background = Brushes.Transparent; };
+                compact.Click += delegate { OpenLanguageDialog(); };
+                host.Children.Add(compact);
+                return;
+            }
+            var button = LanguageRow(language, "", false, delegate { OpenLanguageDialog(); });
             button.Margin = new Thickness(6, 2, 6, 2);
             button.ToolTip = I18n.T("Langue de l'interface") + " · " + I18n.T("Langue");
             host.Children.Add(button);

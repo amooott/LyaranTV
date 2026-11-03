@@ -246,6 +246,23 @@ namespace LyaranTV
 
         void TogglePlayback()
         {
+            // Direct : reprendre après une pause laisserait l'utilisateur en
+            // retard sur le flux réel. On recharge donc le flux au bord du
+            // direct au lieu de relancer la lecture à l'endroit mis en pause.
+            if (playerLive && playbackPaused)
+            {
+                playbackPaused = false;
+                resumePaused = false;
+                UpdatePlayPauseButton();
+                ShowToast("Direct actualisé · reprise au bord du flux.", false, true);
+                ResyncLiveStream();
+                return;
+            }
+            TogglePlaybackCore();
+        }
+
+        void TogglePlaybackCore()
+        {
             if (player == null) return;
             if (playbackPaused)
             {

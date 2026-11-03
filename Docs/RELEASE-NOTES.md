@@ -1,3 +1,23 @@
+# LyaranTV 1.4.2
+
+Correctif du direct et de la barre latérale réduite.
+
+## Nouveautés
+
+- **Bouton « ● DIRECT »** dans le lecteur : une pastille nommée, visible uniquement sur les chaînes en direct, recharge le flux à l'instant présent sans quitter la lecture ni la liste des chaînes.
+- **Reprise au bord du direct** : après une pause sur une chaîne, appuyer sur lecture (bouton central, Espace ou A sur manette) ne relance plus le flux à l'endroit figé, mais le recharge au bord du direct. Un message confirme la reprise.
+
+## Correction
+
+- **Sélecteur de langue en barre réduite** : en mode cinéma, le nom de la langue s'écrivait à la verticale et débordait sous le profil. La colonne ne garde que l'icône « langue », le nom passant dans l'infobulle.
+
+## Vérifications
+
+- Auto-test : **34/34**.
+- Compilation avec `Sources\Reconstruire.bat`.
+
+---
+
 # LyaranTV 1.4.1
 
 Pensée pour le salon : pilotage à la manette ou à la télécommande, clavier virtuel, historique de recherche et tiroir des chaînes façon box TV.
