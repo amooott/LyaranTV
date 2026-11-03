@@ -1,10 +1,17 @@
-# LyaranTV 1.4.9
+# LyaranTV 1.4.10
 
-La carte de chargement attend vraiment la fin du générique.
+La barre de téléchargement de la mise à jour est refaite.
+
+## Nouveau
+
+- **Bandeau de progression pleine largeur** : il remplace la petite barre de 210 px coincée entre les boutons. Il occupe toute la largeur de la fenêtre, sous les notes de version.
+- **Chiffres utiles** : pourcentage à droite, puis volume reçu sur total, débit moyen et temps restant estimé (« 12,4 Mo / 38,0 Mo · 1,7 Mo/s · ≈ 14 s restantes »).
+- **Étapes explicites** : « Téléchargement de la mise à jour », puis « Installation » avec la mention de l'empreinte SHA-256 vérifiée, au lieu d'une barre sans contexte.
 
 ## Correction
 
-- **Carte affichée pendant le générique** : au démarrage, le chargement de la playlist part avant le générique, donc la carte croyait qu'aucune animation n'était en cours et s'ouvrait à 320 ms. Elle considère maintenant un générique « à venir » comme en cours et n'apparaît qu'une fois le fondu terminé.
+- La barre ne passe plus par un état indéterminé au départ : elle affiche 0 % et « Connexion à GitHub… », puis progresse dès les premiers octets.
+- Le pourcentage est borné à 100 même si GitHub annonce une taille approximative.
 
 ## Vérifications
 

@@ -69,7 +69,7 @@ namespace LyaranTV
                 Owner = this,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Width = 680,
-                Height = 620,
+                Height = 664,
                 WindowStyle = WindowStyle.None,
                 ResizeMode = ResizeMode.NoResize,
                 AllowsTransparency = true,
@@ -141,11 +141,37 @@ namespace LyaranTV
             root.Children.Add(notesHost);
 
             var footer = new StackPanel { Margin = new Thickness(0, 18, 0, 0) };
+
+            // Bandeau de progression sur toute la largeur : la barre reste lisible
+            // et s'accompagne du pourcentage, du volume reçu, du débit et du temps
+            // restant. Il n'apparaît qu'une fois le téléchargement lancé.
+            var progressPanel = new Border
+            {
+                Background = Brush(WithAlpha(TextPrimary, 6)),
+                BorderBrush = Brush(BorderColor), BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12), Padding = new Thickness(16, 12, 16, 13),
+                Margin = new Thickness(0, 0, 0, 14), Visibility = Visibility.Collapsed
+            };
+            var progressStack = new StackPanel();
+            var progressHead = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 9) };
+            var progressTitle = Text(I18n.T("Téléchargement de la mise à jour"), 12.5, Brush(TextPrimary), true);
+            var percentLabel = Text("0 %", 12.5, Brush(Accent), true);
+            percentLabel.MinWidth = 46;
+            percentLabel.TextAlignment = TextAlignment.Right;
+            percentLabel.HorizontalAlignment = HorizontalAlignment.Right;
+            DockPanel.SetDock(percentLabel, Dock.Right);
+            progressHead.Children.Add(percentLabel);
+            progressHead.Children.Add(progressTitle);
+            progressStack.Children.Add(progressHead);
             var progress = StyledProgressBar();
-            progress.Width = 210;
-            progress.Margin = new Thickness(0, 0, 12, 0);
-            progress.Visibility = Visibility.Collapsed;
-            progress.VerticalAlignment = VerticalAlignment.Center;
+            progress.Maximum = 100;
+            progressStack.Children.Add(progress);
+            var progressDetail = Text(I18n.T("Connexion à GitHub…"), 11.5, Brush(Muted), false);
+            progressDetail.Margin = new Thickness(0, 9, 0, 0);
+            progressDetail.TextTrimming = TextTrimming.CharacterEllipsis;
+            progressStack.Children.Add(progressDetail);
+            progressPanel.Child = progressStack;
+            footer.Children.Add(progressPanel);
 
             var actionRow = new DockPanel { LastChildFill = false };
             var hint = Text(I18n.T("L’installation vérifie l’empreinte SHA-256 et conserve vos données."), 12.5, Brush(Muted), false);
@@ -156,7 +182,6 @@ namespace LyaranTV
             actionRow.Children.Add(hint);
 
             var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            actions.Children.Add(progress);
             Button install = null;
             var later = Button(I18n.T("Plus tard"), delegate { window.Close(); }, false);
             later.Margin = new Thickness(0, 0, 8, 0);
@@ -164,20 +189,25 @@ namespace LyaranTV
             {
                 install.IsEnabled = false;
                 later.IsEnabled = false;
-                progress.Visibility = Visibility.Visible;
-                progress.IsIndeterminate = true;
+                progressPanel.Visibility = Visibility.Visible;
+                progressTitle.Text = I18n.T("Téléchargement de la mise à jour");
+                percentLabel.Text = "0 %";
+                progress.Value = 0;
+                progressDetail.Text = I18n.T("Connexion à GitHub…");
                 SetStatus(I18n.T("Téléchargement…"));
 
+                // Le débit est mesuré depuis le premier octet reçu : il sert au
+                // temps restant affiché sous la barre.
+                var clock = Stopwatch.StartNew();
                 var worker = new BackgroundWorker();
                 worker.DoWork += delegate(object sender, DoWorkEventArgs e)
                 {
                     e.Result = Updates.Download(info, settings, delegate(long received, long total)
                     {
+                        double seconds = clock.Elapsed.TotalSeconds;
                         Dispatcher.BeginInvoke(new Action(delegate
                         {
-                            progress.IsIndeterminate = false;
-                            progress.Maximum = 100;
-                            progress.Value = total > 0 ? (received * 100.0 / total) : 0;
+                            RefreshUpdateProgress(progress, percentLabel, progressDetail, received, total, seconds);
                         }));
                     });
                 };
@@ -187,12 +217,16 @@ namespace LyaranTV
                     {
                         install.IsEnabled = true;
                         later.IsEnabled = true;
-                        progress.Visibility = Visibility.Collapsed;
+                        progressPanel.Visibility = Visibility.Collapsed;
                         SetStatus(I18n.T("Impossible de vérifier les mises à jour."));
                         ShowError(e.Error.GetBaseException().Message);
                         return;
                     }
                     string path = Convert.ToString(e.Result);
+                    progress.Value = 100;
+                    percentLabel.Text = "100 %";
+                    progressTitle.Text = I18n.T("Installation");
+                    progressDetail.Text = I18n.T("Empreinte SHA-256 vérifiée, remplacement des fichiers…");
                     SetStatus(I18n.T("Redémarrer pour terminer"));
                     try
                     {
@@ -321,6 +355,35 @@ namespace LyaranTV
             return block;
         }
 
+
+        /// <summary>
+        /// Rafraîchit le bandeau de progression du téléchargement : pourcentage,
+        /// volume reçu, débit moyen et temps restant estimé. Le pourcentage est
+        /// borné à 100 même si le serveur annonce une taille approximative.
+        /// </summary>
+        void RefreshUpdateProgress(ProgressBar bar, TextBlock percentLabel, TextBlock detail,
+            long received, long total, double seconds)
+        {
+            double percent = total > 0 ? Math.Max(0, Math.Min(100, received * 100.0 / total)) : 0;
+            bar.IsIndeterminate = false;
+            bar.Value = percent;
+            percentLabel.Text = ((int)percent) + " %";
+
+            string line = FormatSize(received);
+            if (total > 0) line += " / " + FormatSize(total);
+            double rate = seconds > 0.3 ? received / seconds : 0;
+            if (rate >= 1024) line += "  ·  " + FormatSize((long)rate) + "/s";
+            double remaining = (rate > 0 && total > received) ? (total - received) / rate : 0;
+            if (remaining >= 2) line += "  ·  ≈ " + FormatDuration(remaining) + " restantes";
+            detail.Text = line;
+        }
+
+        static string FormatDuration(double seconds)
+        {
+            int total = (int)Math.Round(seconds);
+            if (total < 60) return total + " s";
+            return (total / 60) + " min " + (total % 60).ToString("00") + " s";
+        }
 
         static string FormatSize(long bytes)
         {
