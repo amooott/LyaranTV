@@ -620,12 +620,25 @@ namespace LyaranTV
             sidebarScroll.ScrollChanged += delegate { PlaceNavIndicator(false); };
             DockPanel.SetDock(sidebarBorder, Dock.Left); body.Children.Add(sidebarBorder); chromeSidebar = sidebarBorder;
 
-            var statusBorder = new Border { Height = 32, Background = Brush(WithAlpha(Panel, 220)), BorderBrush = Brush(WithAlpha(BorderColor, 190)), BorderThickness = new Thickness(0, 1, 0, 0) };
-            var statusGrid = new Grid { Margin = new Thickness(15, 0, 15, 0) };
+            // Pied de page : 40 px au lieu de 32. C'était la zone la plus
+            // compressée de l'application, avec du texte sous le plancher de
+            // lisibilité appliqué partout ailleurs.
+            var statusBorder = new Border { Height = 40, Background = Brush(WithAlpha(Panel, 220)), BorderBrush = Brush(WithAlpha(BorderColor, 190)), BorderThickness = new Thickness(0, 1, 0, 0) };
+            var statusGrid = new Grid { Margin = new Thickness(18, 0, 18, 0) };
+            statusGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             statusGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             statusGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            statusText = Text("Prêt", 11, Brush(Muted), false); Grid.SetColumn(statusText, 0); statusGrid.Children.Add(statusText);
-            statusRight = Text("", 10.5, Brush(Muted), false); statusRight.HorizontalAlignment = HorizontalAlignment.Right; Grid.SetColumn(statusRight, 1); statusGrid.Children.Add(statusRight);
+            // Pastille d'état : un point d'accent qui donne un repère de couleur
+            // au pied de page, comme la diode d'un appareil.
+            var statusDot = new Border
+            {
+                Width = 7, Height = 7, CornerRadius = new CornerRadius(4), Background = AccentGradientBrush(),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 9, ShadowDepth = 0, Opacity = 0.7, Color = Accent }
+            };
+            Grid.SetColumn(statusDot, 0); statusGrid.Children.Add(statusDot);
+            statusText = Text("Prêt", 12, Brush(Muted), false); Grid.SetColumn(statusText, 1); statusGrid.Children.Add(statusText);
+            statusRight = Text("", TypeScale.Caption, Brush(Muted), false); statusRight.HorizontalAlignment = HorizontalAlignment.Right; Grid.SetColumn(statusRight, 2); statusGrid.Children.Add(statusRight);
             statusBorder.Child = statusGrid;
             DockPanel.SetDock(statusBorder, Dock.Bottom); body.Children.Add(statusBorder); chromeStatus = statusBorder;
 
@@ -1271,6 +1284,23 @@ namespace LyaranTV
                     });
                     zoom.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1.012, 1, TimeSpan.FromMilliseconds(300)) { EasingFunction = ease });
                     zoom.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1.012, 1, TimeSpan.FromMilliseconds(300)) { EasingFunction = ease });
+                    // Cascade : les blocs de la page se posent l'un après l'autre
+                    // (30 ms d'écart, plafonné à huit) au lieu d'apparaître d'un mur.
+                    var panel = pageElement as Panel;
+                    if (panel != null)
+                    {
+                        int stagger = Math.Min(panel.Children.Count, 8);
+                        for (int i = 0; i < stagger; i++)
+                        {
+                            var child = panel.Children[i] as UIElement;
+                            if (child == null) continue;
+                            child.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(240))
+                            {
+                                BeginTime = TimeSpan.FromMilliseconds(30 + i * 30),
+                                EasingFunction = ease
+                            });
+                        }
+                    }
                 }
                 else if (pageElement != null) pageElement.Opacity = 1;
             }
@@ -2181,6 +2211,22 @@ namespace LyaranTV
 
         void ChangeTheme(string theme)
         {
+            // Instantané de l'ancienne palette : il sera fondu sur la nouvelle
+            // interface pour que le changement se lise comme un réglage et non
+            // comme un rechargement.
+            System.Windows.Media.ImageSource themeSnapshot = null;
+            try
+            {
+                if (rootGrid != null && rootGrid.ActualWidth > 1 && rootGrid.ActualHeight > 1 && !UiMotion.Reduced)
+                {
+                    var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                        (int)rootGrid.ActualWidth, (int)rootGrid.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                    bitmap.Render(rootGrid);
+                    bitmap.Freeze();
+                    themeSnapshot = bitmap;
+                }
+            }
+            catch { themeSnapshot = null; }
             string remembered = page;
             Channel playing = currentPlaying;
             List<Channel> queue = playQueue;
@@ -2202,6 +2248,18 @@ namespace LyaranTV
             if (remembered == "Lecture" && playing != null) Play(playing, queue, position, paused);
             else if (remembered == "Épisodes") { page = "Bibliothèque"; ShowLibrary("Bibliothèque"); }
             else Navigate();
+            if (themeSnapshot != null && rootGrid != null)
+            {
+                var veil = new Image { Source = themeSnapshot, Stretch = Stretch.Fill, IsHitTestVisible = false };
+                System.Windows.Controls.Panel.SetZIndex(veil, 360);
+                rootGrid.Children.Add(veil);
+                var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(220))
+                {
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                };
+                fade.Completed += delegate { try { rootGrid.Children.Remove(veil); } catch { } };
+                veil.BeginAnimation(UIElement.OpacityProperty, fade);
+            }
         }
 
         void ChangeAccent(Color color)

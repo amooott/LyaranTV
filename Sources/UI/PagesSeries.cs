@@ -252,7 +252,7 @@ namespace LyaranTV
         FrameworkElement BuildSeriesHero(Channel series, List<Channel> episodes, List<string> seasons, Channel next)
         {
             string backdrop = !String.IsNullOrWhiteSpace(series.BackdropUrl) ? series.BackdropUrl : series.PosterUrl;
-            var hero = new Grid { Height = 356, ClipToBounds = true, Background = Brush(Color.FromRgb(8, 8, 14)) };
+            var hero = new Grid { Height = 356, ClipToBounds = true, Background = Brush(HeroBase) };
             if (!String.IsNullOrWhiteSpace(backdrop))
             {
                 hero.Children.Add(new AsyncImage { Url = backdrop, Stretch = Stretch.UniformToFill });
@@ -263,8 +263,8 @@ namespace LyaranTV
                 {
                     Background = new LinearGradientBrush(new GradientStopCollection
                     {
-                        new GradientStop(Color.FromRgb(25, 18, 46), 0),
-                        new GradientStop(Color.FromRgb(8, 8, 14), 1)
+                        new GradientStop(LightMix(HeroBase, Accent, 0.18), 0),
+                        new GradientStop(HeroBase, 1)
                     }, new Point(0, 0), new Point(1, 1))
                 });
                 var mark = Icon(Glyphs.Series, 86, Brush(Color.FromArgb(105, 255, 255, 255)));

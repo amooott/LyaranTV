@@ -380,8 +380,9 @@ namespace LyaranTV
         FrameworkElement BuildLibraryHero()
         {
             // Le hero reste volontairement cinématographique et sombre dans tous les
-            // thèmes : les affiches et les titres y gagnent en contraste.
-            Color heroBase = Color.FromRgb(8, 8, 14);
+            // thèmes — les affiches et les titres y gagnent en contraste — mais sa
+            // teinte suit la palette pour ne pas former un trou noir sur une page claire.
+            Color heroBase = HeroBase;
             var visual = new Grid { Height = 364, ClipToBounds = true };
             visual.Children.Add(new Border
             {

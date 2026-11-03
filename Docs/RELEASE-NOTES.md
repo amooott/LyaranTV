@@ -1,18 +1,31 @@
-# LyaranTV 1.4.12
+# LyaranTV 1.4.13
 
-Deux réparations : le plein écran du lecteur et la relance de la sortie audio.
+Six finitions de plus : continuité visuelle avec l'installateur, thème clair
+cohérent, étagères en cascade, pied de page lisible, états vides illustrés et
+fondu entre thèmes.
 
-## Plein écran
+## Installateur
 
-- **Plus de filet autour de l'image** : le liseré natif demandé à Windows 11 (attribut DWM 34) restait dessiné une fois la fenêtre sans bordure, et encadrait tout l'écran. Il est maintenant retiré en plein écran, avec l'arrondi, puis rétabli à la sortie.
-- **Contour de l'application masqué** : le filet d'un pixel qui dessine la fenêtre en mode normal disparaît lui aussi en plein écran. L'image touche réellement les bords de la dalle.
+- **Même langage visuel que l'application** : il dessine désormais avec Inter quand elle est installée, sinon Segoe UI — exactement la règle de la fenêtre principale. La deuxième teinte du dégradé devient une constante partagée (`Theme.Secondary`) au lieu d'une valeur recopiée.
+- **Coins arrondis et liseré natifs** sur la fenêtre de progression de mise à jour, comme la fenêtre principale.
 
-## Son
+## Thème clair
 
-- **« Réparer le son » fonctionne à nouveau après une première tentative** : le moteur mémorisait chaque sortie essayée (mmdevice, directsound, waveout) et refusait de la retenter. Une réparation demandée par l'utilisateur rejouait donc une chaîne vide et échouait, même en relançant la sortie. Elle rejoue désormais tous les candidats, en commençant par la sortie choisie dans les réglages.
-- **Une sortie valide n'est plus écartée** : la bascule attend le périphérique (quatre lectures espacées de 25 ms) avant de conclure qu'il ne rend pas de volume.
-- **Journal plus utile** : un échec de réparation note explicitement que le périphérique est occupé ou refuse le format.
-- **Sons d'interface coupés pendant la lecture** : aucune note ne vient se mêler à la piste du flux.
+- **Bandeaux de fiche teintés selon la palette** : la fiche d'un film, celle d'une série, le bandeau de la bibliothèque et l'aperçu des sous-titres partageaient un noir codé en dur (`#08080E`). Ils reposent maintenant sur une couleur `HeroBase` propre à chaque thème : prune profond en thème clair, noir en AMOLED, charbon en sombre. Le bandeau reste cinématographique sans former un trou noir sur une page claire.
+- Les dégradés de secours (sans affiche) mélangent cette base à l'accent au lieu d'une teinte violette figée.
+
+## Accueil et navigation
+
+- **Étagères en cascade** : les blocs d'une page entrent avec 30 ms d'écart (plafonné à huit), au lieu d'apparaître d'un seul mur. La réduction des animations reste respectée.
+- **États vides illustrés** : halo diffus, médaillon arrondi teinté par l'accent et pictogramme large remplacent la petite icône seule.
+
+## Pied de page
+
+- **40 px au lieu de 32** : c'était la zone la plus compressée de l'application, avec du texte à 10,5 px. Le pied affiche maintenant une pastille d'état colorée, un libellé à 12 px et la source active à 11,5 px.
+
+## Thème et accent
+
+- **Fondu de 220 ms** entre l'ancienne et la nouvelle palette lors d'un changement de thème, de couleur d'accent ou d'ambiance : le réglage se lit comme une transition, pas comme un rechargement.
 
 ## Vérifications
 

@@ -859,8 +859,23 @@ namespace LyaranTV
         Border EmptyState(string glyph, string title, string message, Button action)
         {
             var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(20, 10, 20, 10) };
-            var icon = Icon(glyph, 38, Brush(Accent)); icon.HorizontalAlignment = HorizontalAlignment.Center; icon.Margin = new Thickness(0, 0, 0, 12);
-            stack.Children.Add(icon);
+            // Pastille illustrée : halo diffus, médaillon arrondi teinté par
+            // l'accent et pictogramme large. Un état vide devient un moment
+            // composé plutôt qu'une simple ligne d'information.
+            var badge = new Grid { Width = 96, Height = 96, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 14) };
+            badge.Children.Add(new System.Windows.Shapes.Ellipse
+            {
+                Margin = new Thickness(-14), IsHitTestVisible = false,
+                Fill = new RadialGradientBrush(WithAlpha(Accent, 58), WithAlpha(Accent, 0))
+            });
+            badge.Children.Add(new Border
+            {
+                Width = 74, Height = 74, CornerRadius = new CornerRadius(22),
+                Background = AccentSoftGradientBrush(), BorderBrush = Brush(WithAlpha(Accent, 96)), BorderThickness = new Thickness(1),
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                Child = Icon(glyph, 31, Brush(Accent)), SnapsToDevicePixels = true
+            });
+            stack.Children.Add(badge);
             var heading = Text(title, 18, Brush(TextPrimary), true); heading.HorizontalAlignment = HorizontalAlignment.Center; heading.TextAlignment = TextAlignment.Center;
             stack.Children.Add(heading);
             var body = Text(message, 12, Brush(Muted), false); body.HorizontalAlignment = HorizontalAlignment.Center; body.TextAlignment = TextAlignment.Center;
@@ -1128,6 +1143,14 @@ namespace LyaranTV
             var drawing = new DrawingImage(group); drawing.Freeze(); return drawing;
         }
 
+        /// <summary>
+        /// Fond des bandeaux de fiche (film, série, bibliothèque). Il reste
+        /// volontairement sombre dans tous les thèmes — les affiches y gagnent en
+        /// contraste — mais il est teinté pour ne pas former un trou noir au
+        /// milieu d'une page claire.
+        /// </summary>
+        Color HeroBase;
+
         void SetThemeColors(string theme)
         {
             themeName = String.IsNullOrWhiteSpace(theme) ? "Sombre" : theme;
@@ -1139,11 +1162,15 @@ namespace LyaranTV
                 // être teintées par l'interface.
                 Back = Color.FromRgb(244, 245, 248); Panel = Color.FromRgb(255, 255, 255); Raised = Color.FromRgb(236, 238, 244);
                 Muted = Color.FromRgb(94, 100, 114); TextPrimary = Color.FromRgb(16, 18, 24); BorderColor = Color.FromRgb(218, 221, 230);
+                // Prune profond plutôt que noir : le bandeau reste cinéma mais
+                // s'accorde avec l'écrin clair qui l'entoure.
+                HeroBase = Color.FromRgb(30, 27, 42);
             }
             else if (resolved == "Noir AMOLED")
             {
                 Back = Color.FromRgb(0, 0, 0); Panel = Color.FromRgb(9, 10, 14); Raised = Color.FromRgb(20, 22, 29);
                 Muted = Color.FromRgb(154, 160, 173); TextPrimary = Color.FromRgb(245, 247, 251); BorderColor = Color.FromRgb(31, 35, 44);
+                HeroBase = Color.FromRgb(0, 0, 0);
             }
             else
             {
@@ -1151,6 +1178,7 @@ namespace LyaranTV
                 // l'accent reste la seule couleur forte de l'interface.
                 Back = Color.FromRgb(7, 8, 11); Panel = Color.FromRgb(16, 18, 24); Raised = Color.FromRgb(24, 27, 35);
                 Muted = Color.FromRgb(155, 163, 180); TextPrimary = Color.FromRgb(245, 247, 251); BorderColor = Color.FromRgb(36, 40, 51);
+                HeroBase = Color.FromRgb(8, 8, 14);
             }
             Success = Color.FromRgb(74, 222, 128); Danger = Color.FromRgb(248, 113, 113); Warning = Color.FromRgb(251, 191, 36);
             Color parsedSecondary;

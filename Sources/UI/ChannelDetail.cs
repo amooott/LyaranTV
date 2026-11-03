@@ -245,7 +245,7 @@ namespace LyaranTV
                 // En panneau flottant, l'image reste un aperçu compact façon Netflix :
                 // la fiche ne prend jamais toute la fenêtre.
                 Height = modal ? 280 : 400, ClipToBounds = true,
-                Background = Brush(Color.FromRgb(8, 8, 14))
+                Background = Brush(HeroBase)
             };
             if (hasBackdrop)
             {
@@ -285,8 +285,8 @@ namespace LyaranTV
                     Background = new LinearGradientBrush(new GradientStopCollection
                     {
                         new GradientStop(WithAlpha(Accent, 58), 0),
-                        new GradientStop(Color.FromRgb(22, 16, 42), 0.45),
-                        new GradientStop(Color.FromRgb(8, 8, 14), 1)
+                        new GradientStop(LightMix(HeroBase, Accent, 0.16), 0.45),
+                        new GradientStop(HeroBase, 1)
                     }, new Point(0.12, 0), new Point(0.9, 1))
                 });
                 // Halo secondaire et filigrane du titre : la fiche reste

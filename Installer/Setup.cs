@@ -33,7 +33,7 @@ namespace LyaranTV.Setup
     internal static class SetupProgram
     {
         public const string ProductName = "LyaranTV";
-        public const string Version = "1.4.12";
+        public const string Version = "1.4.13";
         public const string Publisher = "Amooott";
         public const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\LyaranTV";
 
@@ -969,8 +969,49 @@ namespace LyaranTV.Setup
         public static readonly Color Success = Color.FromArgb(52, 211, 153);
         public static readonly Color Danger = Color.FromArgb(248, 113, 113);
 
-        public static Font Body(float size) { return new Font("Segoe UI", size); }
-        public static Font Strong(float size) { return new Font("Segoe UI Semibold", size); }
+        // Deuxième teinte du dégradé, identique à celle de l'application.
+        public static readonly Color Secondary = Color.FromArgb(34, 211, 238);
+
+        // L'application dessine en Inter quand elle est installée, sinon en Segoe
+        // UI : l'installateur suit exactement la même règle, pour que l'interface
+        // ne change pas de police entre la mise à jour et le programme.
+        static readonly string UiFamily = ResolveFamily("Inter", "Segoe UI");
+        static readonly string StrongFamily = ResolveFamily("Inter", "Segoe UI Semibold");
+
+        static string ResolveFamily(string preferred, string fallback)
+        {
+            try
+            {
+                foreach (FontFamily family in FontFamily.Families)
+                    if (String.Equals(family.Name, preferred, StringComparison.OrdinalIgnoreCase)) return preferred;
+            }
+            catch { }
+            return fallback;
+        }
+
+        public static Font Body(float size) { return new Font(UiFamily, size); }
+        public static Font Strong(float size) { return new Font(StrongFamily, size); }
+
+        [System.Runtime.InteropServices.DllImport("dwmapi.dll", PreserveSig = true)]
+        static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+
+        /// <summary>
+        /// Coins arrondis et liseré natifs, comme la fenêtre principale de
+        /// l'application. Windows 10 et antérieurs ignorent simplement les
+        /// attributs inconnus.
+        /// </summary>
+        public static void RoundWindow(IntPtr hwnd)
+        {
+            if (hwnd == IntPtr.Zero) return;
+            try
+            {
+                int corner = 2;
+                DwmSetWindowAttribute(hwnd, 33, ref corner, sizeof(int));
+                int edge = (Border.B << 16) | (Border.G << 8) | Border.R;
+                DwmSetWindowAttribute(hwnd, 34, ref edge, sizeof(int));
+            }
+            catch { }
+        }
     }
 
     internal static class Draw
@@ -1252,8 +1293,14 @@ namespace LyaranTV.Setup
         {
             base.OnPaint(e);
             using (var pen = new Pen(Theme.Border)) e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
-            using (var brush = new LinearGradientBrush(new Rectangle(0, 0, Width, 3), Theme.Accent, Color.FromArgb(34, 211, 238), 0f))
+            using (var brush = new LinearGradientBrush(new Rectangle(0, 0, Width, 3), Theme.Accent, Theme.Secondary, 0f))
                 e.Graphics.FillRectangle(brush, new Rectangle(0, 0, Width, 3));
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            Theme.RoundWindow(Handle);
         }
 
         /// <summary>Appelé depuis le fil d'installation : l'affichage passe par le fil d'interface.</summary>

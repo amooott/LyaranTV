@@ -88,7 +88,7 @@ namespace LyaranTV
                 {
                     new GradientStop(Color.FromRgb(12, 12, 20), 0),
                     new GradientStop(Color.FromRgb(30, 24, 52), 0.55),
-                    new GradientStop(Color.FromRgb(8, 8, 14), 1)
+                    new GradientStop(HeroBase, 1)
                 }, new Point(0, 0), new Point(1, 1)),
                 CornerRadius = new CornerRadius(13), Padding = new Thickness(18, 22, 18, 22),
                 Margin = new Thickness(0, 0, 0, 18), Child = previewBox
