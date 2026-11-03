@@ -329,9 +329,6 @@ namespace LyaranTV
         // comme dans une application vidéo classique.
         void PlayerBack()
         {
-            // La vidéo doit d'abord revenir dans la page : une fenêtre de mini
-            // lecteur survivrait sinon à la destruction du lecteur.
-            ExitMiniPlayer(false);
             if (IsChannelDrawerOpen()) { CloseChannelDrawer(); return; }
             ExitPlayerPage();
         }

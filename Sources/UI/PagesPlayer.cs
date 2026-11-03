@@ -650,10 +650,6 @@ namespace LyaranTV
             playerSleepButton = PlayerButton(Glyphs.Clock, "Minuterie de veille", OpenSleepMenu, false, 38);
             right.Children.Add(playerSleepButton);
 
-            // Mini lecteur : la vidéo sort dans une petite fenêtre au premier plan,
-            // pour continuer à regarder en faisant autre chose.
-            right.Children.Add(PlayerButton(Glyphs.BackToWindow, "Mini lecteur · P", ToggleMiniPlayer, false, 38));
-
             audioButton = PlayerButton(Glyphs.Music, "Pistes audio · A", OpenAudioTrackMenu, false, 38);
             right.Children.Add(audioButton);
 
