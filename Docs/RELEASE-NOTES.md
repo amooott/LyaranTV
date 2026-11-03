@@ -1,12 +1,12 @@
-# LyaranTV 1.4.5
+# LyaranTV 1.4.6
 
-Le lecteur retrouve ses commandes : retour, « C » et liste des chaînes.
+La mise à jour affiche de nouveau sa progression pendant l'installation.
 
-## Correction
+## Nouveautés
 
-- **Générique qui bloquait l'interface** : la fenêtre du générique restait ouverte au-dessus de l'application quand son fondu échouait, et interceptait clics et raccourcis — d'où le bouton retour et la touche « C » sans effet dans le lecteur. Elle est désormais transparente aux clics, sans activation, se ferme par minuterie (et par un filet de sécurité à 4 s) et s'efface au premier clic dans l'application.
+- **Barre de progression d'installation** : après le téléchargement, l'application se ferme et l'installateur affiche une fenêtre compacte — « Installation de la mise à jour », étape en cours, pourcentage et barre animée — puis « Redémarrage de LyaranTV… » et relance la nouvelle version. Elle reste au premier plan et ne s'ouvre que pour les mises à jour interactives.
 
 ## Vérifications
 
 - Auto-test : **34/34**.
-- Compilation avec `Sources\Reconstruire.bat`.
+- Compilation de l'application et de l'installateur.

@@ -33,7 +33,7 @@ namespace LyaranTV.Setup
     internal static class SetupProgram
     {
         public const string ProductName = "LyaranTV";
-        public const string Version = "1.4.5";
+        public const string Version = "1.4.6";
         public const string Publisher = "Amooott";
         public const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\LyaranTV";
 
@@ -83,7 +83,7 @@ namespace LyaranTV.Setup
             if (silent)
             {
                 string target = String.IsNullOrWhiteSpace(silentTarget) ? InstallDir : silentTarget;
-                int result = Install(target, true, update, null);
+                int result = InstallWithProgress(target, update);
                 if (update)
                 {
                     if (result == 0) Launch(target);
@@ -231,6 +231,46 @@ namespace LyaranTV.Setup
                 else if (Environment.UserInteractive && !IsSilent) MessageBox.Show(ex.Message, ProductName, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return 1;
             }
+        }
+
+        /// <summary>
+        /// Mise à jour silencieuse : l'application vient de se fermer, une petite
+        /// fenêtre affiche la progression pendant que les fichiers sont
+        /// remplacés, puis la nouvelle version est relancée. Sans elle, la mise
+        /// à jour restait sans aucun retour visible.
+        /// </summary>
+        static int InstallWithProgress(string target, bool update)
+        {
+            if (!update || !Environment.UserInteractive) return Install(target, true, update, null);
+
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
+            int result = 1;
+            using (var form = new UpdateProgressForm())
+            {
+                var worker = new System.Threading.Thread(delegate()
+                {
+                    int outcome = 1;
+                    try
+                    {
+                        outcome = Install(target, true, true, delegate(int percent, string step, int index)
+                        {
+                            form.Report(percent, step);
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Log("Update: " + ex);
+                    }
+                    result = outcome;
+                    form.Finish(outcome);
+                });
+                worker.IsBackground = true;
+                worker.Start();
+                Application.Run(form);
+            }
+            return result;
         }
 
         static void WaitForRunningInstance(bool update)
@@ -1152,6 +1192,106 @@ namespace LyaranTV.Setup
             }
             TextRenderer.DrawText(g, Text, Font, new Rectangle(32, 0, Width - 33, Height), ForeColor,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        }
+    }
+
+    /// <summary>
+    /// Progression de la mise à jour : l'ancienne version est fermée et
+    /// l'installateur remplace les fichiers. Fenêtre compacte, sans bordure,
+    /// toujours au premier plan, refermée dès l'installation terminée.
+    /// </summary>
+    internal sealed class UpdateProgressForm : Form
+    {
+        readonly SlimBar bar;
+        readonly Label stepLabel;
+        readonly Label percentLabel;
+
+        public UpdateProgressForm()
+        {
+            Text = SetupProgram.ProductName + " · mise à jour";
+            FormBorderStyle = FormBorderStyle.None;
+            StartPosition = FormStartPosition.CenterScreen;
+            ClientSize = new Size(430, 132);
+            BackColor = Theme.Background;
+            ShowInTaskbar = false;
+            TopMost = true;
+            DoubleBuffered = true;
+
+            var title = new Label
+            {
+                Text = "Installation de la mise à jour", Font = Theme.Strong(13.5f), ForeColor = Theme.Text,
+                AutoSize = false, Bounds = new Rectangle(22, 18, 386, 24)
+            };
+            var subtitle = new Label
+            {
+                Text = SetupProgram.ProductName + " " + SetupProgram.Version + "  ·  ne fermez pas cette fenêtre",
+                Font = Theme.Body(9f), ForeColor = Theme.Muted, AutoSize = false,
+                Bounds = new Rectangle(22, 42, 386, 18)
+            };
+            stepLabel = new Label
+            {
+                Text = "Préparation des fichiers…", Font = Theme.Body(9.5f), ForeColor = Theme.Text,
+                AutoSize = false, Bounds = new Rectangle(22, 70, 314, 18)
+            };
+            percentLabel = new Label
+            {
+                Text = "0 %", Font = Theme.Strong(9.5f), ForeColor = Theme.AccentHover,
+                TextAlign = ContentAlignment.MiddleRight, AutoSize = false,
+                Bounds = new Rectangle(344, 70, 64, 18)
+            };
+            bar = new SlimBar { Bounds = new Rectangle(22, 96, 386, 10) };
+
+            Controls.Add(title);
+            Controls.Add(subtitle);
+            Controls.Add(stepLabel);
+            Controls.Add(percentLabel);
+            Controls.Add(bar);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            using (var pen = new Pen(Theme.Border)) e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+            using (var brush = new LinearGradientBrush(new Rectangle(0, 0, Width, 3), Theme.Accent, Color.FromArgb(34, 211, 238), 0f))
+                e.Graphics.FillRectangle(brush, new Rectangle(0, 0, Width, 3));
+        }
+
+        /// <summary>Appelé depuis le fil d'installation : l'affichage passe par le fil d'interface.</summary>
+        public void Report(int percent, string step)
+        {
+            if (IsDisposed || !IsHandleCreated) return;
+            try
+            {
+                BeginInvoke(new Action(delegate
+                {
+                    if (percent >= 0)
+                    {
+                        bar.Value = percent;
+                        percentLabel.Text = percent + " %";
+                    }
+                    if (!String.IsNullOrWhiteSpace(step)) stepLabel.Text = step + "…";
+                }));
+            }
+            catch { }
+        }
+
+        /// <summary>Ferme la fenêtre une fois l'installation terminée (ou en échec).</summary>
+        public void Finish(int result)
+        {
+            if (IsDisposed || !IsHandleCreated) return;
+            try
+            {
+                BeginInvoke(new Action(delegate
+                {
+                    bar.Value = 100;
+                    percentLabel.Text = result == 0 ? "Terminé" : "Échec";
+                    stepLabel.Text = result == 0 ? "Redémarrage de " + SetupProgram.ProductName + "…" : "L'installation a échoué.";
+                    var timer = new Timer { Interval = result == 0 ? 550 : 1800 };
+                    timer.Tick += delegate { timer.Stop(); timer.Dispose(); Close(); };
+                    timer.Start();
+                }));
+            }
+            catch { }
         }
     }
 
