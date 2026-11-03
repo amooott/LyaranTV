@@ -343,7 +343,7 @@ namespace LyaranTV
             {
                 activeKind = captured; activeGroup = AllGroups;
                 RenderChannels();
-            }, label + "  ·  " + TextUtil.HumanCount(count) + " élément(s)");
+            }, label + "  ·  " + TextUtil.Count(count, "élément"));
             panel.Children.Add(tab);
         }
 
@@ -477,7 +477,7 @@ namespace LyaranTV
             int remaining = limit;
             if (people.Count > 0)
             {
-                channelList.Children.Add(SectionHeader("Personnes", TextUtil.HumanCount(people.Count) + " personne(s) dans les crédits chargés.", null));
+                channelList.Children.Add(SectionHeader("Personnes", TextUtil.Count(people.Count, "personne") + " dans les crédits chargés.", null));
                 var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
                 foreach (var person in people)
                 {
@@ -504,7 +504,7 @@ namespace LyaranTV
             foreach (var group in groups)
             {
                 if (remaining <= 0) break;
-                channelList.Children.Add(SectionHeader(group.Key, TextUtil.HumanCount(group.Count()) + " résultat(s)", null));
+                channelList.Children.Add(SectionHeader(group.Key, TextUtil.Count(group.Count(), "résultat"), null));
                 int take = Math.Min(remaining, group.Count());
                 if (gridView || collectionGrid)
                 {
@@ -862,13 +862,17 @@ namespace LyaranTV
             page = "Catégories"; RebuildSidebar();
             var root = PageRoot("Gestion des catégories", "Masquez les groupes inutiles pour alléger votre bibliothèque.");
             if (channels.Count == 0) { root.Children.Add(EmptyState(Glyphs.Filter, "Aucune catégorie", "Chargez une playlist pour gérer ses catégories.", Button(Glyphs.Add, "Ajouter une playlist", AddPlaylist, true))); SetContent(root); return; }
-            var head = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 12) };
-            var search = StyledTextBox(); search.Width = 320; search.ToolTip = "Filtrer les catégories";
+            var head = new Grid { Margin = new Thickness(0, 0, 0, 16) };
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var search = StyledTextBox(); search.Width = 340; search.ToolTip = "Filtrer les catégories";
             var hint = Text("Filtrer les catégories…", 12, Brush(Muted), false); hint.IsHitTestVisible = false; hint.Margin = new Thickness(12, 0, 0, 0);
-            var searchHost = new Grid(); searchHost.Children.Add(search); searchHost.Children.Add(hint); SetPlaceholder(search, hint);
-            DockPanel.SetDock(searchHost, Dock.Left); head.Children.Add(searchHost);
+            var searchHost = new Grid { HorizontalAlignment = HorizontalAlignment.Left }; searchHost.Children.Add(search); searchHost.Children.Add(hint); SetPlaceholder(search, hint);
+            Grid.SetColumn(searchHost, 0); head.Children.Add(searchHost);
             var restore = Button(Glyphs.View, "Tout afficher", delegate { hiddenGroups.Clear(); SaveState(); ShowCategories(); ShowToast("Toutes les catégories sont visibles.", false, true); }, false);
-            DockPanel.SetDock(restore, Dock.Right); head.Children.Add(restore);
+            restore.Margin = new Thickness(0); restore.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(restore, 2); head.Children.Add(restore);
             root.Children.Add(head);
             var listing = new StackPanel(); root.Children.Add(listing);
             Action render = null;
@@ -881,21 +885,55 @@ namespace LyaranTV
                     .Where(g => query.Length == 0 || TextUtil.Contains(g.Name, query))
                     .OrderBy(g => g.Name, StringComparer.CurrentCultureIgnoreCase)
                     .Take(600).ToList();
+                if (groups.Count == 0)
+                {
+                    listing.Children.Add(Card(Text("Aucune catégorie ne correspond au filtre.", 12, Brush(Muted), false), 16));
+                    return;
+                }
+                var list = new StackPanel();
+                bool first = true;
                 foreach (var group in groups)
                 {
-                    var row = new DockPanel { LastChildFill = false };
-                    var labels = new StackPanel(); labels.Children.Add(Text(group.Name, 13.5, Brush(TextPrimary), true)); labels.Children.Add(Text(TextUtil.HumanCount(group.Count) + " élément(s)" + (group.Hidden ? " · masquée" : ""), 10.5, Brush(Muted), false)); DockPanel.SetDock(labels, Dock.Left); row.Children.Add(labels);
+                    if (!first) list.Children.Add(new Border { Height = 1, Background = Brush(WithAlpha(BorderColor, 130)), Margin = new Thickness(6, 0, 6, 0) });
+                    first = false;
+                    var row = new Grid { MinHeight = 58 };
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                    labels.Children.Add(Text(group.Name, 13.5, Brush(TextPrimary), true));
+                    string meta = TextUtil.Count(group.Count, "élément");
+                    if (group.Hidden) meta += "  ·  masquée";
+                    var metaText = Text(meta, 12, group.Hidden ? Brush(Danger) : Brush(Muted), false);
+                    metaText.Margin = new Thickness(0, 2, 0, 0);
+                    labels.Children.Add(metaText);
+                    Grid.SetColumn(labels, 0); row.Children.Add(labels);
+                    var actions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                    if (group.Hidden)
+                    {
+                        var badge = Badge("MASQUÉE", Brush(WithAlpha(Danger, 30)), Brush(Danger));
+                        badge.Margin = new Thickness(0, 0, 12, 0);
+                        actions.Children.Add(badge);
+                    }
                     string captured = group.Name;
-                    var toggle = Button(group.Hidden ? "Afficher" : "Masquer", delegate
+                    var toggle = TextAction(group.Hidden ? "Afficher" : "Masquer", delegate
                     {
                         if (hiddenGroups.Contains(captured)) hiddenGroups.Remove(captured); else hiddenGroups.Add(captured);
                         SaveState(); render();
-                    }, group.Hidden);
-                    toggle.Margin = new Thickness(0); DockPanel.SetDock(toggle, Dock.Right); row.Children.Add(toggle);
-                    if (group.Hidden) { var badge = Badge("MASQUÉE", Brush(WithAlpha(Danger, 36)), Brush(Danger)); badge.Margin = new Thickness(0, 0, 10, 0); DockPanel.SetDock(badge, Dock.Right); row.Children.Add(badge); }
-                    listing.Children.Add(Card(row, 12));
+                    }, group.Hidden ? "Rendre cette catégorie visible" : "Masquer cette catégorie");
+                    actions.Children.Add(toggle);
+                    Grid.SetColumn(actions, 1); row.Children.Add(actions);
+                    var host = new Border { Child = row, Padding = new Thickness(10, 4, 6, 4), CornerRadius = new CornerRadius(9), Background = Brushes.Transparent };
+                    host.MouseEnter += delegate { host.Background = Brush(WithAlpha(TextPrimary, 7)); };
+                    host.MouseLeave += delegate { host.Background = Brushes.Transparent; };
+                    list.Children.Add(host);
                 }
-                if (listing.Children.Count == 0) listing.Children.Add(Card(Text("Aucune catégorie ne correspond au filtre.", 12, Brush(Muted), false), 16));
+                var shell = new Border
+                {
+                    Child = list, Background = new LinearGradientBrush(LightMix(Panel, TextPrimary, 0.03), Panel, 90),
+                    BorderBrush = Brush(BorderColor), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14),
+                    Padding = new Thickness(10, 6, 10, 6)
+                };
+                listing.Children.Add(shell);
             };
             search.TextChanged += delegate { render(); };
             render();
@@ -912,13 +950,17 @@ namespace LyaranTV
                 root.Children.Add(EmptyState(Glyphs.View, "Aucune chaîne masquée", "Les chaînes que vous masquez depuis la bibliothèque apparaîtront ici.", null));
                 SetContent(root); return;
             }
-            var head = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 12) };
-            var search = StyledTextBox(); search.Width = 320;
+            var head = new Grid { Margin = new Thickness(0, 0, 0, 16) };
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var search = StyledTextBox(); search.Width = 340;
             var hint = Text("Rechercher une chaîne masquée…", 12, Brush(Muted), false); hint.IsHitTestVisible = false; hint.Margin = new Thickness(12, 0, 0, 0);
-            var searchHost = new Grid(); searchHost.Children.Add(search); searchHost.Children.Add(hint); SetPlaceholder(search, hint);
-            DockPanel.SetDock(searchHost, Dock.Left); head.Children.Add(searchHost);
+            var searchHost = new Grid { HorizontalAlignment = HorizontalAlignment.Left }; searchHost.Children.Add(search); searchHost.Children.Add(hint); SetPlaceholder(search, hint);
+            Grid.SetColumn(searchHost, 0); head.Children.Add(searchHost);
             var restoreAll = Button(Glyphs.View, "Tout restaurer", delegate { hiddenChannels.Clear(); SaveState(); ShowHiddenChannels(); RebuildSidebar(); ShowToast("Toutes les chaînes sont visibles.", false, true); }, false);
-            DockPanel.SetDock(restoreAll, Dock.Right); head.Children.Add(restoreAll);
+            restoreAll.Margin = new Thickness(0); restoreAll.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(restoreAll, 2); head.Children.Add(restoreAll);
             root.Children.Add(head);
             var listing = new StackPanel(); root.Children.Add(listing);
             Action render = delegate
@@ -926,16 +968,43 @@ namespace LyaranTV
                 listing.Children.Clear();
                 string query = search.Text.Trim();
                 var visible = hidden.Where(c => query.Length == 0 || TextUtil.Contains(c.Name, query) || TextUtil.Contains(c.Group, query)).Take(500).ToList();
+                if (visible.Count == 0)
+                {
+                    listing.Children.Add(Card(Text("Aucune chaîne ne correspond au filtre.", 12, Brush(Muted), false), 16));
+                    return;
+                }
+                var list = new StackPanel();
+                bool first = true;
                 foreach (var channel in visible)
                 {
-                    var row = new DockPanel { LastChildFill = false };
-                    var logo = BuildLogo(channel, 34); DockPanel.SetDock(logo, Dock.Left); row.Children.Add(logo);
-                    var labels = new StackPanel { Margin = new Thickness(10, 0, 0, 0) }; labels.Children.Add(Text(channel.Name, 13, Brush(TextPrimary), true)); labels.Children.Add(Text(channel.Group, 10, Brush(Muted), false)); DockPanel.SetDock(labels, Dock.Left); row.Children.Add(labels);
-                    var restore = Button("Afficher", delegate { hiddenChannels.Remove(channel.Id); SaveState(); ShowHiddenChannels(); RebuildSidebar(); }, true);
-                    restore.Margin = new Thickness(0); DockPanel.SetDock(restore, Dock.Right); row.Children.Add(restore);
-                    listing.Children.Add(Card(row, 11));
+                    if (!first) list.Children.Add(new Border { Height = 1, Background = Brush(WithAlpha(BorderColor, 130)), Margin = new Thickness(6, 0, 6, 0) });
+                    first = false;
+                    var row = new Grid { MinHeight = 58 };
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    var logo = BuildLogo(channel, 32); logo.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(logo, 0); row.Children.Add(logo);
+                    var labels = new StackPanel { Margin = new Thickness(12, 0, 16, 0), VerticalAlignment = VerticalAlignment.Center };
+                    labels.Children.Add(Text(channel.Name, 13, Brush(TextPrimary), true));
+                    labels.Children.Add(Text(String.IsNullOrWhiteSpace(channel.Group) ? "Non classé" : channel.Group, 12, Brush(Muted), false));
+                    Grid.SetColumn(labels, 1); row.Children.Add(labels);
+                    Channel captured = channel;
+                    var restore = TextAction("Afficher", delegate
+                    {
+                        hiddenChannels.Remove(captured.Id); SaveState(); ShowHiddenChannels(); RebuildSidebar();
+                    }, "Restaurer cette chaîne dans la bibliothèque");
+                    Grid.SetColumn(restore, 2); row.Children.Add(restore);
+                    var host = new Border { Child = row, Padding = new Thickness(8, 4, 6, 4), CornerRadius = new CornerRadius(9), Background = Brushes.Transparent };
+                    host.MouseEnter += delegate { host.Background = Brush(WithAlpha(TextPrimary, 7)); };
+                    host.MouseLeave += delegate { host.Background = Brushes.Transparent; };
+                    list.Children.Add(host);
                 }
-                if (visible.Count == 0) listing.Children.Add(Card(Text("Aucune chaîne ne correspond au filtre.", 12, Brush(Muted), false), 16));
+                listing.Children.Add(new Border
+                {
+                    Child = list, Background = new LinearGradientBrush(LightMix(Panel, TextPrimary, 0.03), Panel, 90),
+                    BorderBrush = Brush(BorderColor), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14),
+                    Padding = new Thickness(10, 6, 10, 6)
+                });
             };
             search.TextChanged += delegate { render(); };
             render();

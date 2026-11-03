@@ -60,6 +60,14 @@ Huit accents sont proposés : violet `#8B5CF6` (défaut), cyan `#22D3EE`, bleu `
 
 L'ancien accent ambre `#F2A33C` des versions précédentes est migré automatiquement vers le violet LyaranTV.
 
+### Seconde teinte et ambiance
+
+Chaque thème combine l'accent avec une **seconde couleur de dégradé** (cyan `#22D3EE` par défaut), réglable indépendamment. Elle alimente les boutons principaux, la bordure supérieure, les halos et les accents secondaires : proche de l'accent, le dégradé reste subtil ; opposée, il devient plus vibrant.
+
+L'**ambiance** règle l'intensité des halos de fond en trois niveaux : **Discrète** (34 %), **Équilibrée** (58 %) et **Vive** (82 %). L'option **surfaces teintées** mélange une faible part d'accent aux panneaux et aux cartes, au lieu du gris neutre, pour réchauffer l'interface sans nuire au contraste.
+
+Le fond de fenêtre reste volontairement composé de teintes sombres proches. Un dégradé clair vers sombre produirait un voile gris au milieu de l'interpolation ; la lumière est donc confiée aux halos radiaux, dont seule l'opacité varie.
+
 ## Typographie
 
 - Famille : **Inter**, avec repli sur **Segoe UI**.
@@ -89,6 +97,15 @@ Le logo LyaranTV est la piste **17 · Égaliseur** : un carré arrondi violet-bl
 - Dialogues : rayon 16–20 px, fond panneau, ombre douce, bouton de fermeture explicite.
 
 ## Composants
+
+### Boutons et surfaces
+
+- **Survol façon streaming** : un reflet diagonal traverse le bouton, qui remonte de 2,5 % ; à l'appui, il s'enfonce de 2,5 %. Les rangées de navigation, filtres et listes utilisent la même famille de modèles sans mise à l'échelle, pour rester calmes.
+- **Boutons principaux** : dégradé accent → seconde teinte, encre choisie automatiquement pour le contraste, rayon 9 px.
+- **Barre supérieure** : filet inférieur en dégradé accent → seconde teinte → bordure.
+- **Barre latérale** : dégradé vertical sombre, plus clair en haut, l'indicateur de page actif restant en dégradé d'accent.
+- **Cartes** : surface légèrement dégradée de haut en bas, sans effet de verre ni ombre lourde au repos.
+- **Listes groupées** : catégories et chaînes masquées réunies dans une seule carte, séparées par des filets fins, avec des lignes compactes au survol accentué.
 
 ### Bibliothèque en mode découverte
 

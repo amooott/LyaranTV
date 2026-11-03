@@ -116,6 +116,26 @@ namespace LyaranTV
         Brush AccentSoftBrush { get { return Brush(WithAlpha(Accent, 38)); } }
         Brush HoverBrush { get { return Brush(WithAlpha(TextPrimary, 12)); } }
 
+        /// <summary>
+        /// Dégradé signature de l'application : accent principal vers la
+        /// deuxième couleur choisie. Il donne du relief aux actions fortes sans
+        /// multiplier les teintes.
+        /// </summary>
+        Brush AccentGradientBrush()
+        {
+            return new LinearGradientBrush(Accent, LightMix(Accent, Secondary, 0.62), new Point(0, 0), new Point(1, 1));
+        }
+
+        Brush AccentSoftGradientBrush()
+        {
+            return new LinearGradientBrush(WithAlpha(Accent, 46), WithAlpha(Secondary, 20), new Point(0, 0), new Point(1, 1));
+        }
+
+        Brush AccentBorderGradient()
+        {
+            return new LinearGradientBrush(WithAlpha(Accent, 220), WithAlpha(Secondary, 180), new Point(0, 0), new Point(1, 1));
+        }
+
         TextBlock Text(string value, double size, Brush color, bool bold)
         {
             // Plancher de lisibilité : les anciennes métadonnées à 9,5 px
@@ -170,9 +190,10 @@ namespace LyaranTV
             var button = new Button
             {
                 Content = content, Height = 38, Padding = new Thickness(14, 4, 14, 4), Margin = new Thickness(0, 0, 8, 0),
-                Background = Brush(primary ? Accent : Raised), Foreground = Brush(primary ? TextOnAccentColor() : TextPrimary),
-                BorderBrush = Brush(primary ? Accent : BorderColor), BorderThickness = new Thickness(1),
+                Background = primary ? AccentGradientBrush() : Brush(Raised), Foreground = Brush(primary ? TextOnAccentColor() : TextPrimary),
+                BorderBrush = primary ? Brush(Accent) : Brush(BorderColor), BorderThickness = new Thickness(1),
                 Cursor = Cursors.Hand, FontSize = 13, FocusVisualStyle = null, SnapsToDevicePixels = true,
+                RenderTransformOrigin = new Point(0.5, 0.5),
                 HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
                 Template = RoundedButtonTemplate()
             };
@@ -186,9 +207,10 @@ namespace LyaranTV
             {
                 Content = Icon(glyph, 15, primary ? Brush(TextOnAccentColor()) : Brush(TextPrimary)),
                 Width = 38, Height = 38, Padding = new Thickness(0), Margin = new Thickness(0, 0, 7, 0),
-                Background = Brush(primary ? Accent : Raised), BorderBrush = Brush(primary ? Accent : BorderColor),
+                Background = primary ? AccentGradientBrush() : Brush(Raised), BorderBrush = primary ? Brush(Accent) : Brush(BorderColor),
                 BorderThickness = new Thickness(1), Cursor = Cursors.Hand, FocusVisualStyle = null,
                 ToolTip = tooltip, Template = RoundedButtonTemplate(), SnapsToDevicePixels = true,
+                RenderTransformOrigin = new Point(0.5, 0.5),
                 HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center
             };
             if (click != null) button.Click += delegate { click(); };
@@ -203,10 +225,11 @@ namespace LyaranTV
             {
                 Content = Icon(glyph, primary ? Math.Round(size * 0.44) : 16, Brushes.White),
                 Width = size, Height = size, Padding = new Thickness(0), Margin = new Thickness(0, 0, 8, 0),
-                Background = primary ? Brush(Accent) : Brush(Color.FromArgb(132, 12, 12, 18)),
+                Background = primary ? AccentGradientBrush() : Brush(Color.FromArgb(132, 12, 12, 18)),
                 BorderBrush = primary ? Brush(Accent) : Brush(Color.FromArgb(74, 255, 255, 255)),
                 BorderThickness = new Thickness(1), Cursor = Cursors.Hand, FocusVisualStyle = null,
                 ToolTip = tooltip, Template = RoundedButtonTemplate(size / 2), SnapsToDevicePixels = true,
+                RenderTransformOrigin = new Point(0.5, 0.5),
                 HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center
             };
             if (click != null) button.Click += delegate { click(); };
@@ -223,7 +246,7 @@ namespace LyaranTV
                 Foreground = Brush(TextPrimary),
                 BorderBrush = Brush(active ? Accent : BorderColor), BorderThickness = new Thickness(1),
                 Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(),
-                SnapsToDevicePixels = true
+                SnapsToDevicePixels = true, RenderTransformOrigin = new Point(0.5, 0.5)
             };
             if (click != null) button.Click += delegate { click(); };
             return button;
@@ -252,7 +275,7 @@ namespace LyaranTV
             {
                 Content = stack, Height = 42, Padding = new Thickness(15, 0, 15, 0), Margin = new Thickness(0),
                 Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brush(TextPrimary),
-                Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(8),
+                Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(8, false),
                 HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center
             };
             if (!String.IsNullOrWhiteSpace(tooltip)) button.ToolTip = tooltip;
@@ -280,6 +303,7 @@ namespace LyaranTV
                 Content = content, Height = 32, Padding = new Thickness(9, 0, 9, 0), Margin = new Thickness(0),
                 Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brush(TextPrimary),
                 Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(8),
+                SnapsToDevicePixels = true, RenderTransformOrigin = new Point(0.5, 0.5),
                 HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center
             };
             if (!String.IsNullOrWhiteSpace(tooltip)) button.ToolTip = tooltip;
@@ -289,7 +313,7 @@ namespace LyaranTV
             return button;
         }
 
-        ControlTemplate RoundedButtonTemplate(double radius = 9)
+        ControlTemplate RoundedButtonTemplate(double radius = 9, bool pressable = true)
         {
             var grid = new FrameworkElementFactory(typeof(Grid));
             var chrome = new FrameworkElementFactory(typeof(Border));
@@ -311,10 +335,13 @@ namespace LyaranTV
             grid.AppendChild(content);
             var template = new ControlTemplate(typeof(System.Windows.Controls.Button)) { VisualTree = grid };
             var over = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
-            over.Setters.Add(new Setter(Border.BackgroundProperty, Brush(Color.FromArgb(18, 255, 255, 255)), "Hover"));
+            // Voile diagonal plutôt qu'un aplat : la lumière glisse sur le bouton
+            // comme sur une surface vitrée, sans changer sa couleur de base.
+            over.Setters.Add(new Setter(Border.BackgroundProperty, new LinearGradientBrush(
+                Color.FromArgb(30, 255, 255, 255), Color.FromArgb(8, 255, 255, 255), new Point(0, 0), new Point(0.9, 1)), "Hover"));
             template.Triggers.Add(over);
             var pressed = new Trigger { Property = System.Windows.Controls.Button.IsPressedProperty, Value = true };
-            pressed.Setters.Add(new Setter(Border.BackgroundProperty, Brush(Color.FromArgb(34, 255, 255, 255)), "Hover"));
+            pressed.Setters.Add(new Setter(Border.BackgroundProperty, Brush(Color.FromArgb(40, 255, 255, 255)), "Hover"));
             template.Triggers.Add(pressed);
             var focused = new Trigger { Property = UIElement.IsKeyboardFocusedProperty, Value = true };
             focused.Setters.Add(new Setter(Border.BorderBrushProperty, Brush(Accent), "Chrome"));
@@ -322,6 +349,17 @@ namespace LyaranTV
             var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
             disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.46, "Chrome"));
             template.Triggers.Add(disabled);
+            if (pressable)
+            {
+                // Réponse tactile à la Netflix : le bouton s'approche très
+                // légèrement sous le curseur et s'enfonce au clic.
+                var lift = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+                lift.Setters.Add(new Setter(UIElement.RenderTransformProperty, new ScaleTransform(1.025, 1.025)));
+                template.Triggers.Add(lift);
+                var sink = new Trigger { Property = System.Windows.Controls.Button.IsPressedProperty, Value = true };
+                sink.Setters.Add(new Setter(UIElement.RenderTransformProperty, new ScaleTransform(0.975, 0.975)));
+                template.Triggers.Add(sink);
+            }
             return template;
         }
 
@@ -746,7 +784,11 @@ namespace LyaranTV
         {
             return new Border
             {
-                Child = child, Background = Brush(Panel), BorderBrush = Brush(BorderColor), BorderThickness = new Thickness(1),
+                Child = child,
+                // Voile vertical très léger : la carte se détache du fond sans
+                // trait lourd, comme une surface de verre dépoli.
+                Background = new LinearGradientBrush(LightMix(Panel, TextPrimary, 0.035), Panel, 90),
+                BorderBrush = Brush(BorderColor), BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(14), Padding = new Thickness(padding), Margin = new Thickness(0, 0, 0, 14),
                 SnapsToDevicePixels = true
             };
@@ -1088,9 +1130,21 @@ namespace LyaranTV
                 Muted = Color.FromRgb(155, 163, 180); TextPrimary = Color.FromRgb(245, 247, 251); BorderColor = Color.FromRgb(36, 40, 51);
             }
             Success = Color.FromRgb(74, 222, 128); Danger = Color.FromRgb(248, 113, 113); Warning = Color.FromRgb(251, 191, 36);
-            Secondary = Color.FromRgb(34, 211, 238);
+            Color parsedSecondary;
+            Secondary = TryParseHexColor(accentSecondaryHex, out parsedSecondary) ? parsedSecondary : Color.FromRgb(34, 211, 238);
             Color parsed;
             Accent = TryParseHexColor(accentHex, out parsed) ? parsed : DefaultAccent;
+            if (tintedBackground)
+            {
+                // Teinte d'ambiance : les surfaces glissent doucement vers
+                // l'accent au lieu de rester neutres, sans jamais colorer les
+                // affiches ni nuire au contraste du texte.
+                bool light = resolved == "Clair";
+                Back = LightMix(Back, Accent, light ? 0.035 : 0.05);
+                Panel = LightMix(Panel, Accent, light ? 0.028 : 0.055);
+                Raised = LightMix(Raised, Accent, light ? 0.045 : 0.07);
+                BorderColor = LightMix(BorderColor, Accent, light ? 0.10 : 0.16);
+            }
         }
 
         static string DetectSystemTheme()

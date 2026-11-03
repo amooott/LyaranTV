@@ -1,3 +1,31 @@
+# LyaranTV 1.4.0
+
+Une mise à jour dédiée aux finitions : des boutons qui réagissent au survol, des dégradés plus soignés et une personnalisation d'apparence beaucoup plus large.
+
+## Nouveautés
+
+- **Personnalisation du dégradé** : une deuxième couleur, réglable depuis Paramètres, colore les boutons principaux, la bordure supérieure, les halos et les accents secondaires. Choisissez-la proche de l'accent pour un rendu discret, ou opposée pour un effet plus vibrant.
+- **Ambiance du fond** : trois intensités — **Discrète**, **Équilibrée** et **Vive** — règlent la présence des halos colorés derrière l'interface, sans jamais gêner la lecture des affiches.
+- **Surfaces teintées** : une option applique une légère teinte d'accent aux panneaux et aux cartes au lieu du gris neutre, pour une interface plus chaleureuse.
+- **Boutons réactifs** : au survol, les boutons laissent passer un reflet diagonal et remontent légèrement ; à l'appui, ils s'enfoncent. Les rangées de navigation et de filtres gardent un mouvement plus sobre.
+
+## Finitions
+
+- **Dégradés plus présents** : bordure supérieure accent → seconde teinte, barre latérale en dégradé vertical, surfaces de cartes légèrement dégradées et boutons principaux en dégradé.
+- **Paramètres réorganisés** : pastilles d'apparence avec anneau et coche, deuxième couleur, ambiance et teinte des surfaces sont regroupées dans la section Apparence, avec des libellés et des espacements plus lisibles.
+- **Catégories et chaînes masquées** : chaque ensemble devient une seule carte groupée, séparée par des filets fins, avec des lignes compactes qui réagissent au survol.
+- **Guide EPG** : colonne d'horaire fixe de 96 px, description sur une seule ligne avec ellipse et survol accentué, pour un guide plus calme et plus lisible.
+- **Fiche de contenu** : bloc « À propos » avec métadonnées sans bordures, repli de hero plus graphique et sur-titre qui ne répète plus le type et la catégorie.
+- **Accords automatiques** : les compteurs utilisent désormais le singulier ou le pluriel correct (« 1 catégorie », « 2 catégories »).
+- **Fond nettoyé** : le dégradé de fond ne produit plus de voile gris au milieu de l'écran ; la lumière vient uniquement des halos colorés.
+
+## Vérifications
+
+- Auto-test : **34/34**.
+- Compilation avec `Sources\Reconstruire.bat`.
+
+---
+
 # LyaranTV 1.3.7
 
 Correction interne de la lecture libVLC.

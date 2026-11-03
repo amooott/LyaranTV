@@ -713,7 +713,7 @@ namespace LyaranTV
                         return;
                     }
                     status.Foreground = Brush(Success);
-                    status.Text = found.Count + " résultat(s). Choisissez la fiche qui correspond."
+                    status.Text = TextUtil.Count(found.Count, "résultat") + ". Choisissez la fiche qui correspond."
                         + (widened ? " Recherche élargie : aucune fiche pour l’année indiquée." : "");
                     foreach (var result in found)
                     {

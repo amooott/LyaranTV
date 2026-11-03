@@ -44,22 +44,33 @@ namespace LyaranTV
                 HorizontalAlignment = HorizontalAlignment.Left
             };
 
+            // « À propos » réunit le synopsis et les informations utiles dans une
+            // seule surface calme, au lieu d'une mosaïque de petites cartes.
             string overview = String.IsNullOrWhiteSpace(channel.Overview) ? channel.Description : channel.Overview;
-            if (!String.IsNullOrWhiteSpace(overview))
-            {
-                var synopsis = new StackPanel();
-                synopsis.Children.Add(Text("SYNOPSIS", 12.5, Brush(Accent), true));
-                var text = Text(overview, 13.5, Brush(TextPrimary), false);
-                text.Margin = new Thickness(0, 6, 0, 0);
-                text.LineHeight = 20;
-                text.MaxWidth = 900;
-                text.HorizontalAlignment = HorizontalAlignment.Left;
-                synopsis.Children.Add(text);
-                body.Children.Add(Card(synopsis, 18));
-            }
+            var about = new StackPanel();
+            about.Children.Add(Text("À PROPOS", 12.5, Brush(Accent), true));
+            bool hasOverview = !String.IsNullOrWhiteSpace(overview);
+            var text = Text(hasOverview ? overview : "Aucun synopsis n’est disponible pour ce contenu.", 13.5,
+                hasOverview ? Brush(TextPrimary) : Brush(Muted), false);
+            text.Margin = new Thickness(0, 7, 0, 0);
+            text.LineHeight = 21;
+            text.MaxWidth = 900;
+            text.HorizontalAlignment = HorizontalAlignment.Left;
+            about.Children.Add(text);
 
-            var facts = BuildChannelDetailFacts(channel);
-            if (facts != null) body.Children.Add(facts);
+            var facts = new WrapPanel { Margin = new Thickness(0, 16, 0, 0) };
+            AddDetailFact(facts, "PAYS", channel.Countries);
+            AddDetailFact(facts, "CLASSIFICATION", channel.Certification);
+            AddDetailFact(facts, "TITRE ORIGINAL", channel.OriginalTitle);
+            if (!String.IsNullOrWhiteSpace(channel.Season) || !String.IsNullOrWhiteSpace(channel.Episode))
+            {
+                string line = "Saison " + (String.IsNullOrWhiteSpace(channel.Season) ? "1" : channel.Season);
+                if (!String.IsNullOrWhiteSpace(channel.Episode)) line += "  ·  Épisode " + channel.Episode;
+                AddDetailFact(facts, "SAISON / ÉPISODE", line);
+            }
+            if (!String.IsNullOrWhiteSpace(channel.Group)) AddDetailFact(facts, "CATÉGORIE", channel.Group);
+            if (facts.Children.Count > 0) about.Children.Add(facts);
+            body.Children.Add(Card(about, 20));
 
             // Informations TMDb : même chargement progressif que l'ancienne fiche,
             // mais dans la page et sans interrompre la navigation.
@@ -135,13 +146,6 @@ namespace LyaranTV
                 body.Children.Add(Card(epg, 18));
             }
 
-            if (!String.IsNullOrWhiteSpace(channel.Season) || !String.IsNullOrWhiteSpace(channel.Episode))
-            {
-                string line = "Saison " + (String.IsNullOrWhiteSpace(channel.Season) ? "1" : channel.Season);
-                if (!String.IsNullOrWhiteSpace(channel.Episode)) line += "  ·  Épisode " + channel.Episode;
-                body.Children.Add(Card(Text(line, 13, Brush(TextPrimary), true), 16));
-            }
-
             if (!String.IsNullOrWhiteSpace(channel.TmdbId))
             {
                 var credit = Text(TmdbClient.Attribution, 12.5, Brush(Muted), false);
@@ -177,15 +181,27 @@ namespace LyaranTV
                 {
                     Background = new LinearGradientBrush(new GradientStopCollection
                     {
-                        new GradientStop(Color.FromRgb(22, 16, 42), 0),
+                        new GradientStop(WithAlpha(Accent, 58), 0),
+                        new GradientStop(Color.FromRgb(22, 16, 42), 0.45),
                         new GradientStop(Color.FromRgb(8, 8, 14), 1)
-                    }, new Point(0, 0), new Point(1, 1))
+                    }, new Point(0.12, 0), new Point(0.9, 1))
                 });
-                var mark = Icon(channel.Kind == "Séries" ? Glyphs.Series : channel.Kind == "Chaînes" ? Glyphs.TV : Glyphs.Movies,
-                    92, Brush(Color.FromArgb(105, 255, 255, 255)));
-                mark.HorizontalAlignment = HorizontalAlignment.Center;
-                mark.VerticalAlignment = VerticalAlignment.Center;
-                hero.Children.Add(mark);
+                // Halo secondaire et filigrane du titre : la fiche reste
+                // cinématographique même sans image de fond.
+                hero.Children.Add(new System.Windows.Shapes.Ellipse
+                {
+                    Width = 620, Height = 620, HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, -260, -120, 0),
+                    Fill = new RadialGradientBrush(WithAlpha(Secondary, 46), WithAlpha(Secondary, 0))
+                });
+                var watermark = Text(TextUtil.DisplayTitle(channel.Name), 64, Brush(Color.FromArgb(26, 255, 255, 255)), true);
+                watermark.HorizontalAlignment = HorizontalAlignment.Right;
+                watermark.VerticalAlignment = VerticalAlignment.Center;
+                watermark.TextAlignment = TextAlignment.Right;
+                watermark.TextWrapping = TextWrapping.Wrap;
+                watermark.MaxWidth = 520;
+                watermark.Margin = new Thickness(0, 0, 56, 0);
+                hero.Children.Add(watermark);
             }
 
             // Assombrissement du haut, du bas et du côté du texte : le titre reste
@@ -234,10 +250,18 @@ namespace LyaranTV
 
             var copy = new StackPanel { Margin = new Thickness(22, 0, 0, 0), VerticalAlignment = VerticalAlignment.Bottom };
             var eyebrowParts = new List<string>();
-            eyebrowParts.Add(KindLabel(channel.Kind));
+            string kindLabel = KindLabel(channel.Kind);
             if (!String.IsNullOrWhiteSpace(channel.Group)
                 && !channel.Group.StartsWith("Saison", StringComparison.OrdinalIgnoreCase))
+            {
+                // Le groupe contient souvent déjà le type (« Films · Drame ») :
+                // on évite « Film · Films · Drame ».
+                bool groupCarriesKind = channel.Group.StartsWith(channel.Kind, StringComparison.OrdinalIgnoreCase)
+                    || channel.Group.StartsWith(kindLabel, StringComparison.OrdinalIgnoreCase);
+                if (!groupCarriesKind) eyebrowParts.Add(kindLabel);
                 eyebrowParts.Add(channel.Group);
+            }
+            else eyebrowParts.Add(kindLabel);
             var eyebrow = Text(String.Join("  ·  ", eyebrowParts.ToArray()), 12.5, Brush(Color.FromArgb(220, 255, 255, 255)), true);
             copy.Children.Add(eyebrow);
 
@@ -320,39 +344,20 @@ namespace LyaranTV
             return hero;
         }
 
-        FrameworkElement BuildChannelDetailFacts(Channel channel)
-        {
-            var facts = new WrapPanel { Margin = new Thickness(0, 0, 0, 14) };
-            AddDetailFact(facts, "ANNÉE", channel.Year);
-            AddDetailFact(facts, "DURÉE", channel.Runtime);
-            AddDetailFact(facts, "GENRES", channel.Genres);
-            AddDetailFact(facts, "PAYS", channel.Countries);
-            AddDetailFact(facts, "CLASSIFICATION", channel.Certification);
-            if (channel.TmdbRating > 0)
-                AddDetailFact(facts, "NOTE TMDb", channel.TmdbRating.ToString("0.0", CultureInfo.InvariantCulture) + " / 10");
-            if (!String.IsNullOrWhiteSpace(channel.Group)) AddDetailFact(facts, "CATÉGORIE", channel.Group);
-            if (!String.IsNullOrWhiteSpace(channel.OriginalTitle)) AddDetailFact(facts, "TITRE ORIGINAL", channel.OriginalTitle);
-            if (facts.Children.Count == 0) return null;
-            return facts;
-        }
-
         void AddDetailFact(System.Windows.Controls.Panel panel, string label, string value)
         {
             if (panel == null || String.IsNullOrWhiteSpace(value)) return;
-            var stack = new StackPanel();
-            stack.Children.Add(Text(label, 12.5, Brush(Muted), true));
+            var stack = new StackPanel
+            {
+                Margin = new Thickness(0, 0, 38, 12), MinWidth = 120, MaxWidth = 280,
+                VerticalAlignment = VerticalAlignment.Top
+            };
+            stack.Children.Add(Text(label, 11, Brush(Muted), true));
             var text = Text(value, 13, Brush(TextPrimary), false);
             text.Margin = new Thickness(0, 2, 0, 0);
-            text.MaxWidth = 230;
             text.TextWrapping = TextWrapping.Wrap;
             stack.Children.Add(text);
-            var card = new Border
-            {
-                Child = stack, Background = Brush(Panel), BorderBrush = Brush(BorderColor), BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(12), Padding = new Thickness(14, 11, 14, 11),
-                Margin = new Thickness(0, 0, 10, 10), MinWidth = 170, MaxWidth = 260
-            };
-            panel.Children.Add(card);
+            panel.Children.Add(stack);
         }
 
         void ResetChannelTmdb(Channel channel)

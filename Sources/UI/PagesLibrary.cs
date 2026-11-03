@@ -368,7 +368,7 @@ namespace LyaranTV
         void AddLibraryKindTab(Panel panel, string label, string kind, int count, string mode)
         {
             string captured = kind;
-            string tooltip = label + "  ·  " + TextUtil.HumanCount(count) + " élément(s)";
+            string tooltip = label + "  ·  " + TextUtil.Count(count, "élément");
             var tab = FilterTab(label, activeKind == captured, delegate
             {
                 activeKind = captured; activeGroup = AllGroups;
@@ -928,7 +928,7 @@ namespace LyaranTV
             icon.Margin = new Thickness(0, 0, 0, 9);
             text.Children.Add(icon);
             text.Children.Add(Text(name, 15, Brush(TextPrimary), true));
-            text.Children.Add(Text(TextUtil.HumanCount(count) + " élément(s)", 10, Brush(Muted), false));
+            text.Children.Add(Text(TextUtil.Count(count, "élément"), 10, Brush(Muted), false));
             grid.Children.Add(text);
             var chevron = Icon(Glyphs.ChevronRight, 14, Brush(WithAlpha(TextPrimary, 120)));
             chevron.HorizontalAlignment = HorizontalAlignment.Right; chevron.VerticalAlignment = VerticalAlignment.Center;
@@ -942,7 +942,7 @@ namespace LyaranTV
             {
                 Child = grid, Width = 214, Height = 126, Background = Brush(Panel), BorderBrush = Brush(BorderColor),
                 BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(16), Margin = new Thickness(0, 0, 12, 14),
-                Cursor = Cursors.Hand, Focusable = true, ToolTip = kind + "  ·  " + name + "  ·  " + TextUtil.HumanCount(count) + " élément(s)"
+                Cursor = Cursors.Hand, Focusable = true, ToolTip = kind + "  ·  " + name + "  ·  " + TextUtil.Count(count, "élément")
             };
             var lift = new TranslateTransform();
             card.RenderTransform = lift;
@@ -1428,7 +1428,7 @@ namespace LyaranTV
         void AddCollectionKindTab(Panel panel, string label, string kind, int count)
         {
             string captured = kind;
-            string tooltip = label + "  ·  " + TextUtil.HumanCount(count) + " élément(s)";
+            string tooltip = label + "  ·  " + TextUtil.Count(count, "élément");
             var tab = FilterTab(label, activeKind == captured, delegate
             {
                 ShowLibraryCollection(CollectionTitle(captured, AllGroups), captured, AllGroups);

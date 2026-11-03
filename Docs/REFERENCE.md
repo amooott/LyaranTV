@@ -154,7 +154,7 @@ Répertoire par défaut : `%APPDATA%\LyaranTV`. Surcharge : variable `LYARANTV_D
 
 | Fichier | Rôle |
 |---|---|
-| `settings.json` | Thème, accent, volume, reprise, TMDb, contrôle parental, lecteur externe, etc. |
+| `settings.json` | Thème, accent et seconde couleur de dégradé, ambiance du fond, surfaces teintées, volume, reprise, TMDb, contrôle parental, lecteur externe, etc. |
 | `playlists.json` | Sources enregistrées ; identifiants chiffrés par DPAPI. |
 | `profiles.json` | Profils, couleurs, indicateur enfant, PIN chiffré. |
 | `favorites.txt` | Favoris du profil Principal. |
@@ -176,6 +176,20 @@ Répertoire par défaut : `%APPDATA%\LyaranTV`. Surcharge : variable `LYARANTV_D
 | `error.log` | Journal local des erreurs. |
 
 Les fichiers du profil `Principal` conservent leurs noms historiques sans suffixe. Les autres profils utilisent un suffixe pour isoler favoris, historique et reprise. `durations.json`, `episodes.json` et `history-sources.json` restent globaux : supprimer une playlist efface son historique, ses reprises, ses durées et ses épisodes en cours dans **tous les profils**, sans toucher aux autres playlists ; les favoris et les réglages sont conservés.
+
+## Apparence
+
+Réglages dans **Paramètres → Apparence**, enregistrés dans `settings.json` :
+
+| Réglage | Champ | Valeurs |
+|---|---|---|
+| Thème | `Theme` | `Sombre`, `Clair`, `Noir AMOLED`, `Automatique`. |
+| Accent | `Accent` | Huit teintes prédéfinies ou hexadécimal personnalisé. |
+| Seconde teinte | `AccentSecondary` | Couleur du dégradé des boutons, halos et accents secondaires. |
+| Ambiance | `Ambience` | `Discrète`, `Équilibrée`, `Vive` — intensité des halos de fond. |
+| Surfaces teintées | `TintedBackground` | `true` / `false` — teinte légère des panneaux par l'accent. |
+
+Les valeurs inconnues sont normalisées au chargement : une ambiance invalide revient à `Équilibrée` et une seconde teinte vide reprend le cyan par défaut.
 
 ## Sauvegarde et export
 

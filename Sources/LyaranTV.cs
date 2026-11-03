@@ -110,17 +110,15 @@ namespace LyaranTV
                     }
                     if (!String.IsNullOrWhiteSpace(detailTarget))
                     {
-                        if (demo || example)
+                        // La bibliothèque en cache peut demander quelques secondes :
+                        // la fiche est ouverte après la restauration, pas avant.
+                        var detailTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds((demo || example) ? 3.2 : 5.5) };
+                        detailTimer.Tick += delegate
                         {
-                            var detailTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.2) };
-                            detailTimer.Tick += delegate
-                            {
-                                detailTimer.Stop();
-                                window.OpenDetailForTest(detailTarget);
-                            };
-                            detailTimer.Start();
-                        }
-                        else window.Dispatcher.BeginInvoke(new Action(delegate { window.OpenDetailForTest(detailTarget); }), DispatcherPriority.Background);
+                            detailTimer.Stop();
+                            window.OpenDetailForTest(detailTarget);
+                        };
+                        detailTimer.Start();
                     }
                     if (!String.IsNullOrWhiteSpace(playTarget)) window.PlayTargetForTest(playTarget);
                     if (!String.IsNullOrWhiteSpace(scrollTarget)) window.ScrollForTest(scrollTarget);

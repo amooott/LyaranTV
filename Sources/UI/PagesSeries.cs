@@ -240,7 +240,7 @@ namespace LyaranTV
 
             root.Children.Add(content);
             SetContent(root);
-            SetStatus(series.Name + " · " + TextUtil.HumanCount(episodes.Count) + " épisode(s).");
+            SetStatus(series.Name + " · " + TextUtil.Count(episodes.Count, "épisode") + ".");
             EnsureSeriesEpisodeArtwork(series, episodes);
         }
 

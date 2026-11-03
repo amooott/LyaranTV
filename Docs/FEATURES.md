@@ -18,7 +18,8 @@ Statut : **P0 terminé**, **P1 terminé**, **P2 partiel / non réalisable native
 | Mode langue | ✅ | Un code (`FR`, `EN`, `AR`, `ES`…) ne laisse visibles que les catégories qui le contiennent ; le réglage reste actif pendant la navigation et après un redémarrage. |
 | Catégories complètes | ✅ | Toutes les catégories de chaînes, films et séries sont affichées en trois blocs verticaux, sans limite de nombre ; chaque carte filtre le type et la catégorie correspondants. |
 | Favoris | ✅ | Ajout/retrait, page dédiée, séparation par profil. |
-| Thèmes | ✅ | Sombre, Clair, Noir AMOLED, Automatique. |
+| Thèmes | ✅ | Sombre, Clair, Noir AMOLED, Automatique, avec **seconde couleur de dégradé**, **ambiance du fond** (Discrète / Équilibrée / Vive) et **surfaces teintées** par l'accent. |
+| Boutons et dégradés | ✅ | Survol façon streaming : reflet diagonal qui traverse le bouton et légère élévation, appui qui enfonce. Boutons principaux en dégradé accent → seconde teinte, bordure supérieure et barre latérale dégradées, cartes à surface légèrement dégradée. |
 | Scrollbars | ✅ | 6/10 px, pouce arrondi, fade, clavier, molette, restauration, bulle de lettre. |
 | Champs de saisie | ✅ | Texte visible dans tous les thèmes, focus accent, placeholder. |
 | Réglages essentiels | ✅ | Volume, reprise, thème, accent, lecteur externe, démarrage. |

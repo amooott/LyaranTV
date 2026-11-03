@@ -113,6 +113,12 @@ namespace LyaranTV
     {
         [DataMember] public string Theme = "Sombre";
         [DataMember] public string Accent = "#8B5CF6";
+        // Deuxième couleur du dégradé : boutons, halos et accents secondaires.
+        [DataMember] public string AccentSecondary = "#22D3EE";
+        // Intensité du halo de fond : « Discrète », « Équilibrée » ou « Vive ».
+        [DataMember] public string Ambience = "Équilibrée";
+        // Teinte légèrement les surfaces avec l'accent au lieu d'un gris neutre.
+        [DataMember] public bool TintedBackground = false;
         [DataMember] public bool AutoPlayLast = false;
         [DataMember] public bool LoadLastSource = false;
         [DataMember] public bool ResumePlayback = true;
@@ -181,6 +187,8 @@ namespace LyaranTV
             LanguageModeCode = LanguageModeCode.Trim().ToUpperInvariant();
             if (String.IsNullOrWhiteSpace(Accent)) Accent = "#8B5CF6";
             if (String.Equals(Accent, "#F2A33C", StringComparison.OrdinalIgnoreCase)) Accent = "#8B5CF6";
+            if (String.IsNullOrWhiteSpace(AccentSecondary)) AccentSecondary = "#22D3EE";
+            if (Ambience != "Discrète" && Ambience != "Équilibrée" && Ambience != "Vive") Ambience = "Équilibrée";
             if (String.IsNullOrWhiteSpace(SortMode)) SortMode = "Nom (A → Z)";
             if (String.IsNullOrWhiteSpace(StartPage)) StartPage = "Accueil";
             if (String.IsNullOrWhiteSpace(AspectMode)) AspectMode = "Adapter";
@@ -426,6 +434,17 @@ namespace LyaranTV
             return value.ToString(@"m\:ss");
         }
         public static string HumanCount(int count) { return count.ToString("N0", CultureInfo.GetCultureInfo("fr-FR")); }
+
+        /// <summary>
+        /// Accorde un nom avec son nombre : « 0 élément », « 1 élément »,
+        /// « 2 éléments ». Le pluriel peut être fourni quand il ne suit pas la
+        /// règle du « s » (catégorie, cheval…).
+        /// </summary>
+        public static string Count(int count, string singular, string plural = null)
+        {
+            string word = count > 1 ? (plural ?? singular + "s") : singular;
+            return HumanCount(count) + " " + word;
+        }
         public static string FormatEta(double seconds)
         {
             if (Double.IsNaN(seconds) || Double.IsInfinity(seconds) || seconds <= 0) return "";

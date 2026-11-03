@@ -66,17 +66,28 @@ namespace LyaranTV
 
         Grid SettingsRow(string label, string hint, UIElement control)
         {
-            var row = new Grid { Margin = new Thickness(0, 5, 0, 5) };
+            var row = new Grid { Margin = new Thickness(0, 7, 0, 7), MinHeight = 34 };
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 24, 0) };
             labels.Children.Add(Text(label, 12.5, Brush(TextPrimary), false));
-            if (!String.IsNullOrWhiteSpace(hint)) labels.Children.Add(Text(hint, 10.2, Brush(Muted), false));
+            if (!String.IsNullOrWhiteSpace(hint))
+            {
+                var note = Text(hint, 10.2, Brush(Muted), false);
+                note.Margin = new Thickness(0, 3, 0, 0);
+                note.LineHeight = 17;
+                labels.Children.Add(note);
+            }
             row.Children.Add(labels);
             if (control != null)
             {
                 var element = control as FrameworkElement;
-                if (element != null) element.VerticalAlignment = VerticalAlignment.Center;
+                if (element != null)
+                {
+                    element.VerticalAlignment = VerticalAlignment.Center;
+                    if (element.Margin.Left < 24)
+                        element.Margin = new Thickness(24, element.Margin.Top, element.Margin.Right, element.Margin.Bottom);
+                }
                 Grid.SetColumn(control, 1);
                 row.Children.Add(control);
             }
@@ -100,27 +111,18 @@ namespace LyaranTV
             stack.Children.Add(themes);
 
             stack.Children.Add(Text("COULEUR D’ACCENT", 9.5, Brush(Muted), true));
-            var accents = new WrapPanel { Margin = new Thickness(0, 8, 0, 4) };
+            var accents = new WrapPanel { Margin = new Thickness(0, 8, 0, 2) };
             string[] accentColors = { "#8B5CF6", "#22D3EE", "#3B82F6", "#10B981", "#F59E0B", "#F43F5E", "#EC4899", "#94A3B8" };
             foreach (string hex in accentColors)
             {
                 Color parsed;
                 if (!TryParseHexColor(hex, out parsed)) continue;
                 bool active = String.Equals(hex, accentHex, StringComparison.OrdinalIgnoreCase);
-                var swatch = new Border
-                {
-                    Width = 34, Height = 34, CornerRadius = new CornerRadius(10), Background = Brush(parsed),
-                    BorderBrush = active ? Brush(TextPrimary) : Brush(BorderColor),
-                    BorderThickness = active ? new Thickness(3) : new Thickness(1),
-                    Margin = new Thickness(0, 0, 9, 8), Cursor = Cursors.Hand,
-                    ToolTip = "Accent " + hex, Child = active ? Icon(Glyphs.Check, 14, Brush(TextOnColor(parsed))) : null
-                };
-                swatch.MouseLeftButtonUp += delegate { ChangeAccent(parsed); };
-                accents.Children.Add(swatch);
+                accents.Children.Add(AppearanceSwatch(parsed, active, "Accent " + hex, delegate { ChangeAccent(parsed); }));
             }
             stack.Children.Add(accents);
 
-            var custom = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 6) };
+            var custom = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 14) };
             var customBox = StyledTextBox();
             customBox.Width = 118; customBox.Text = accentHex; customBox.ToolTip = "Code hexadécimal, par exemple #8B5CF6";
             customBox.Margin = new Thickness(0, 0, 7, 0);
@@ -134,6 +136,40 @@ namespace LyaranTV
             custom.Children.Add(apply);
             stack.Children.Add(custom);
 
+            stack.Children.Add(Text("COULEUR DU DÉGRADÉ", 9.5, Brush(Muted), true));
+            var secondaries = new WrapPanel { Margin = new Thickness(0, 8, 0, 2) };
+            foreach (string hex in accentColors)
+            {
+                Color parsed;
+                if (!TryParseHexColor(hex, out parsed)) continue;
+                bool active = String.Equals(hex, accentSecondaryHex, StringComparison.OrdinalIgnoreCase);
+                secondaries.Children.Add(AppearanceSwatch(parsed, active, "Dégradé " + hex, delegate { ChangeSecondaryAccent(parsed); }));
+            }
+            stack.Children.Add(secondaries);
+            var gradientNote = Text("Deuxième teinte des boutons, des halos et des accents secondaires. Choisissez-la proche de l’accent pour un dégradé subtil, ou opposée pour un rendu plus vibrant.", 10.2, Brush(Muted), false);
+            gradientNote.Margin = new Thickness(0, 0, 0, 16);
+            gradientNote.MaxWidth = 720;
+            gradientNote.HorizontalAlignment = HorizontalAlignment.Left;
+            stack.Children.Add(gradientNote);
+
+            stack.Children.Add(Text("AMBIANCE", 9.5, Brush(Muted), true));
+            var ambienceRow = new WrapPanel { Margin = new Thickness(0, 8, 0, 12) };
+            foreach (string value in new[] { "Discrète", "Équilibrée", "Vive" })
+            {
+                string captured = value;
+                var button = Button(ambience == captured ? Glyphs.Check : "", captured, delegate { ChangeAmbience(captured); }, ambience == captured);
+                button.MinWidth = 132;
+                button.Height = 38;
+                ambienceRow.Children.Add(button);
+            }
+            stack.Children.Add(ambienceRow);
+
+            stack.Children.Add(SettingToggle("Teinter les surfaces avec l’accent", tintedBackground, delegate(bool value)
+            {
+                tintedBackground = value;
+                SaveSettings();
+                ChangeTheme(themeName);
+            }));
             stack.Children.Add(SettingToggle("Réduire les animations et les effets de mouvement", settings.ReduceMotion, delegate(bool value)
             {
                 settings.ReduceMotion = value;
@@ -143,6 +179,41 @@ namespace LyaranTV
             }));
             stack.Children.Add(Text("LyaranTV respecte le thème clair/sombre de Windows lorsque « Automatique » est sélectionné.", 10.2, Brush(Muted), false));
             return stack;
+        }
+
+        /// <summary>
+        /// Pastille d'apparence : anneau net autour de la couleur, coche sur la
+        /// teinte active et halo discret au survol.
+        /// </summary>
+        Border AppearanceSwatch(Color color, bool active, string tooltip, Action click)
+        {
+            var check = Icon(Glyphs.Check, 13, Brush(TextOnColor(color)));
+            check.HorizontalAlignment = HorizontalAlignment.Center;
+            check.VerticalAlignment = VerticalAlignment.Center;
+            check.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+            var inner = new Border
+            {
+                CornerRadius = new CornerRadius(13), Background = Brush(color),
+                Child = check, Margin = new Thickness(active ? 3 : 2)
+            };
+            var outer = new Border
+            {
+                Width = 34, Height = 34, CornerRadius = new CornerRadius(17),
+                Background = active ? Brush(TextPrimary) : Brush(BorderColor),
+                Padding = new Thickness(active ? 2 : 1),
+                Margin = new Thickness(0, 0, 9, 8), Cursor = Cursors.Hand,
+                ToolTip = tooltip, Child = inner, SnapsToDevicePixels = true
+            };
+            outer.MouseEnter += delegate
+            {
+                outer.Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    BlurRadius = 14, ShadowDepth = 0, Opacity = 0.45, Color = color
+                };
+            };
+            outer.MouseLeave += delegate { outer.Effect = null; };
+            outer.MouseLeftButtonUp += delegate { click(); };
+            return outer;
         }
 
         static string LanguageOptionLabel(string code)
@@ -515,7 +586,7 @@ namespace LyaranTV
                     SaveSettings();
                 }
             };
-            stack.Children.Add(SettingsRow("Taille du cache local", TmdbCacheStore.Count + " fiche(s) en cache actuellement.", cacheLimit));
+            stack.Children.Add(SettingsRow("Taille du cache local", TextUtil.Count(TmdbCacheStore.Count, "fiche") + " en cache actuellement.", cacheLimit));
 
             var cacheActions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 7, 0, 0) };
             cacheActions.Children.Add(Button(Glyphs.Delete, "Vider le cache TMDb", delegate
@@ -535,7 +606,7 @@ namespace LyaranTV
             cacheActions.Children.Add(Button(Glyphs.Refresh, "Actualiser les métadonnées", delegate { StartTmdbEnrichment(); ShowToast("Recherche TMDb lancée en arrière-plan.", false, false); }, false));
             stack.Children.Add(cacheActions);
 
-            var attribution = Text(TmdbClient.Attribution + " Affiches et synopsis de secours : TVmaze, IMDb et Wikipédia (" + ArtworkStore.Count + " fiche(s) en cache). Les métadonnées restent facultatives : sans réseau, chaque contenu garde une vignette dessinée à partir de son titre.", 9.8, Brush(Muted), false);
+            var attribution = Text(TmdbClient.Attribution + " Affiches et synopsis de secours : TVmaze, IMDb et Wikipédia (" + TextUtil.Count(ArtworkStore.Count, "fiche") + " en cache). Les métadonnées restent facultatives : sans réseau, chaque contenu garde une vignette dessinée à partir de son titre.", 9.8, Brush(Muted), false);
             attribution.Margin = new Thickness(0, 10, 0, 0);
             stack.Children.Add(attribution);
             return stack;
@@ -599,7 +670,7 @@ namespace LyaranTV
             }
             var count = Text(channels.Count == 0
                 ? "Chargez une playlist pour voir les catégories correspondantes."
-                : matching + " catégorie(s) sur " + total + " contiennent « " + settings.LanguageModeCode + " »."
+                : TextUtil.Count(matching, "catégorie", "catégories") + " sur " + total + " contiennent « " + settings.LanguageModeCode + " »."
                     + (settings.LanguageModeEnabled ? "  ·  Mode actif." : "  ·  Mode désactivé."), 10, Brush(Muted), false);
             count.Margin = new Thickness(0, 8, 0, 0);
             stack.Children.Add(count);

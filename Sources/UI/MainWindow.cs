@@ -74,6 +74,9 @@ namespace LyaranTV
         Color Back, Panel, Raised, Accent, Secondary, Muted, TextPrimary, BorderColor, Success, Danger, Warning;
         string themeName = "Sombre";
         string accentHex = "#8B5CF6";
+        string accentSecondaryHex = "#22D3EE";
+        string ambience = "Équilibrée";
+        bool tintedBackground;
         bool appReady, suppressSearch, fullScreen;
         WindowStyle savedWindowStyle;
         WindowState savedWindowState;
@@ -253,6 +256,9 @@ namespace LyaranTV
             hiddenGroups.Clear(); foreach (string value in StateStore.ReadSet("hidden-groups.txt")) hiddenGroups.Add(value);
             themeName = String.IsNullOrWhiteSpace(settings.Theme) ? "Sombre" : settings.Theme;
             accentHex = String.IsNullOrWhiteSpace(settings.Accent) ? "#8B5CF6" : settings.Accent;
+            accentSecondaryHex = String.IsNullOrWhiteSpace(settings.AccentSecondary) ? "#22D3EE" : settings.AccentSecondary;
+            ambience = String.IsNullOrWhiteSpace(settings.Ambience) ? "Équilibrée" : settings.Ambience;
+            tintedBackground = settings.TintedBackground;
             sortMode = String.IsNullOrWhiteSpace(settings.SortMode) ? "Nom (A → Z)" : settings.SortMode;
             gridView = settings.GridView;
             savedVolume = settings.Volume <= 0 || settings.Volume > 1 ? 1.0 : settings.Volume;
@@ -294,6 +300,9 @@ namespace LyaranTV
         {
             settings.Theme = themeName;
             settings.Accent = accentHex;
+            settings.AccentSecondary = accentSecondaryHex;
+            settings.Ambience = ambience;
+            settings.TintedBackground = tintedBackground;
             settings.Volume = savedVolume;
             settings.Muted = wasMuted;
             settings.SortMode = sortMode;
@@ -335,27 +344,60 @@ namespace LyaranTV
             // droite et lueur secondaire en bas à gauche. Les surfaces de
             // l'application restent translucides pour laisser respirer ce fond.
             var backdrop = new Grid { IsHitTestVisible = false };
+            // Fond de base : deux teintes sombres proches, sans transition
+            // claire. Un dégradé blanc vers sombre créerait un voile gris au
+            // milieu de l'interpolation ; la lumière est donc confiée aux
+            // halos radiaux, qui restent propres.
             backdrop.Children.Add(new Border
             {
                 Background = new LinearGradientBrush(new GradientStopCollection
                 {
-                    new GradientStop(WithAlpha(TextPrimary, 10), 0),
-                    new GradientStop(Back, 0.34),
-                    new GradientStop(Back, 1)
+                    new GradientStop(LightMix(Back, Panel, 0.6), 0),
+                    new GradientStop(Back, 0.58),
+                    new GradientStop(LightMix(Back, Color.FromRgb(0, 0, 0), 0.4), 1)
                 }, new Point(0.62, 0), new Point(0.08, 0.9))
+            });
+            // Voile lumineux très doux en haut à droite : même couleur d'un
+            // bout à l'autre, seule l'opacité varie, donc aucun halo gris.
+            backdrop.Children.Add(new Border
+            {
+                Background = new RadialGradientBrush
+                {
+                    Center = new Point(0.72, 0.04), GradientOrigin = new Point(0.72, 0.04),
+                    RadiusX = 0.78, RadiusY = 0.62,
+                    GradientStops = new GradientStopCollection
+                    {
+                        new GradientStop(WithAlpha(TextPrimary, 13), 0),
+                        new GradientStop(WithAlpha(TextPrimary, 0), 1)
+                    }
+                }
+            });
+            // Nappe colorée très douce : l'accent et sa deuxième couleur se
+            // répondent en diagonale, pour un fond vivant sans jamais gêner la
+            // lecture des affiches.
+            double ambienceLevel = ambience == "Discrète" ? 0.34 : ambience == "Vive" ? 0.82 : 0.58;
+            backdrop.Children.Add(new Border
+            {
+                Background = new LinearGradientBrush(new GradientStopCollection
+                {
+                    new GradientStop(WithAlpha(Secondary, (byte)Math.Round(15 * ambienceLevel)), 0),
+                    new GradientStop(WithAlpha(Accent, (byte)Math.Round(17 * ambienceLevel)), 0.46),
+                    new GradientStop(WithAlpha(Secondary, (byte)Math.Round(9 * ambienceLevel)), 0.76),
+                    new GradientStop(WithAlpha(Accent, 0), 1)
+                }, new Point(1, 0), new Point(0.1, 1))
             });
             var accentHalo = new System.Windows.Shapes.Ellipse
             {
                 Width = 1120, Height = 1120, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, -650, -360, 0), Opacity = 0.55,
-                Fill = new RadialGradientBrush(WithAlpha(Accent, 58), WithAlpha(Accent, 0))
+                Margin = new Thickness(0, -650, -360, 0), Opacity = ambienceLevel,
+                Fill = new RadialGradientBrush(WithAlpha(Accent, 62), WithAlpha(Accent, 0))
             };
             backdrop.Children.Add(accentHalo);
             backdrop.Children.Add(new System.Windows.Shapes.Ellipse
             {
                 Width = 820, Height = 820, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(-420, 0, 0, -520),
-                Fill = new RadialGradientBrush(WithAlpha(Secondary, 22), WithAlpha(Secondary, 0))
+                Margin = new Thickness(-420, 0, 0, -520), Opacity = 0.55 + ambienceLevel * 0.45,
+                Fill = new RadialGradientBrush(WithAlpha(Secondary, 30), WithAlpha(Secondary, 0))
             });
             // Vignette : les bords se referment doucement, comme une salle sombre.
             backdrop.Children.Add(new Border
@@ -373,7 +415,7 @@ namespace LyaranTV
             if (!UiMotion.Reduced)
             {
                 // Dérive très lente du halo : le fond respire sans distraire.
-                var pulse = new System.Windows.Media.Animation.DoubleAnimation(0.32, 0.68, TimeSpan.FromSeconds(16))
+                var pulse = new System.Windows.Media.Animation.DoubleAnimation(ambienceLevel * 0.55, ambienceLevel * 1.05, TimeSpan.FromSeconds(16))
                 {
                     AutoReverse = true, RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
                     EasingFunction = new System.Windows.Media.Animation.SineEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut }
@@ -387,11 +429,17 @@ namespace LyaranTV
 
             var topBorder = new Border
             {
-                Height = 68, BorderBrush = Brush(WithAlpha(BorderColor, 150)), BorderThickness = new Thickness(0, 0, 0, 1),
+                Height = 68, BorderBrush = new LinearGradientBrush(new GradientStopCollection
+                {
+                    new GradientStop(WithAlpha(Accent, 150), 0),
+                    new GradientStop(WithAlpha(Secondary, 90), 0.55),
+                    new GradientStop(WithAlpha(BorderColor, 120), 1)
+                }, new Point(0, 0), new Point(1, 0)),
+                BorderThickness = new Thickness(0, 0, 0, 1),
                 Background = new LinearGradientBrush(new GradientStopCollection
                 {
-                    new GradientStop(WithAlpha(Panel, 236), 0),
-                    new GradientStop(WithAlpha(Back, 210), 1)
+                    new GradientStop(WithAlpha(Panel, 252), 0),
+                    new GradientStop(WithAlpha(Back, 246), 1)
                 }, new Point(0, 0), new Point(0, 1))
             };
             var top = new Grid();
@@ -474,7 +522,13 @@ namespace LyaranTV
             var body = new DockPanel();
             var sidebarBorder = new Border
             {
-                Width = 236, Background = Brush(WithAlpha(Back, 232)), BorderBrush = Brush(WithAlpha(BorderColor, 170)),
+                Width = 236, Background = new LinearGradientBrush(new GradientStopCollection
+                {
+                    new GradientStop(WithAlpha(Back, 250), 0),
+                    new GradientStop(WithAlpha(Back, 247), 0.55),
+                    new GradientStop(WithAlpha(Panel, 243), 1)
+                }, new Point(0, 0), new Point(0.85, 1)),
+                BorderBrush = Brush(WithAlpha(BorderColor, 170)),
                 BorderThickness = new Thickness(0, 0, 1, 0)
             };
             sidebar = new StackPanel();
@@ -561,7 +615,7 @@ namespace LyaranTV
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var bar = new Border { Width = 3, Height = 20, CornerRadius = new CornerRadius(2), Background = active ? Brush(Accent) : Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center };
+            var bar = new Border { Width = 3, Height = 20, CornerRadius = new CornerRadius(2), Background = active ? AccentGradientBrush() : Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center };
             Grid.SetColumn(bar, 0); grid.Children.Add(bar);
             var icon = Icon(glyph, 15, active ? Brush(Accent) : Brush(Muted)); icon.Margin = new Thickness(12, 0, 10, 0); Grid.SetColumn(icon, 1); grid.Children.Add(icon);
             var text = Text(label, 13, Brush(TextPrimary), active); Grid.SetColumn(text, 2); grid.Children.Add(text);
@@ -572,9 +626,9 @@ namespace LyaranTV
             }
             var button = new Button
             {
-                Content = grid, Height = 41, Margin = new Thickness(6, 1, 6, 1), Padding = new Thickness(0), Background = active ? AccentSoftBrush : Brushes.Transparent,
+                Content = grid, Height = 41, Margin = new Thickness(6, 1, 6, 1), Padding = new Thickness(0), Background = active ? AccentSoftGradientBrush() : Brushes.Transparent,
                 Foreground = Brush(TextPrimary), BorderThickness = new Thickness(0), HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(10)
+                Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(10, false)
             };
             if (!active)
             {
@@ -603,7 +657,7 @@ namespace LyaranTV
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var bar = new Border { Width = 3, Height = 24, CornerRadius = new CornerRadius(2), Background = active ? Brush(Accent) : Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center };
+            var bar = new Border { Width = 3, Height = 24, CornerRadius = new CornerRadius(2), Background = active ? AccentGradientBrush() : Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center };
             Grid.SetColumn(bar, 0); grid.Children.Add(bar);
             var icon = Icon(source.IsDemo || source.Type == "Démo" ? Glyphs.Play : source.Type == "Xtream" ? Glyphs.Globe : source.Type == "Portail MAC" ? Glyphs.TV : Glyphs.List, 15, active ? Brush(Accent) : Brush(Muted));
             icon.Margin = new Thickness(11, 0, 9, 0); Grid.SetColumn(icon, 1); grid.Children.Add(icon);
@@ -615,8 +669,8 @@ namespace LyaranTV
             var button = new Button
             {
                 Content = grid, Height = 49, Margin = new Thickness(6, 1, 6, 1), Padding = new Thickness(0),
-                Background = active ? AccentSoftBrush : Brushes.Transparent, BorderThickness = new Thickness(0),
-                HorizontalContentAlignment = HorizontalAlignment.Stretch, Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(10)
+                Background = active ? AccentSoftGradientBrush() : Brushes.Transparent, BorderThickness = new Thickness(0),
+                HorizontalContentAlignment = HorizontalAlignment.Stretch, Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(10, false)
             };
             if (!active)
             {
@@ -1016,7 +1070,7 @@ namespace LyaranTV
                 TmdbCacheStore.Save();
                 if (tmdbApplied > 0)
                 {
-                    ShowToast(TextUtil.HumanCount(tmdbApplied) + " fiche(s) enrichie(s) avec TMDb.", false, true);
+                    ShowToast(TextUtil.Count(tmdbApplied, "fiche enrichie", "fiches enrichies") + " avec TMDb.", false, true);
                     ScheduleArtworkSave();
                     ScheduleTmdbRefresh();
                 }
@@ -1684,6 +1738,23 @@ namespace LyaranTV
             settings.Accent = accentHex;
             ChangeTheme(themeName);
             Notice("Couleur d’accent appliquée.");
+        }
+
+        void ChangeSecondaryAccent(Color color)
+        {
+            accentSecondaryHex = "#" + color.R.ToString("X2") + color.G.ToString("X2") + color.B.ToString("X2");
+            settings.AccentSecondary = accentSecondaryHex;
+            ChangeTheme(themeName);
+            Notice("Couleur du dégradé appliquée.");
+        }
+
+        void ChangeAmbience(string value)
+        {
+            if (String.IsNullOrWhiteSpace(value)) return;
+            ambience = value;
+            settings.Ambience = value;
+            ChangeTheme(themeName);
+            Notice("Ambiance « " + value + " » appliquée.");
         }
 
         void RestoreSearchAfterTheme()
