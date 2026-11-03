@@ -165,7 +165,25 @@ namespace LyaranTV
             progressStack.Children.Add(progressHead);
             var progress = StyledProgressBar();
             progress.Maximum = 100;
-            progressStack.Children.Add(progress);
+            // Reflet qui balaie la barre pendant le téléchargement : la progression
+            // reste vivante même entre deux paquets, sans changer de vitesse
+            // perçue.
+            var progressHost = new Grid { Height = 6, ClipToBounds = true };
+            progressHost.Children.Add(progress);
+            var sheen = new Border
+            {
+                Width = 110, HorizontalAlignment = HorizontalAlignment.Left, IsHitTestVisible = false,
+                Opacity = 0.7, Background = new LinearGradientBrush(new GradientStopCollection
+                {
+                    new GradientStop(Color.FromArgb(0, 255, 255, 255), 0),
+                    new GradientStop(Color.FromArgb(120, 255, 255, 255), 0.5),
+                    new GradientStop(Color.FromArgb(0, 255, 255, 255), 1)
+                }, new Point(0, 0), new Point(1, 0))
+            };
+            var sheenShift = new TranslateTransform(-130, 0);
+            sheen.RenderTransform = sheenShift;
+            progressHost.Children.Add(sheen);
+            progressStack.Children.Add(progressHost);
             var progressDetail = Text(I18n.T("Connexion à GitHub…"), 11.5, Brush(Muted), false);
             progressDetail.Margin = new Thickness(0, 9, 0, 0);
             progressDetail.TextTrimming = TextTrimming.CharacterEllipsis;
@@ -194,6 +212,13 @@ namespace LyaranTV
                 percentLabel.Text = "0 %";
                 progress.Value = 0;
                 progressDetail.Text = I18n.T("Connexion à GitHub…");
+                sheen.Opacity = 0.7;
+                sheenShift.BeginAnimation(TranslateTransform.XProperty, new System.Windows.Media.Animation.DoubleAnimation(-130, 620, TimeSpan.FromSeconds(1.3))
+                {
+                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
+                    EasingFunction = new System.Windows.Media.Animation.SineEase
+                    { EasingMode = System.Windows.Media.Animation.EasingMode.EaseInOut }
+                });
                 SetStatus(I18n.T("Téléchargement…"));
 
                 // Le débit est mesuré depuis le premier octet reçu : il sert au
@@ -218,6 +243,7 @@ namespace LyaranTV
                         install.IsEnabled = true;
                         later.IsEnabled = true;
                         progressPanel.Visibility = Visibility.Collapsed;
+                        sheenShift.BeginAnimation(TranslateTransform.XProperty, null);
                         SetStatus(I18n.T("Impossible de vérifier les mises à jour."));
                         ShowError(e.Error.GetBaseException().Message);
                         return;
@@ -226,6 +252,9 @@ namespace LyaranTV
                     progress.Value = 100;
                     percentLabel.Text = "100 %";
                     progressTitle.Text = I18n.T("Installation");
+                    // Barre pleine : le reflet n'a plus de progression à animer.
+                    sheenShift.BeginAnimation(TranslateTransform.XProperty, null);
+                    sheen.Opacity = 0;
                     progressDetail.Text = I18n.T("Empreinte SHA-256 vérifiée, remplacement des fichiers…");
                     SetStatus(I18n.T("Redémarrer pour terminer"));
                     try

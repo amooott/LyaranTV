@@ -159,6 +159,9 @@ namespace LyaranTV
         [DataMember] public string AudioOutput = "auto";
         [DataMember] public bool ShowEpgInList = true;
         [DataMember] public bool ReduceMotion = false;
+        // Sons d'interface (tick de navigation, confirmation) : synthétisés par
+        // le programme, sans fichier audio, et coupables d'un seul réglage.
+        [DataMember] public bool UiSounds = true;
         [DataMember] public bool TmdbEnabled = true;
         [DataMember] public string TmdbApiKey = "";
         [DataMember] public string OpenSubtitlesKey = "";

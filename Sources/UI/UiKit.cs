@@ -333,6 +333,17 @@ namespace LyaranTV
             hover.Name = "Hover"; hover.SetValue(Border.CornerRadiusProperty, new CornerRadius(radius));
             hover.SetValue(Border.BackgroundProperty, Brushes.Transparent); hover.SetValue(UIElement.IsHitTestVisibleProperty, false);
             grid.AppendChild(hover);
+            // Anneau de focus : un second liseré détaché qui fait le tour du
+            // bouton, lisible d'un coup d'œil au clavier comme à la manette.
+            var focusRing = new FrameworkElementFactory(typeof(Border));
+            focusRing.Name = "FocusRing";
+            focusRing.SetValue(Border.CornerRadiusProperty, new CornerRadius(radius + 3));
+            focusRing.SetValue(Border.BorderBrushProperty, Brush(WithAlpha(Accent, 168)));
+            focusRing.SetValue(Border.BorderThicknessProperty, new Thickness(2));
+            focusRing.SetValue(FrameworkElement.MarginProperty, new Thickness(-3));
+            focusRing.SetValue(UIElement.IsHitTestVisibleProperty, false);
+            focusRing.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+            grid.AppendChild(focusRing);
             var content = new FrameworkElementFactory(typeof(ContentPresenter));
             content.SetBinding(ContentPresenter.ContentProperty, new Binding("Content") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
             content.SetBinding(ContentPresenter.ContentTemplateProperty, new Binding("ContentTemplate") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
@@ -352,6 +363,7 @@ namespace LyaranTV
             template.Triggers.Add(pressed);
             var focused = new Trigger { Property = UIElement.IsKeyboardFocusedProperty, Value = true };
             focused.Setters.Add(new Setter(Border.BorderBrushProperty, Brush(Accent), "Chrome"));
+            focused.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "FocusRing"));
             template.Triggers.Add(focused);
             var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
             disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.46, "Chrome"));
@@ -838,7 +850,7 @@ namespace LyaranTV
             var dock = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 12, 0, 12) };
             if (action != null) { action.Margin = new Thickness(10, 0, 0, 0); DockPanel.SetDock(action, Dock.Right); dock.Children.Add(action); }
             var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            stack.Children.Add(Text(title, 19, Brush(TextPrimary), true));
+            stack.Children.Add(Text(title, TypeScale.Section, Brush(TextPrimary), true));
             if (action == null && !String.IsNullOrWhiteSpace(subtitle)) stack.Children.Add(Text(subtitle, 12, Brush(Muted), false));
             dock.Children.Add(stack);
             return dock;
@@ -1035,6 +1047,14 @@ namespace LyaranTV
                 var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
                 if (DwmSetWindowAttribute(hwnd, 20, ref dark, sizeof(int)) != 0) DwmSetWindowAttribute(hwnd, 19, ref dark, sizeof(int));
                 DwmSetWindowAttribute(hwnd, 35, ref caption, sizeof(int)); DwmSetWindowAttribute(hwnd, 36, ref text, sizeof(int));
+                // Coins arrondis Windows 11 (attribut 33) : sans lui, la fenêtre
+                // reste à angles droits alors que tout l'intérieur est arrondi.
+                int corner = 2;
+                DwmSetWindowAttribute(hwnd, 33, ref corner, sizeof(int));
+                // Liseré natif (attribut 34, COLORREF 0x00BBGGRR) : il suit la
+                // bordure du thème, y compris en mode clair.
+                int edge = ((int)BorderColor.B << 16) | ((int)BorderColor.G << 8) | BorderColor.R;
+                DwmSetWindowAttribute(hwnd, 34, ref edge, sizeof(int));
             }
             catch { }
         }

@@ -491,19 +491,36 @@ namespace LyaranTV
         /// <summary>Déclenché sur le fil d'interface quand l'image n'a pas pu être chargée.</summary>
         public event Action<string> Failed;
 
+        /// <summary>
+        /// Teinte dominante de l'image, calculée à l'arrivée du visuel : une fiche
+        /// peut ainsi prendre la couleur de l'œuvre qu'elle présente.
+        /// </summary>
+        public Action<Color> DominantColorReady;
+
+        // Squelette de chargement : un reflet qui balaie le cadre tant que
+        // l'image n'est pas là. Il vit dans le panneau parent, puisque Image
+        // n'accepte pas d'enfants.
+        System.Windows.Controls.Border shimmerHost;
+        System.Windows.Controls.Border shimmerBand;
+        TranslateTransform shimmerShift;
+
         public AsyncImage()
         {
             Stretch = Stretch.UniformToFill;
             SnapsToDevicePixels = true;
             RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
+            Loaded += delegate { EnsureShimmer(); };
+            Unloaded += delegate { RemoveShimmer(); };
         }
 
         static void OnUrlChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var image = (AsyncImage)d;
+            image.RemoveShimmer();
             image.Source = null;
             string url = e.NewValue as string;
             if (String.IsNullOrWhiteSpace(url)) return;
+            image.EnsureShimmer();
             ImageSource cached = ImageCache.Get(url);
             if (cached != null) { image.ApplyImage(cached); return; }
             ImageCache.GetAsync(url, delegate(ImageSource source)
@@ -511,6 +528,9 @@ namespace LyaranTV
                 if (!String.Equals(image.Url, url, StringComparison.OrdinalIgnoreCase)) return;
                 if (source == null)
                 {
+                    // Un visuel définitivement absent ne doit pas laisser un
+                    // squelette animé tourner indéfiniment.
+                    image.RemoveShimmer();
                     if (image.Failed != null) image.Failed(url);
                     return;
                 }
@@ -520,7 +540,14 @@ namespace LyaranTV
 
         void ApplyImage(ImageSource source)
         {
+            RemoveShimmer();
             Source = source;
+            var bitmap = source as BitmapSource;
+            if (bitmap != null && DominantColorReady != null)
+            {
+                Color tint = ArtworkColor.Extract(bitmap);
+                try { DominantColorReady(tint); } catch { }
+            }
             if (!FadeIn || UiMotion.Reduced)
             {
                 if (Opacity <= 0) Opacity = 1;
@@ -532,6 +559,60 @@ namespace LyaranTV
             {
                 EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
             });
+        }
+
+        /// <summary>
+        /// Pose le squelette de chargement dans le cadre qui accueille l'image.
+        /// Le reflet est neutre (blanc translucide) pour fonctionner aussi bien
+        /// sur le thème sombre que sur le thème clair.
+        /// </summary>
+        void EnsureShimmer()
+        {
+            if (shimmerHost != null || Source != null || UiMotion.Reduced) return;
+            var panel = Parent as System.Windows.Controls.Panel;
+            if (panel == null) return;
+            shimmerHost = new System.Windows.Controls.Border
+            {
+                IsHitTestVisible = false, ClipToBounds = true,
+                Background = System.Windows.Media.Brushes.Transparent
+            };
+            shimmerBand = new System.Windows.Controls.Border
+            {
+                Width = 120, HorizontalAlignment = HorizontalAlignment.Left, IsHitTestVisible = false,
+                Background = new LinearGradientBrush(new GradientStopCollection
+                {
+                    new GradientStop(Color.FromArgb(0, 255, 255, 255), 0),
+                    new GradientStop(Color.FromArgb(38, 255, 255, 255), 0.5),
+                    new GradientStop(Color.FromArgb(0, 255, 255, 255), 1)
+                }, new Point(0, 0), new Point(1, 0))
+            };
+            shimmerShift = new TranslateTransform(-150, 0);
+            shimmerBand.RenderTransform = shimmerShift;
+            shimmerHost.Child = shimmerBand;
+            System.Windows.Controls.Panel.SetZIndex(shimmerHost, 40);
+            panel.Children.Add(shimmerHost);
+            shimmerHost.SizeChanged += delegate { SweepShimmer(); };
+            SweepShimmer();
+        }
+
+        /// <summary>Relance le balayage sur la largeur réelle du cadre.</summary>
+        void SweepShimmer()
+        {
+            if (shimmerHost == null || shimmerShift == null) return;
+            double width = shimmerHost.ActualWidth > 0 ? shimmerHost.ActualWidth : 240;
+            shimmerShift.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(-150, width + 30, TimeSpan.FromSeconds(1.15))
+            {
+                RepeatBehavior = RepeatBehavior.Forever,
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+            });
+        }
+
+        void RemoveShimmer()
+        {
+            if (shimmerHost == null) return;
+            var panel = shimmerHost.Parent as System.Windows.Controls.Panel;
+            if (panel != null) panel.Children.Remove(shimmerHost);
+            shimmerHost = null; shimmerBand = null; shimmerShift = null;
         }
     }
 }

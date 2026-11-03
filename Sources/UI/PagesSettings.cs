@@ -177,6 +177,14 @@ namespace LyaranTV
                 SaveSettings();
                 Notice(value ? "Animations réduites." : "Animations complètes activées.");
             }));
+            stack.Children.Add(SettingToggle("Sons d’interface discrets", settings.UiSounds, delegate(bool value)
+            {
+                settings.UiSounds = value;
+                UiSound.Enabled = value;
+                SaveSettings();
+                if (value) UiSound.Confirm();
+                Notice(value ? "Sons d’interface activés." : "Sons d’interface coupés.");
+            }));
             stack.Children.Add(Text("LyaranTV respecte le thème clair/sombre de Windows lorsque « Automatique » est sélectionné.", 10.2, Brush(Muted), false));
             return stack;
         }

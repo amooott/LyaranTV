@@ -249,7 +249,34 @@ namespace LyaranTV
             };
             if (hasBackdrop)
             {
-                hero.Children.Add(new AsyncImage { Url = preferredBackdrop, Stretch = Stretch.UniformToFill });
+                var backdropImage = new AsyncImage { Url = preferredBackdrop, Stretch = Stretch.UniformToFill };
+                hero.Children.Add(backdropImage);
+                // Nappe teintée par l'affiche elle-même : la fiche prend la couleur
+                // de l'œuvre, comme un éclairage de scène, au lieu de répéter
+                // l'accent de l'application d'une fiche à l'autre.
+                var tintWash = new Border { IsHitTestVisible = false, Opacity = 0 };
+                hero.Children.Add(tintWash);
+                backdropImage.DominantColorReady = delegate(Color tint)
+                {
+                    if (tint.A == 0) return;
+                    tintWash.Background = new RadialGradientBrush
+                    {
+                        Center = new Point(0.18, 0.12), GradientOrigin = new Point(0.18, 0.12),
+                        RadiusX = 1.15, RadiusY = 1.15,
+                        GradientStops = new GradientStopCollection
+                        {
+                            new GradientStop(WithAlpha(tint, 104), 0),
+                            new GradientStop(WithAlpha(tint, 26), 0.55),
+                            new GradientStop(WithAlpha(tint, 0), 1)
+                        }
+                    };
+                    tintWash.BeginAnimation(UIElement.OpacityProperty,
+                        new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(420))
+                        {
+                            EasingFunction = new System.Windows.Media.Animation.QuadraticEase
+                            { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                        });
+                };
             }
             else
             {

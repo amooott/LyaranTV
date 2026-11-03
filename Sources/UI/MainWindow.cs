@@ -146,6 +146,12 @@ namespace LyaranTV
         Border toast;
         TextBlock toastIcon, toastText;
         DispatcherTimer toastTimer;
+        // Indicateur de navigation flottant : un seul trait d'accent qui glisse
+        // d'un onglet à l'autre au lieu de réapparaître sous chaque libellé.
+        Canvas navIndicatorLayer;
+        Border navIndicator;
+        ScrollViewer sidebarScroll;
+        bool navIndicatorPlaced;
 
         DateTime epgDate = DateTime.Today;
         string epgQuery = "";
@@ -156,12 +162,16 @@ namespace LyaranTV
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             ApplyCustomWindowChrome();
             FontFamily = new FontFamily("Inter, Segoe UI");
+            // Rendu en mode Display : les petites tailles restent nettes sur un
+            // écran dense, sans épaissir les glyphes comme le mode Ideal.
+            TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
             SetValue(Window.IconProperty, CreateAppIcon());
             var bootPerf = Stopwatch.StartNew();
             AppPaths.EnsureDataDir();
             LoadState();
             try { HttpUtil.AppendLog("Perf démarrage · réglages et profil " + bootPerf.ElapsedMilliseconds + " ms"); } catch { }
             UiMotion.Reduced = settings.ReduceMotion;
+            UiSound.Enabled = settings.UiSounds;
             SetThemeColors(themeName);
             ConfigureSystemResources();
             Background = Brush(Back); Foreground = Brush(TextPrimary);
@@ -214,6 +224,9 @@ namespace LyaranTV
                 }
                 else ShowStartPage();
                 ShowStartupSplash();
+                // Carillon d'ouverture : il accompagne le générique, coupé avec
+                // les autres sons d'interface depuis les réglages.
+                UiSound.Launch();
 
                 // Vérification silencieuse des mises à jour, une fois l'interface
                 // ouverte : elle ne doit jamais retarder le démarrage ni bloquer
@@ -277,6 +290,7 @@ namespace LyaranTV
             playerAspect = String.IsNullOrWhiteSpace(settings.AspectMode) ? "Adapter" : settings.AspectMode;
             activeSource = sources.FirstOrDefault(s => String.Equals(s.Name, settings.LastSourceName, StringComparison.OrdinalIgnoreCase)) ?? sources.FirstOrDefault();
             UiMotion.Reduced = settings.ReduceMotion;
+            UiSound.Enabled = settings.UiSounds;
         }
 
         void LoadProfileState()
@@ -585,7 +599,22 @@ namespace LyaranTV
                 BorderThickness = new Thickness(0, 0, 1, 0)
             };
             sidebar = new StackPanel();
-            sidebarBorder.Child = new ScrollViewer { Content = sidebar, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+            sidebarScroll = new ScrollViewer { Content = sidebar, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+            // L'indicateur vit au-dessus du défilement : il glisse d'un onglet à
+            // l'autre sans être coupé par le viewport.
+            navIndicatorLayer = new Canvas { IsHitTestVisible = false, ClipToBounds = true };
+            navIndicator = new Border
+            {
+                Width = 3, Height = 22, CornerRadius = new CornerRadius(2), Opacity = 0,
+                Background = AccentGradientBrush(), IsHitTestVisible = false,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 10, ShadowDepth = 0, Opacity = 0.55, Color = Accent }
+            };
+            navIndicatorLayer.Children.Add(navIndicator);
+            var sidebarHost = new Grid();
+            sidebarHost.Children.Add(sidebarScroll);
+            sidebarHost.Children.Add(navIndicatorLayer);
+            sidebarBorder.Child = sidebarHost;
+            sidebarScroll.ScrollChanged += delegate { PlaceNavIndicator(false); };
             DockPanel.SetDock(sidebarBorder, Dock.Left); body.Children.Add(sidebarBorder); chromeSidebar = sidebarBorder;
 
             var statusBorder = new Border { Height = 32, Background = Brush(WithAlpha(Panel, 220)), BorderBrush = Brush(WithAlpha(BorderColor, 190)), BorderThickness = new Thickness(0, 1, 0, 0) };
@@ -803,6 +832,81 @@ namespace LyaranTV
             // retraduit ici, sinon elle repasserait en français.
             I18n.Apply(sidebar);
             ApplySidebarChrome();
+            PlaceNavIndicator(true);
+        }
+
+        /// <summary>
+        /// Pose l'indicateur d'accent sur l'onglet actif et le fait glisser
+        /// depuis sa position précédente. Le calcul attend la passe de mise en
+        /// page : les boutons n'ont pas encore de taille quand la barre est
+        /// reconstruite.
+        /// </summary>
+        void PlaceNavIndicator(bool animate)
+        {
+            if (navIndicator == null || navIndicatorLayer == null) return;
+            Dispatcher.BeginInvoke(new Action(delegate
+            {
+                if (sidebarCompact)
+                {
+                    navIndicatorPlaced = false;
+                    navIndicator.Opacity = 0;
+                    return;
+                }
+                var target = FindTaggedElement(sidebar, "nav:" + page) as Button;
+                if (target == null || target.ActualHeight <= 0)
+                {
+                    navIndicatorPlaced = false;
+                    navIndicator.Opacity = 0;
+                    return;
+                }
+                Point origin = target.TranslatePoint(new Point(0, 0), navIndicatorLayer);
+                if (double.IsNaN(origin.X) || double.IsNaN(origin.Y)) return;
+                double left = origin.X;
+                double top = origin.Y + (target.ActualHeight - navIndicator.Height) / 2;
+                if (top < 0) { navIndicatorPlaced = false; navIndicator.Opacity = 0; return; }
+
+                bool animateTop = animate && navIndicatorPlaced && !UiMotion.Reduced;
+                if (animateTop)
+                {
+                    double fromTop = Canvas.GetTop(navIndicator);
+                    double fromLeft = Canvas.GetLeft(navIndicator);
+                    if (double.IsNaN(fromTop)) fromTop = top;
+                    if (double.IsNaN(fromLeft)) fromLeft = left;
+                    var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+                    navIndicator.BeginAnimation(Canvas.TopProperty, new DoubleAnimation(fromTop, top, TimeSpan.FromMilliseconds(240)) { EasingFunction = ease });
+                    navIndicator.BeginAnimation(Canvas.LeftProperty, new DoubleAnimation(fromLeft, left, TimeSpan.FromMilliseconds(200)) { EasingFunction = ease });
+                }
+                else
+                {
+                    navIndicator.BeginAnimation(Canvas.TopProperty, null);
+                    navIndicator.BeginAnimation(Canvas.LeftProperty, null);
+                    Canvas.SetTop(navIndicator, top);
+                    Canvas.SetLeft(navIndicator, left);
+                }
+                if (!navIndicatorPlaced)
+                {
+                    navIndicator.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180))
+                    {
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                    });
+                }
+                navIndicatorPlaced = true;
+            }), DispatcherPriority.Loaded);
+        }
+
+        /// <summary>Premier élément de l'arbre visuel dont l'étiquette correspond.</summary>
+        static FrameworkElement FindTaggedElement(DependencyObject root, object tag)
+        {
+            if (root == null) return null;
+            var element = root as FrameworkElement;
+            if (element != null && element.Tag != null && element.Tag.Equals(tag)) return element;
+            int count = VisualTreeHelper.GetChildrenCount(root);
+            for (int i = 0; i < count; i++)
+            {
+                var found = FindTaggedElement(VisualTreeHelper.GetChild(root, i), tag);
+                if (found != null) return found;
+            }
+            return null;
         }
 
         /// <summary>
@@ -873,7 +977,9 @@ namespace LyaranTV
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var bar = new Border { Width = 3, Height = 20, CornerRadius = new CornerRadius(2), Background = active ? AccentGradientBrush() : Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center };
+            // Le trait d'accent est désormais flottant (navIndicator) : la colonne
+            // garde sa largeur pour que les libellés restent alignés.
+            var bar = new Border { Width = 3, Height = 20, CornerRadius = new CornerRadius(2), Background = Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center };
             Grid.SetColumn(bar, 0); grid.Children.Add(bar);
             var icon = Icon(glyph, 15, active ? Brush(Accent) : Brush(Muted)); icon.Margin = new Thickness(12, 0, 10, 0); Grid.SetColumn(icon, 1); grid.Children.Add(icon);
             var text = Text(label, 13, Brush(TextPrimary), active); Grid.SetColumn(text, 2); grid.Children.Add(text);
@@ -894,15 +1000,14 @@ namespace LyaranTV
                 {
                     button.Background = HoverBrush;
                     icon.Foreground = Brush(TextPrimary);
-                    bar.Background = Brush(WithAlpha(Accent, 150));
                 };
                 button.MouseLeave += delegate
                 {
                     button.Background = Brushes.Transparent;
                     icon.Foreground = Brush(Muted);
-                    bar.Background = Brushes.Transparent;
                 };
             }
+            button.Tag = "nav:" + destination;
             button.Click += delegate { Nav(destination); };
             return button;
         }
@@ -988,6 +1093,7 @@ namespace LyaranTV
 
         void Nav(string destination)
         {
+            UiSound.Navigate();
             CloseDetailOverlay();
             if (fullScreen) ExitFullScreen();
             if (destination != page) PushNavFrame();
@@ -1142,13 +1248,24 @@ namespace LyaranTV
                 if (pageElement != null && animate && !UiMotion.Reduced)
                 {
                     pageElement.Opacity = 0;
+                    // Fondu, léger glissement et très court zoom arrière : la page
+                    // se pose au lieu d'apparaître, dans la continuité de la carte
+                    // qui vient d'être cliquée.
                     var slide = new TranslateTransform(0, 12);
-                    pageElement.RenderTransform = slide;
+                    var zoom = new ScaleTransform(1.012, 1.012);
+                    var group = new TransformGroup();
+                    group.Children.Add(zoom);
+                    group.Children.Add(slide);
+                    pageElement.RenderTransform = group;
+                    pageElement.RenderTransformOrigin = new Point(0.5, 0.15);
                     pageElement.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220)));
+                    var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
                     slide.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(12, 0, TimeSpan.FromMilliseconds(260))
                     {
-                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                        EasingFunction = ease
                     });
+                    zoom.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1.012, 1, TimeSpan.FromMilliseconds(300)) { EasingFunction = ease });
+                    zoom.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1.012, 1, TimeSpan.FromMilliseconds(300)) { EasingFunction = ease });
                 }
                 else if (pageElement != null) pageElement.Opacity = 1;
             }
@@ -1157,7 +1274,7 @@ namespace LyaranTV
 
         StackPanel PageRoot(string title, string subtitle)
         {
-            pageTitle = Text(title, 27, Brush(TextPrimary), true);
+            pageTitle = Text(title, TypeScale.Title, Brush(TextPrimary), true);
             var root = new StackPanel { Margin = new Thickness(30, 24, 30, 30) };
             root.Children.Add(pageTitle);
             root.Children.Add(Text(subtitle, 13, Brush(Muted), false));

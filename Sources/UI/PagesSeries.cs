@@ -727,7 +727,7 @@ namespace LyaranTV
             var stack = new StackPanel();
             var thumbHost = new Border
             {
-                Width = 252, Height = 142, CornerRadius = new CornerRadius(11), Background = Brush(Color.FromRgb(16, 16, 22)),
+                Width = 252, Height = 142, CornerRadius = new CornerRadius(11), Background = Brush(Raised),
                 ClipToBounds = true
             };
             RoundClip(thumbHost, 11);
