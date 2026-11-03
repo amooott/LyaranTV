@@ -608,8 +608,8 @@ namespace LyaranTV
             // Le réglage vit sur une carte toujours sombre : la piste reste
             // blanc translucide quel que soit le thème (TextPrimary serait noir
             // en mode clair et ferait disparaître le rail).
-            string rail = Hex(WithAlpha(Colors.White, 36));
-            string railHover = Hex(WithAlpha(Colors.White, 62));
+            string rail = Hex(WithAlpha(Colors.White, 62));
+            string railHover = Hex(WithAlpha(Colors.White, 84));
             string halo = Hex(WithAlpha(Accent, 58));
             return ParseTemplate(
                 "<ControlTemplate xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" " +
@@ -621,7 +621,7 @@ namespace LyaranTV
                 "<RepeatButton Command=\"{x:Static Slider.DecreaseLarge}\" Focusable=\"False\" IsTabStop=\"False\">" +
                 "<RepeatButton.Template><ControlTemplate TargetType=\"{x:Type RepeatButton}\">" +
                 "<Grid Background=\"Transparent\">" +
-                "<Border Height=\"3\" CornerRadius=\"1.5\" VerticalAlignment=\"Center\">" +
+                "<Border Height=\"3\" CornerRadius=\"1.5\" VerticalAlignment=\"Center\" Margin=\"0,0,-7,0\">" +
                 "<Border.Background><LinearGradientBrush StartPoint=\"0,0\" EndPoint=\"1,0\">" +
                 "<GradientStop Color=\"" + accent + "\" Offset=\"0\"/>" +
                 "<GradientStop Color=\"" + accentLight + "\" Offset=\"1\"/>" +
@@ -631,7 +631,7 @@ namespace LyaranTV
                 "<Track.Thumb>" +
                 "<Thumb x:Name=\"Knob\" Focusable=\"False\">" +
                 "<Thumb.Template><ControlTemplate TargetType=\"{x:Type Thumb}\">" +
-                "<Grid Width=\"20\" Height=\"24\" Background=\"Transparent\">" +
+                "<Grid Width=\"14\" Height=\"24\" Background=\"Transparent\">" +
                 "<Ellipse x:Name=\"Halo\" Width=\"17\" Height=\"17\" Fill=\"" + halo + "\" Opacity=\"0\"/>" +
                 "<Border x:Name=\"Dot\" Width=\"9\" Height=\"9\" CornerRadius=\"4.5\" Background=\"#FFFFFFFF\" " +
                 "HorizontalAlignment=\"Center\" VerticalAlignment=\"Center\">" +
