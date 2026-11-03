@@ -1788,8 +1788,13 @@ namespace LyaranTV
             // consomme les flèches avant le gestionnaire de la fenêtre.
             if (page != "Lecture" || player == null) return;
             if (Keyboard.FocusedElement is TextBox || Keyboard.FocusedElement is PasswordBox) return;
+            // Le tiroir des chaînes garde ses flèches : il s'en sert pour
+            // parcourir la liste, comme n'importe quelle liste au clavier.
+            if (IsChannelDrawerOpen()) return;
             if (e.Key == Key.Left) { SeekRelative(-SeekStepSeconds); ShowFullscreenControls(); e.Handled = true; }
             else if (e.Key == Key.Right) { SeekRelative(SeekStepSeconds); ShowFullscreenControls(); e.Handled = true; }
+            else if (Keyboard.Modifiers == ModifierKeys.None && e.Key == Key.Up) { ChangeVolume(0.05); ShowVolumeFeedback(); e.Handled = true; }
+            else if (Keyboard.Modifiers == ModifierKeys.None && e.Key == Key.Down) { ChangeVolume(-0.05); ShowVolumeFeedback(); e.Handled = true; }
         }
 
         void HandleWindowKeys(object sender, KeyEventArgs e)

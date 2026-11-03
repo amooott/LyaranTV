@@ -483,6 +483,9 @@ namespace LyaranTV
                 if (e.ClickCount != 2) return;
                 if (playerControlWrap != null && playerControlWrap.IsMouseOver) return;
                 if (playerTopBar != null && playerTopBar.IsMouseOver) return;
+                // La carte de volume flotte au-dessus de la vidéo : un double-clic
+                // dessus ne doit pas basculer en plein écran.
+                if (IsOverVolumeControls()) return;
                 ToggleFullScreen();
                 e.Handled = true;
             };
@@ -491,7 +494,11 @@ namespace LyaranTV
                 if (e.ClickCount > 1) return;
                 if (playerControlWrap != null && playerControlWrap.IsMouseOver) return;
                 if (playerCenterButton != null && playerCenterButton.IsMouseOver) return;
-                if (!IsInsideButton(e.OriginalSource as DependencyObject)) TogglePlayback();
+                // Carte et pastille de volume vivent dans la surface vidéo, pas
+                // dans la barre : sans ces gardes, régler le son déclenchait le
+                // clic « sur l'image » et mettait la lecture en pause.
+                if (IsOverVolumeControls()) return;
+                if (!IsInsideControl(e.OriginalSource as DependencyObject)) TogglePlayback();
                 ShowFullscreenControls();
             };
 
@@ -809,6 +816,38 @@ namespace LyaranTV
             card.MouseEnter += delegate { ShowVolumeCard(true); };
             card.MouseLeave += delegate { ScheduleVolumeCardHide(); };
             return card;
+        }
+
+        /// <summary>
+        /// Vrai quand le pointeur est sur la pastille du haut-parleur ou sur la
+        /// carte de volume déployée : ces surfaces ne doivent jamais être prises
+        /// pour un clic sur l'image.
+        /// </summary>
+        bool IsOverVolumeControls()
+        {
+            return (volumeCard != null && volumeCard.IsMouseOver)
+                || (volumeHost != null && volumeHost.IsMouseOver)
+                || (volumeSlider != null && (volumeSlider.IsMouseOver || volumeSlider.IsMouseDirectlyOver));
+        }
+
+        /// <summary>
+        /// Retour visuel des flèches haut et bas, à la YouTube : la carte de
+        /// volume s'ouvre une seconde avec le pourcentage, puis se referme.
+        /// </summary>
+        void ShowVolumeFeedback()
+        {
+            ShowFullscreenControls();
+            ShowVolumeCard(true);
+            if (volumeCardHideTimer != null) { volumeCardHideTimer.Stop(); volumeCardHideTimer = null; }
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
+            timer.Tick += delegate
+            {
+                timer.Stop();
+                if (volumeCardHideTimer == timer) volumeCardHideTimer = null;
+                ShowVolumeCard(false);
+            };
+            volumeCardHideTimer = timer;
+            timer.Start();
         }
 
         void ShowVolumeCard(bool show)

@@ -967,6 +967,22 @@ namespace LyaranTV
 
         static bool IsInsideButton(DependencyObject current) { return FindAncestor<Button>(current) != null; }
 
+        /// <summary>
+        /// Vrai quand le clic vient d'un contrôle interactif (bouton, curseur,
+        /// barre de défilement, champ) : la surface vidéo ne doit alors pas
+        /// interpréter le clic comme « lecture / pause ».
+        /// </summary>
+        static bool IsInsideControl(DependencyObject current)
+        {
+            while (current != null)
+            {
+                if (current is Button || current is Slider || current is ScrollBar || current is ComboBox
+                    || current is TextBox || current is PasswordBox || current is CheckBox) return true;
+                current = VisualTreeHelper.GetParent(current);
+            }
+            return false;
+        }
+
         void ShowToast(string message, bool error, bool success)
         {
             if (toastHost == null) { if (statusText != null) statusText.Text = message; return; }
