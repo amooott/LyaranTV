@@ -20,15 +20,15 @@ namespace LyaranTV
         }
 
         /// <summary>
-        /// Capture d'écran : ouvre la carte de volume sur une valeur de 62 % pour
-        /// vérifier visuellement le curseur, sur la page Lecture.
+        /// Capture d'écran : place le rail de volume sur 62 % pour vérifier
+        /// visuellement la barre intégrée, sur la page Lecture.
         /// </summary>
         internal void ShowVolumeCardForTest()
         {
-            if (volumeSlider == null || volumeCard == null) return;
+            if (volumeSlider == null) return;
             volumeSlider.Value = 62;
             UpdateVolumeReadout();
-            ShowVolumeCard(true);
+            ShowVolumeFeedback();
         }
 
         /// <summary>

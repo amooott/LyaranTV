@@ -119,10 +119,10 @@ namespace LyaranTV
         Button playPauseButton, favButton, muteButton, playerCenterButton;
         Slider volumeSlider;
         // Carte de volume flottante (curseur + pourcentage) déployée au survol.
-        Border volumeCard;
+
         Grid volumeHost;
         TextBlock volumeValueText;
-        DispatcherTimer volumeCardHideTimer;
+
         // Barre de progression redessinée à la main : piste fine, remplissage
         // accentué, curseur et infobulle au survol.
         Grid playerScrubber;
@@ -1235,7 +1235,6 @@ namespace LyaranTV
             // références pour ne jamais piloter un contrôle détaché.
             if (page != "Lecture")
             {
-                volumeCard = null;
                 volumeValueText = null;
                 volumeHost = null;
             }
@@ -2159,7 +2158,6 @@ namespace LyaranTV
         {
             if (!playerChromeShown) return;
             playerChromeShown = false;
-            if (volumeCard != null) { volumeCard.Visibility = Visibility.Collapsed; volumeCard.Opacity = 0; }
             HidePlayerCursor();
             if (playerControlWrap == null) return;
             playerControlWrap.IsHitTestVisible = false;

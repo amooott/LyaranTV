@@ -1,20 +1,19 @@
-# LyaranTV 1.4.14
+# LyaranTV 1.4.15
 
-Deux corrections dans le lecteur : le volume ne met plus la lecture en pause,
-et les flèches haut/bas règlent le son comme sur YouTube.
+Le volume du lecteur devient une vraie barre intégrée à la barre de commandes.
 
-## Son sans pause
+## Volume intégré
 
-- **Régler le volume ne met plus la vidéo en pause** : la carte de volume et la pastille du haut-parleur flottent au-dessus de l'image, et le clic « sur la vidéo » (lecture / pause) les prenait pour la surface du film. Elles en sont maintenant exclues, ainsi que le curseur de volume lui-même.
-- **Double-clic sur la carte de volume** : il ne bascule plus en plein écran.
-- **Règle générale** : un clic issu d'un contrôle (bouton, curseur, barre de défilement, champ) n'est plus interprété comme lecture / pause, même hors de la barre de commandes.
+- **Rail permanent** : haut-parleur, curseur et pourcentage sont désormais côte à côte dans la barre de commandes, toujours visibles pendant la lecture. Plus besoin de cliquer sur une icône ni de la survoler pour régler le son : le rail se glisse directement.
+- **Carte flottante supprimée** : elle n'avait plus de raison d'être, et c'est elle qui flottait au-dessus de l'image. Toute la mécanique d'ouverture, de fermeture différée et de repositionnement disparaît avec elle.
+- **Pourcentage lisible** : la valeur suit le curseur (« muet » quand le son est coupé), avec une largeur fixe pour que la barre ne bouge pas quand le nombre de chiffres change.
+- **Haut-parleur conservé comme coupure** : l'icône reste un bouton de mute (raccourci M), mais elle n'est plus le seul accès au volume.
 
-## Flèches haut et bas
+## Comportement
 
-- **Flèche haut / flèche bas** : le volume monte ou descend de 5 % pendant la lecture, avec la carte de volume qui s'ouvre une seconde pour afficher le pourcentage, puis se referme.
-- **Elles fonctionnent même quand un bouton ou la timeline a le focus** : les flèches sont désormais traitées avant la navigation clavier de WPF, comme les flèches gauche et droite pour le déplacement dans le flux.
-- **Le tiroir des chaînes garde ses flèches** : ouvert, il continue de parcourir la liste au clavier.
-- Modificateur enfoncé (Ctrl, Alt…) : les flèches reprennent leur rôle habituel.
+- **Aucun clic parasite** : glisser le rail, cliquer dessus ou sur le pourcentage ne met jamais la vidéo en pause, et ne bascule pas en plein écran au double-clic.
+- **Flèches haut et bas** : elles règlent toujours le volume par pas de 5 % ; le pourcentage s'allume une fraction de seconde au lieu d'ouvrir une carte.
+- **Plein écran** : le rail disparaît et revient avec le reste des commandes, comme avant.
 
 ## Vérifications
 

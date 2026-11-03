@@ -580,26 +580,31 @@ namespace LyaranTV
             forward.Margin = new Thickness(0, 0, 6, 0);
             left.Children.Add(forward);
 
-            // Volume : la barre de commandes ne garde que l'icône du haut-parleur.
-            // Un survol déploie une petite carte flottante au-dessus d'elle avec
-            // un curseur fin et le pourcentage — plus aéré qu'un rail permanent
-            // qui encombre l'image, et plus lisible.
-            muteButton = PlayerButton(Glyphs.Volume, "Couper le son · M", ToggleMute, false, 38);
-            muteButton.Margin = new Thickness(4, 0, 2, 0);
-            volumeHost = new Grid
-            {
-                Width = 46, Height = 40, VerticalAlignment = VerticalAlignment.Center,
-                Background = Brushes.Transparent
-            };
-            muteButton.HorizontalAlignment = HorizontalAlignment.Center;
-            muteButton.VerticalAlignment = VerticalAlignment.Center;
-            volumeHost.Children.Add(muteButton);
+            // Volume intégré à la barre : haut-parleur, rail et pourcentage sont
+            // visibles en permanence. Aucune carte à ouvrir, aucun clic préalable
+            // pour régler le son — le rail se glisse directement, comme sur YouTube.
+            muteButton = PlayerButton(Glyphs.Volume, "Couper le son · M", ToggleMute, false, 34);
+            muteButton.Margin = new Thickness(0, 0, 4, 0);
             volumeSlider = new Slider
             {
-                Minimum = 0, Maximum = 100, Value = (wasMuted ? 0 : savedVolume) * 100, Width = 162,
+                Minimum = 0, Maximum = 100, Value = (wasMuted ? 0 : savedVolume) * 100, Width = 122,
                 VerticalAlignment = VerticalAlignment.Center, IsMoveToPointEnabled = true,
-                Style = PlayerVolumeSliderStyle(), ToolTip = "Volume"
+                Style = PlayerVolumeSliderStyle(), ToolTip = "Volume · flèches haut et bas"
             };
+            volumeValueText = Text("100 %", 10.5, Brush(TextPrimary), true);
+            volumeValueText.TextWrapping = TextWrapping.NoWrap;
+            volumeValueText.TextAlignment = TextAlignment.Right;
+            volumeValueText.HorizontalAlignment = HorizontalAlignment.Right;
+            volumeValueText.VerticalAlignment = VerticalAlignment.Center;
+            volumeValueText.MinWidth = 40;
+            volumeValueText.Margin = new Thickness(6, 0, 2, 0);
+            volumeHost = new Grid { Height = 40, VerticalAlignment = VerticalAlignment.Center, Background = Brushes.Transparent };
+            volumeHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            volumeHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            volumeHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetColumn(muteButton, 0); volumeHost.Children.Add(muteButton);
+            Grid.SetColumn(volumeSlider, 1); volumeHost.Children.Add(volumeSlider);
+            Grid.SetColumn(volumeValueText, 2); volumeHost.Children.Add(volumeValueText);
             volumeSlider.ValueChanged += delegate
             {
                 if (volumeChanging) return;
@@ -613,14 +618,6 @@ namespace LyaranTV
                 settings.Muted = wasMuted;
                 UpdateMuteIcon();
             };
-            // La carte vit dans la surface vidéo, pas dans la barre : la barre a
-            // une hauteur fixe et écrasait la carte. Posée sur l'image, elle
-            // s'ouvre juste au-dessus du bouton, sans jamais être rognée.
-            volumeCard = BuildVolumeCard(volumeSlider);
-            videoGrid.Children.Add(volumeCard);
-            System.Windows.Controls.Panel.SetZIndex(volumeCard, 31);
-            volumeHost.MouseEnter += delegate { ShowVolumeCard(true); };
-            volumeHost.MouseLeave += delegate { ScheduleVolumeCardHide(); };
             left.Children.Add(volumeHost);
             left.Children.Add(new Border { Width = 6 });
             DockPanel.SetDock(left, Dock.Left);
@@ -782,122 +779,28 @@ namespace LyaranTV
         }
 
         /// <summary>
-        /// Carte de volume qui se déploie au-dessus du bouton du haut-parleur :
-        /// intitulé discret, pourcentage courant et curseur fin. Elle flotte sur
-        /// l'image au lieu d'occuper une place permanente dans la barre.
-        /// </summary>
-        Border BuildVolumeCard(Slider slider)
-        {
-            volumeValueText = Text("100 %", 10.5, Brush(TextPrimary), true);
-            volumeValueText.HorizontalAlignment = HorizontalAlignment.Right;
-            var header = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 7) };
-            var label = Text("VOLUME", 9, Brush(Muted), true);
-            DockPanel.SetDock(label, Dock.Left);
-            header.Children.Add(label);
-            DockPanel.SetDock(volumeValueText, Dock.Right);
-            header.Children.Add(volumeValueText);
-
-            var stack = new StackPanel();
-            stack.Children.Add(header);
-            stack.Children.Add(slider);
-
-            var card = new Border
-            {
-                Child = stack, Width = 192, Padding = new Thickness(13, 12, 13, 10),
-                CornerRadius = new CornerRadius(13),
-                Background = Brush(Color.FromArgb(248, 14, 14, 21)),
-                BorderBrush = Brush(WithAlpha(TextPrimary, 24)), BorderThickness = new Thickness(1),
-                HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(-4, 0, 0, 42), Visibility = Visibility.Collapsed, Opacity = 0,
-                Effect = new DropShadowEffect { BlurRadius = 24, ShadowDepth = 8, Opacity = 0.45, Color = Colors.Black }
-            };
-            // La carte reste atteignable à la souris : on annule la sortie du
-            // groupe seulement quand ni le bouton ni la carte ne sont survolés.
-            card.MouseEnter += delegate { ShowVolumeCard(true); };
-            card.MouseLeave += delegate { ScheduleVolumeCardHide(); };
-            return card;
-        }
-
-        /// <summary>
-        /// Vrai quand le pointeur est sur la pastille du haut-parleur ou sur la
-        /// carte de volume déployée : ces surfaces ne doivent jamais être prises
-        /// pour un clic sur l'image.
+        /// Vrai quand le pointeur est sur le groupe de volume : ces surfaces ne
+        /// doivent jamais être prises pour un clic sur l'image.
         /// </summary>
         bool IsOverVolumeControls()
         {
-            return (volumeCard != null && volumeCard.IsMouseOver)
-                || (volumeHost != null && volumeHost.IsMouseOver)
-                || (volumeSlider != null && (volumeSlider.IsMouseOver || volumeSlider.IsMouseDirectlyOver));
+            return (volumeHost != null && volumeHost.IsMouseOver)
+                || (volumeSlider != null && (volumeSlider.IsMouseOver || volumeSlider.IsMouseDirectlyOver))
+                || (volumeValueText != null && volumeValueText.IsMouseOver);
         }
 
         /// <summary>
-        /// Retour visuel des flèches haut et bas, à la YouTube : la carte de
-        /// volume s'ouvre une seconde avec le pourcentage, puis se referme.
+        /// Retour visuel des flèches haut et bas : le pourcentage s'allume une
+        /// fraction de seconde, puisque le rail est désormais toujours visible.
         /// </summary>
         void ShowVolumeFeedback()
         {
             ShowFullscreenControls();
-            ShowVolumeCard(true);
-            if (volumeCardHideTimer != null) { volumeCardHideTimer.Stop(); volumeCardHideTimer = null; }
-            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
-            timer.Tick += delegate
+            if (volumeValueText == null || UiMotion.Reduced) return;
+            volumeValueText.BeginAnimation(UIElement.OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(0.3, 1, TimeSpan.FromMilliseconds(300))
             {
-                timer.Stop();
-                if (volumeCardHideTimer == timer) volumeCardHideTimer = null;
-                ShowVolumeCard(false);
-            };
-            volumeCardHideTimer = timer;
-            timer.Start();
-        }
-
-        void ShowVolumeCard(bool show)
-        {
-            if (volumeCard == null) return;
-            if (volumeCardHideTimer != null) { volumeCardHideTimer.Stop(); volumeCardHideTimer = null; }
-            if (!show)
-            {
-                if (volumeSlider != null && volumeSlider.IsMouseDirectlyOver) return;
-                UiMotion.Animate(volumeCard, UIElement.OpacityProperty, 0, 110);
-                var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(140) };
-                timer.Tick += delegate
-                {
-                    timer.Stop();
-                    if (volumeCard != null && volumeCard.Opacity < 0.05) volumeCard.Visibility = Visibility.Collapsed;
-                };
-                timer.Start();
-                return;
-            }
-            // Repositionnement au-dessus du bouton : la barre de commandes peut
-            // être décalée (plein écran, fenêtre redimensionnée), la carte suit.
-            try
-            {
-                if (playerVideoGrid != null && volumeHost != null && volumeHost.IsVisible)
-                {
-                    Point origin = volumeHost.TranslatePoint(new Point(0, 0), playerVideoGrid);
-                    double left = origin.X + volumeHost.ActualWidth / 2 - 94;
-                    if (left < 12) left = 12;
-                    double bottom = playerVideoGrid.ActualHeight - origin.Y + 8;
-                    volumeCard.Margin = new Thickness(left, 0, 0, Math.Max(8, bottom));
-                }
-            }
-            catch { }
-            volumeCard.Visibility = Visibility.Visible;
-            UpdateVolumeReadout();
-            UiMotion.Animate(volumeCard, UIElement.OpacityProperty, 1, 130);
-        }
-
-        void ScheduleVolumeCardHide()
-        {
-            if (volumeCard == null) return;
-            if (volumeCardHideTimer != null) { volumeCardHideTimer.Stop(); }
-            volumeCardHideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(260) };
-            volumeCardHideTimer.Tick += delegate
-            {
-                volumeCardHideTimer.Stop();
-                volumeCardHideTimer = null;
-                ShowVolumeCard(false);
-            };
-            volumeCardHideTimer.Start();
+                EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+            });
         }
 
         void UpdateVolumeReadout()
