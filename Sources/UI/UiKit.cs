@@ -595,7 +595,7 @@ namespace LyaranTV
         {
             var style = new Style(typeof(Slider));
             style.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
-            style.Setters.Add(new Setter(FrameworkElement.HeightProperty, 30.0));
+            style.Setters.Add(new Setter(FrameworkElement.HeightProperty, 24.0));
             style.Setters.Add(new Setter(FrameworkElement.CursorProperty, Cursors.Hand));
             style.Setters.Add(new Setter(Control.TemplateProperty, VolumeSliderTemplate()));
             return style;
@@ -614,14 +614,14 @@ namespace LyaranTV
             return ParseTemplate(
                 "<ControlTemplate xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" " +
                 "xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" TargetType=\"{x:Type Slider}\">" +
-                "<Grid Height=\"30\" Background=\"Transparent\">" +
-                "<Border x:Name=\"Rail\" Height=\"4\" CornerRadius=\"2\" VerticalAlignment=\"Center\" Background=\"" + rail + "\"/>" +
-                "<Track x:Name=\"PART_Track\" VerticalAlignment=\"Center\" Height=\"30\">" +
+                "<Grid Height=\"24\" Background=\"Transparent\">" +
+                "<Border x:Name=\"Rail\" Height=\"3\" CornerRadius=\"1.5\" VerticalAlignment=\"Center\" Background=\"" + rail + "\"/>" +
+                "<Track x:Name=\"PART_Track\" VerticalAlignment=\"Center\" Height=\"24\">" +
                 "<Track.DecreaseRepeatButton>" +
                 "<RepeatButton Command=\"{x:Static Slider.DecreaseLarge}\" Focusable=\"False\" IsTabStop=\"False\">" +
                 "<RepeatButton.Template><ControlTemplate TargetType=\"{x:Type RepeatButton}\">" +
                 "<Grid Background=\"Transparent\">" +
-                "<Border Height=\"4\" CornerRadius=\"2\" VerticalAlignment=\"Center\">" +
+                "<Border Height=\"3\" CornerRadius=\"1.5\" VerticalAlignment=\"Center\">" +
                 "<Border.Background><LinearGradientBrush StartPoint=\"0,0\" EndPoint=\"1,0\">" +
                 "<GradientStop Color=\"" + accent + "\" Offset=\"0\"/>" +
                 "<GradientStop Color=\"" + accentLight + "\" Offset=\"1\"/>" +
@@ -631,19 +631,19 @@ namespace LyaranTV
                 "<Track.Thumb>" +
                 "<Thumb x:Name=\"Knob\" Focusable=\"False\">" +
                 "<Thumb.Template><ControlTemplate TargetType=\"{x:Type Thumb}\">" +
-                "<Grid Width=\"26\" Height=\"30\" Background=\"Transparent\">" +
-                "<Ellipse x:Name=\"Halo\" Width=\"22\" Height=\"22\" Fill=\"" + halo + "\" Opacity=\"0\"/>" +
-                "<Border x:Name=\"Dot\" Width=\"11\" Height=\"11\" CornerRadius=\"5.5\" Background=\"#FFFFFFFF\" " +
+                "<Grid Width=\"20\" Height=\"24\" Background=\"Transparent\">" +
+                "<Ellipse x:Name=\"Halo\" Width=\"17\" Height=\"17\" Fill=\"" + halo + "\" Opacity=\"0\"/>" +
+                "<Border x:Name=\"Dot\" Width=\"9\" Height=\"9\" CornerRadius=\"4.5\" Background=\"#FFFFFFFF\" " +
                 "HorizontalAlignment=\"Center\" VerticalAlignment=\"Center\">" +
-                "<Border.Effect><DropShadowEffect Color=\"Black\" BlurRadius=\"9\" ShadowDepth=\"0\" Opacity=\"0.5\"/></Border.Effect>" +
+                "<Border.Effect><DropShadowEffect Color=\"Black\" BlurRadius=\"6\" ShadowDepth=\"0\" Opacity=\"0.38\"/></Border.Effect>" +
                 "</Border></Grid>" +
                 "<ControlTemplate.Triggers>" +
                 "<Trigger Property=\"IsMouseOver\" Value=\"True\">" +
-                "<Setter TargetName=\"Dot\" Property=\"Width\" Value=\"13\"/><Setter TargetName=\"Dot\" Property=\"Height\" Value=\"13\"/><Setter TargetName=\"Dot\" Property=\"CornerRadius\" Value=\"6.5\"/>" +
-                "<Setter TargetName=\"Halo\" Property=\"Opacity\" Value=\"0.85\"/></Trigger>" +
+                "<Setter TargetName=\"Dot\" Property=\"Width\" Value=\"11\"/><Setter TargetName=\"Dot\" Property=\"Height\" Value=\"11\"/><Setter TargetName=\"Dot\" Property=\"CornerRadius\" Value=\"5.5\"/>" +
+                "<Setter TargetName=\"Halo\" Property=\"Opacity\" Value=\"0.55\"/></Trigger>" +
                 "<Trigger Property=\"IsDragging\" Value=\"True\">" +
-                "<Setter TargetName=\"Dot\" Property=\"Width\" Value=\"13\"/><Setter TargetName=\"Dot\" Property=\"Height\" Value=\"13\"/><Setter TargetName=\"Dot\" Property=\"CornerRadius\" Value=\"6.5\"/>" +
-                "<Setter TargetName=\"Halo\" Property=\"Opacity\" Value=\"1\"/></Trigger>" +
+                "<Setter TargetName=\"Dot\" Property=\"Width\" Value=\"11\"/><Setter TargetName=\"Dot\" Property=\"Height\" Value=\"11\"/><Setter TargetName=\"Dot\" Property=\"CornerRadius\" Value=\"5.5\"/>" +
+                "<Setter TargetName=\"Halo\" Property=\"Opacity\" Value=\"0.85\"/></Trigger>" +
                 "</ControlTemplate.Triggers></ControlTemplate></Thumb.Template></Thumb>" +
                 "</Track.Thumb>" +
                 "<Track.IncreaseRepeatButton>" +

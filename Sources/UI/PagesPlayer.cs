@@ -583,22 +583,33 @@ namespace LyaranTV
             // Volume intégré à la barre : haut-parleur, rail et pourcentage sont
             // visibles en permanence. Aucune carte à ouvrir, aucun clic préalable
             // pour régler le son — le rail se glisse directement, comme sur YouTube.
-            muteButton = PlayerButton(Glyphs.Volume, "Couper le son · M", ToggleMute, false, 34);
-            muteButton.Margin = new Thickness(0, 0, 4, 0);
+            // Haut-parleur nu : aucun anneau, aucun fond. Le bouton ne se voit
+            // qu'au survol, comme les icônes de la barre, et le rail voisin reste
+            // le seul élément graphique du groupe.
+            muteButton = new Button
+            {
+                Content = Icon(Glyphs.Volume, 15, Brushes.White),
+                Width = 30, Height = 30, Padding = new Thickness(0), Margin = new Thickness(0, 0, 2, 0),
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand, FocusVisualStyle = null, ToolTip = "Couper le son · M",
+                Template = RoundedButtonTemplate(8), SnapsToDevicePixels = true,
+                HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center
+            };
+            muteButton.Click += delegate { ToggleMute(); };
             volumeSlider = new Slider
             {
-                Minimum = 0, Maximum = 100, Value = (wasMuted ? 0 : savedVolume) * 100, Width = 122,
+                Minimum = 0, Maximum = 100, Value = (wasMuted ? 0 : savedVolume) * 100, Width = 108,
                 VerticalAlignment = VerticalAlignment.Center, IsMoveToPointEnabled = true,
                 Style = PlayerVolumeSliderStyle(), ToolTip = "Volume · flèches haut et bas"
             };
-            volumeValueText = Text("100 %", 10.5, Brush(TextPrimary), true);
+            volumeValueText = Text("100 %", 11, Brush(TextPrimary), false);
             volumeValueText.TextWrapping = TextWrapping.NoWrap;
             volumeValueText.TextAlignment = TextAlignment.Right;
             volumeValueText.HorizontalAlignment = HorizontalAlignment.Right;
             volumeValueText.VerticalAlignment = VerticalAlignment.Center;
-            volumeValueText.MinWidth = 40;
-            volumeValueText.Margin = new Thickness(6, 0, 2, 0);
-            volumeHost = new Grid { Height = 40, VerticalAlignment = VerticalAlignment.Center, Background = Brushes.Transparent };
+            volumeValueText.MinWidth = 36;
+            volumeValueText.Margin = new Thickness(8, 0, 0, 0);
+            volumeHost = new Grid { Height = 36, VerticalAlignment = VerticalAlignment.Center, Background = Brushes.Transparent };
             volumeHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             volumeHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             volumeHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -810,7 +821,7 @@ namespace LyaranTV
             if (value < 0) value = 0;
             if (value > 100) value = 100;
             bool muted = wasMuted || value <= 0.5;
-            volumeValueText.Text = muted ? "muet" : Math.Round(value).ToString("0") + " %";
+            volumeValueText.Text = muted ? "Muet" : Math.Round(value).ToString("0") + " %";
             volumeValueText.Foreground = muted ? Brush(Muted) : Brush(TextPrimary);
         }
 
