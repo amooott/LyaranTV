@@ -36,6 +36,7 @@ namespace LyaranTV
         bool hasEta;
         int activeStep;
         bool finished;
+        bool closed;
 
         static SolidColorBrush B(Color color) { return new SolidColorBrush(color); }
 
@@ -77,116 +78,153 @@ namespace LyaranTV
             };
             this.accent = accent;
             Title = "Chargement · LyaranTV";
-            Width = 548;
-            Height = 500;
+            // Carte compacte ancrée en bas à gauche : elle informe sans jamais
+            // couvrir l'application, qui reste utilisable pendant le chargement.
+            Width = 376;
+            Height = 138;
             ResizeMode = ResizeMode.NoResize;
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            WindowStartupLocation = WindowStartupLocation.Manual;
             WindowStyle = WindowStyle.None;
             AllowsTransparency = true;
             Background = Brushes.Transparent;
             FontFamily = new FontFamily("Segoe UI");
             ShowInTaskbar = false;
+            ShowActivated = false;
+            Focusable = false;
 
             var outer = new Border
             {
-                Margin = new Thickness(2), CornerRadius = new CornerRadius(20), BorderThickness = new Thickness(1),
-                BorderBrush = B(Color.FromArgb(70, 255, 255, 255)), Background = B(panel), Padding = new Thickness(28)
+                Margin = new Thickness(2), CornerRadius = new CornerRadius(14), BorderThickness = new Thickness(1),
+                BorderBrush = B(Color.FromArgb(64, 255, 255, 255)), Background = B(panel), Padding = new Thickness(14, 11, 14, 12)
             };
             Content = outer;
-            var root = new StackPanel();
+            var root = new Grid();
             outer.Child = root;
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            root.Children.Add(new Border
-            {
-                Height = 3, CornerRadius = new CornerRadius(2), HorizontalAlignment = HorizontalAlignment.Stretch,
-                Margin = new Thickness(0, 0, 0, 20),
-                Background = new LinearGradientBrush(accent, Color.FromArgb(40, accent.R, accent.G, accent.B), 0)
-            });
-
-            var brand = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 16) };
+            var header = new Grid();
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var logo = new Image
             {
-                Source = MainWindow.CreateLogoMark(), Width = 46, Height = 42, Stretch = Stretch.Uniform,
-                Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center
+                Source = MainWindow.CreateLogoMark(), Width = 26, Height = 24, Stretch = Stretch.Uniform,
+                Margin = new Thickness(0, 0, 9, 0), VerticalAlignment = VerticalAlignment.Center
             };
-            brand.Children.Add(logo);
-            var titleStack = new StackPanel();
+            header.Children.Add(logo);
+            var titleStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             titleStack.Children.Add(new TextBlock
             {
                 Text = steps != null ? "Restauration de votre bibliothèque" : "Préparation de votre playlist",
-                FontSize = 20, FontWeight = FontWeights.SemiBold, Foreground = B(textPrimary)
+                FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = B(textPrimary),
+                TextTrimming = TextTrimming.CharacterEllipsis
             });
-            titleStack.Children.Add(new TextBlock { Text = playlistName ?? "", FontSize = 12, Foreground = B(muted), Margin = new Thickness(0, 3, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis });
-            brand.Children.Add(titleStack);
-            root.Children.Add(brand);
-
-            detail = new TextBlock { Text = steps != null ? "Lecture de la copie locale…" : "Connexion à la source…", FontSize = 12, Foreground = B(muted), Margin = new Thickness(0, 0, 0, 10), TextWrapping = TextWrapping.Wrap };
-            root.Children.Add(detail);
-
-            var progressLine = new Grid { Margin = new Thickness(0, 0, 0, 8) };
-            progressLine.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            progressLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            track = new Border { Height = 6, CornerRadius = new CornerRadius(3), Background = B(Color.FromRgb(34, 37, 47)), ClipToBounds = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
-            fill = new Border { Width = 0, HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(3), Background = new LinearGradientBrush(accent, Color.FromArgb(190, 255, 255, 255), 0) };
-            track.Child = fill;
-            progressLine.Children.Add(track);
-            percentLabel = new TextBlock { Text = "0 %", MinWidth = 44, TextAlignment = TextAlignment.Right, FontSize = 11, Foreground = B(textPrimary), VerticalAlignment = VerticalAlignment.Center };
-            Grid.SetColumn(percentLabel, 1);
-            progressLine.Children.Add(percentLabel);
-            root.Children.Add(progressLine);
-            track.SizeChanged += delegate { UpdateBar(); };
-
-            var timing = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
-            etaLabel = new TextBlock { Text = "Estimation du temps restant…", FontSize = 11, Foreground = B(accent) };
-            elapsedLabel = new TextBlock { Text = "Temps écoulé : 0 s", FontSize = 10.5, Foreground = B(muted), TextAlignment = TextAlignment.Right };
-            DockPanel.SetDock(elapsedLabel, Dock.Right);
-            timing.Children.Add(elapsedLabel);
-            timing.Children.Add(etaLabel);
-            root.Children.Add(timing);
-
-            for (int i = 0; i < labels.Length; i++)
+            titleStack.Children.Add(new TextBlock
             {
-                var row = new TextBlock { Text = "○   " + labels[i], FontSize = 13, Foreground = B(muted), Margin = new Thickness(2, 0, 0, 11), TextTrimming = TextTrimming.CharacterEllipsis };
-                rows[i] = row;
-                root.Children.Add(row);
-            }
-
-            var footer = new Border
+                Text = playlistName ?? "", FontSize = 10, Foreground = B(muted),
+                Margin = new Thickness(0, 1, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            Grid.SetColumn(titleStack, 1);
+            header.Children.Add(titleStack);
+            percentLabel = new TextBlock
             {
-                Margin = new Thickness(0, 4, 0, 0), Padding = new Thickness(12, 10, 12, 10), CornerRadius = new CornerRadius(9),
-                Background = B(Color.FromArgb(26, accent.R, accent.G, accent.B)),
-                BorderBrush = B(Color.FromArgb(70, accent.R, accent.G, accent.B)), BorderThickness = new Thickness(1),
-                Child = new TextBlock
-                {
-                    Text = steps != null
-                        ? "La bibliothèque s'ouvre depuis la copie locale enregistrée à la dernière session ; seul le guide peut être retéléchargé ensuite."
-                        : "Le guide EPG continue en arrière-plan : la bibliothèque s’ouvre dès que les catalogues sont prêts.",
-                    FontSize = 10, Foreground = B(muted), TextWrapping = TextWrapping.Wrap
-                }
+                Text = "0 %", MinWidth = 40, TextAlignment = TextAlignment.Right, FontSize = 11,
+                FontWeight = FontWeights.SemiBold, Foreground = B(accent), VerticalAlignment = VerticalAlignment.Center
             };
-            root.Children.Add(footer);
-
+            Grid.SetColumn(percentLabel, 2);
+            header.Children.Add(percentLabel);
             cancel = new Button
             {
-                Content = "Annuler", Height = 34, Width = 96, HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(0, 13, 0, 0), Background = Brushes.Transparent, Foreground = B(muted),
-                BorderBrush = B(Color.FromArgb(70, 255, 255, 255)), BorderThickness = new Thickness(1), Cursor = Cursors.Hand,
-                FocusVisualStyle = null, Template = ButtonTemplate()
+                Content = "✕", Width = 24, Height = 24, Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(0),
+                FontSize = 11, Background = Brushes.Transparent, Foreground = B(muted), BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand, FocusVisualStyle = null, Template = ButtonTemplate(), ToolTip = "Annuler le chargement"
             };
             cancel.Click += delegate
             {
                 if (finished) return;
                 cancel.IsEnabled = false;
-                cancel.Content = "Annulation…";
                 if (CancelRequested != null) CancelRequested(this, EventArgs.Empty);
             };
-            root.Children.Add(cancel);
+            Grid.SetColumn(cancel, 3);
+            header.Children.Add(cancel);
+            root.Children.Add(header);
+
+            detail = new TextBlock
+            {
+                Text = steps != null ? "Lecture de la copie locale…" : "Connexion à la source…",
+                FontSize = 10.5, Foreground = B(muted), Margin = new Thickness(35, 7, 0, 8),
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            Grid.SetRow(detail, 1);
+            root.Children.Add(detail);
+
+            track = new Border
+            {
+                Height = 3, CornerRadius = new CornerRadius(2), Background = B(Color.FromRgb(34, 37, 47)),
+                ClipToBounds = true, Margin = new Thickness(35, 0, 0, 8)
+            };
+            fill = new Border
+            {
+                Width = 0, HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(2),
+                Background = new LinearGradientBrush(accent, Color.FromArgb(190, 255, 255, 255), 0)
+            };
+            track.Child = fill;
+            Grid.SetRow(track, 2);
+            root.Children.Add(track);
+            track.SizeChanged += delegate { UpdateBar(); };
+
+            var timing = new DockPanel { Margin = new Thickness(35, 0, 0, 0) };
+            etaLabel = new TextBlock { Text = "Estimation du temps restant…", FontSize = 9.5, Foreground = B(accent) };
+            elapsedLabel = new TextBlock { Text = "Temps écoulé : 0 s", FontSize = 9.5, Foreground = B(muted), TextAlignment = TextAlignment.Right };
+            DockPanel.SetDock(elapsedLabel, Dock.Right);
+            timing.Children.Add(elapsedLabel);
+            timing.Children.Add(etaLabel);
+            Grid.SetRow(timing, 3);
+            root.Children.Add(timing);
+
+            // Les étapes restent suivies (rapports, réussite, échec) mais ne sont
+            // plus listées : la carte tient en quatre lignes.
+            for (int i = 0; i < labels.Length; i++) rows[i] = new TextBlock { Text = labels[i] };
 
             ticker = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
             ticker.Tick += delegate { Animate(); };
             ticker.Start();
-            Closed += delegate { if (ticker != null) ticker.Stop(); };
-            Loaded += delegate { UpdateBar(); UpdateEta(); };
+            Closed += delegate { closed = true; if (ticker != null) ticker.Stop(); };
+            Loaded += delegate
+            {
+                // Ancrage en bas à gauche de la fenêtre principale.
+                try
+                {
+                    if (Owner != null)
+                    {
+                        Left = Owner.Left + 18;
+                        Top = Owner.Top + Math.Max(0, Owner.ActualHeight - ActualHeight - 46);
+                    }
+                }
+                catch { }
+                UpdateBar();
+                UpdateEta();
+            };
+        }
+
+        /// <summary>
+        /// Affiche la carte seulement si le chargement dure encore : une
+        /// restauration instantanée ne fait plus clignoter de fenêtre.
+        /// </summary>
+        public void ShowSoon()
+        {
+            var delay = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(320) };
+            delay.Tick += delegate
+            {
+                delay.Stop();
+                if (closed || finished || IsVisible) return;
+                try { Show(); } catch { }
+            };
+            delay.Start();
         }
 
         public void Report(int stage, int value, string message, bool skipped)
@@ -228,9 +266,12 @@ namespace LyaranTV
         {
             int index = labels.Length - 1;
             if (rows == null || index < 0 || index >= rows.Length || rows[index] == null) return;
-            rows[index].Text = (done ? "✓   " : "●   ") + labels[index] + "  ·  "
+            rows[index].Text = labels[index] + "  ·  "
                 + (String.IsNullOrWhiteSpace(message) ? (done ? "terminé" : "en cours") : message);
             rows[index].Foreground = B(done ? Color.FromRgb(74, 222, 128) : accent);
+            // La carte compacte n'affiche plus la liste : l'état des affiches
+            // passe par la ligne de détail.
+            if (detail != null) detail.Text = rows[index].Text;
         }
 
         void Animate()

@@ -11,6 +11,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Shell;
 using System.Windows.Threading;
 
 namespace LyaranTV
@@ -94,6 +95,8 @@ namespace LyaranTV
         Button refreshButton, chromeFullscreenButton;
         // Barre latérale réduite : largeur et éléments de marque à ajuster.
         ColumnDefinition topBrandColumn;
+        StackPanel topBrandPanel;
+        Button maximizeCaptionButton;
         StackPanel topBrandText;
         Image topBrandMark;
         bool sidebarCompact;
@@ -151,6 +154,7 @@ namespace LyaranTV
         {
             Title = "LyaranTV"; Width = 1380; Height = 860; MinWidth = 1080; MinHeight = 700;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            ApplyCustomWindowChrome();
             FontFamily = new FontFamily("Inter, Segoe UI");
             SetValue(Window.IconProperty, CreateAppIcon());
             var bootPerf = Stopwatch.StartNew();
@@ -195,6 +199,7 @@ namespace LyaranTV
             // toujours la taille exacte de la surface disponible.
             SizeChanged += delegate { UpdatePlayerVideoSize(); };
             SourceInitialized += delegate { ApplyDarkTitleBar(); };
+            StateChanged += delegate { UpdateCaptionButtons(); SetChromeCaptionHeight(fullScreen ? 0 : ChromeCaptionHeight); };
             Microsoft.Win32.SystemEvents.UserPreferenceChanged += SystemThemePreferenceChanged;
             Loaded += delegate
             {
@@ -457,6 +462,7 @@ namespace LyaranTV
             DockPanel.SetDock(topBorder, Dock.Top); shell.Children.Add(topBorder); chromeTop = topBorder;
 
             var brand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0), Cursor = Cursors.Hand };
+            topBrandPanel = brand;
             backButton = IconButton(Glyphs.Back, "Revenir à la page précédente", NavBack, false);
             backButton.Width = 32; backButton.Height = 32;
             backButton.Margin = new Thickness(0, 0, 10, 0);
@@ -474,6 +480,7 @@ namespace LyaranTV
                 Nav("Accueil");
             };
             Grid.SetColumn(brand, 0); top.Children.Add(brand);
+            WindowChrome.SetIsHitTestVisibleInChrome(brand, true);
 
             var searchWrap = new Border
             {
@@ -497,6 +504,7 @@ namespace LyaranTV
             searchWrap.Child = searchGrid;
             searchWrap.Margin = new Thickness(12, 0, 12, 0);
             Grid.SetColumn(searchWrap, 1); top.Children.Add(searchWrap);
+            WindowChrome.SetIsHitTestVisibleInChrome(searchWrap, true);
             searchBox.TextChanged += delegate { ScheduleSearch(); };
             searchBox.PreviewKeyDown += delegate(object sender, KeyEventArgs e)
             {
@@ -550,7 +558,19 @@ namespace LyaranTV
             var profileButton = ProfileAvatarButton(36);
             profileButton.Margin = new Thickness(4, 0, 0, 0);
             actions.Children.Add(profileButton);
+            // Boutons de fenêtre dessinés dans le style de l'application :
+            // la barre de titre Windows est masquée (ApplyCustomWindowChrome).
+            var windowButtons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+            windowButtons.Children.Add(CaptionButton(Glyphs.ChromeMinimize, "Réduire", delegate { WindowState = WindowState.Minimized; }, false));
+            maximizeCaptionButton = CaptionButton(Glyphs.ChromeMaximize, "Agrandir", ToggleMaximizeWindow, false);
+            windowButtons.Children.Add(maximizeCaptionButton);
+            windowButtons.Children.Add(CaptionButton(Glyphs.ChromeClose, "Fermer", delegate { Close(); }, true));
+            actions.Children.Add(windowButtons);
             Grid.SetColumn(actions, 2); top.Children.Add(actions);
+            // Sans cela, la zone de déplacement de la fenêtre avalerait les
+            // clics sur la recherche et les actions de la barre supérieure.
+            WindowChrome.SetIsHitTestVisibleInChrome(actions, true);
+            UpdateCaptionButtons();
 
             var body = new DockPanel();
             var sidebarBorder = new Border
@@ -587,8 +607,97 @@ namespace LyaranTV
             toastHost = new Grid { IsHitTestVisible = false };
             System.Windows.Controls.Panel.SetZIndex(toastHost, 200);
             rootGrid.Children.Add(toastHost);
+            // Filet d'un pixel : sans barre de titre système, la fenêtre n'aurait
+            // plus aucun contour sur les thèmes sombres.
+            var windowEdge = new Border
+            {
+                BorderBrush = Brush(WithAlpha(BorderColor, 210)), BorderThickness = new Thickness(1),
+                IsHitTestVisible = false
+            };
+            System.Windows.Controls.Panel.SetZIndex(windowEdge, 400);
+            rootGrid.Children.Add(windowEdge);
             RebuildSidebar();
             UpdateStatusBar();
+        }
+
+        /// <summary>
+        /// Barre de titre système remplacée par celle de l'application : les
+        /// boutons Réduire / Agrandir / Fermer reprennent l'identité visuelle
+        /// (glyphes fins, survol discret, fermeture en rouge) au lieu des
+        /// pictogrammes gris de Windows. WindowChrome conserve le
+        /// redimensionnement aux bords, l'ombre et le double-clic d'agrandissement.
+        /// </summary>
+        const double ChromeCaptionHeight = 68;
+
+        void ApplyCustomWindowChrome()
+        {
+            WindowStyle = WindowStyle.None;
+            ResizeMode = ResizeMode.CanResize;
+            var chrome = new WindowChrome
+            {
+                CaptionHeight = ChromeCaptionHeight,
+                ResizeBorderThickness = new Thickness(6),
+                CornerRadius = new CornerRadius(0),
+                GlassFrameThickness = new Thickness(0),
+                UseAeroCaptionButtons = false
+            };
+            WindowChrome.SetWindowChrome(this, chrome);
+        }
+
+        /// <summary>Zone de déplacement de la fenêtre : nulle en plein écran.</summary>
+        void SetChromeCaptionHeight(double height)
+        {
+            try
+            {
+                var chrome = WindowChrome.GetWindowChrome(this);
+                if (chrome != null) chrome.CaptionHeight = height;
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Bouton de fenêtre : glyphe Segoe fin, 44 × 32, sans cadre au repos.
+        /// Le survol allume un fond discret ; la fermeture passe au rouge.
+        /// </summary>
+        Button CaptionButton(string glyph, string tooltip, Action click, bool closeButton)
+        {
+            var icon = Icon(glyph, 10, Brush(closeButton ? TextPrimary : Muted));
+            var button = new Button
+            {
+                Content = icon, Width = 44, Height = 32, Padding = new Thickness(0),
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand, FocusVisualStyle = null, IsTabStop = false,
+                Template = RoundedButtonTemplate(8), ToolTip = tooltip, SnapsToDevicePixels = true,
+                Margin = new Thickness(2, 0, 0, 0),
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center
+            };
+            var hover = Brush(closeButton ? Danger : WithAlpha(TextPrimary, 26));
+            button.MouseEnter += delegate
+            {
+                button.Background = hover;
+                if (closeButton) icon.Foreground = Brushes.White;
+            };
+            button.MouseLeave += delegate
+            {
+                button.Background = Brushes.Transparent;
+                if (closeButton) icon.Foreground = Brush(TextPrimary);
+            };
+            button.Click += delegate { if (click != null) click(); };
+            return button;
+        }
+
+        void ToggleMaximizeWindow()
+        {
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        }
+
+        void UpdateCaptionButtons()
+        {
+            if (maximizeCaptionButton == null) return;
+            bool maximized = WindowState == WindowState.Maximized;
+            maximizeCaptionButton.Content = Icon(maximized ? Glyphs.ChromeRestore : Glyphs.ChromeMaximize, 10, Brush(Muted));
+            maximizeCaptionButton.ToolTip = maximized ? "Restaurer" : "Agrandir";
         }
 
         void RebuildSidebar()
@@ -672,15 +781,21 @@ namespace LyaranTV
             if (chromeSidebar != null) chromeSidebar.Width = width;
             if (topBrandColumn != null) topBrandColumn.Width = new GridLength(width);
             if (topBrandText != null) topBrandText.Visibility = sidebarCompact ? Visibility.Collapsed : Visibility.Visible;
+            // Mode cinéma : la colonne ne fait plus que 76 px. Le bouton retour
+            // et la marque doivent tenir ensemble, sinon le logo était rogné au
+            // bord de la barre.
+            if (topBrandPanel != null) topBrandPanel.Margin = new Thickness(sidebarCompact ? 6 : 12, 0, 0, 0);
             if (topBrandMark != null)
             {
-                topBrandMark.Width = sidebarCompact ? 32 : 43;
-                topBrandMark.Height = sidebarCompact ? 30 : 38;
-                topBrandMark.Margin = new Thickness(0, 0, sidebarCompact ? 0 : 9, 0);
+                topBrandMark.Width = sidebarCompact ? 28 : 43;
+                topBrandMark.Height = sidebarCompact ? 26 : 38;
+                topBrandMark.Margin = new Thickness(0, 0, sidebarCompact ? 2 : 9, 0);
             }
             if (backButton != null)
             {
-                backButton.Margin = new Thickness(0, 0, sidebarCompact ? 6 : 10, 0);
+                backButton.Width = sidebarCompact ? 26 : 32;
+                backButton.Height = sidebarCompact ? 26 : 32;
+                backButton.Margin = new Thickness(0, 0, sidebarCompact ? 4 : 10, 0);
             }
         }
 
@@ -1594,6 +1709,7 @@ namespace LyaranTV
             WindowState = WindowState.Normal;
             WindowStyle = WindowStyle.None;
             ResizeMode = ResizeMode.NoResize;
+            SetChromeCaptionHeight(0);
             Topmost = true;
             Rect bounds = CurrentMonitorBounds();
             Left = bounds.Left;
@@ -1612,6 +1728,7 @@ namespace LyaranTV
             Topmost = savedTopmost;
             WindowStyle = savedWindowStyle;
             ResizeMode = savedResizeMode;
+            SetChromeCaptionHeight(ChromeCaptionHeight);
             if (savedWindowState == WindowState.Maximized)
             {
                 WindowState = WindowState.Maximized;
@@ -1978,7 +2095,7 @@ namespace LyaranTV
                 loadingWindow = dialog;
                 dialog.Closed += delegate { if (!finished) loadCancelled = true; if (loadingWindow == dialog) loadingWindow = null; };
                 dialog.CancelRequested += delegate { loadCancelled = true; finished = true; dialog.Close(); SetStatus("Chargement annulé."); ShowToast("Chargement annulé.", false, false); };
-                dialog.Show();
+                dialog.ShowSoon();
             }
             var worker = new BackgroundWorker { WorkerReportsProgress = true };
             worker.ProgressChanged += delegate(object sender, ProgressChangedEventArgs e)
@@ -2127,7 +2244,7 @@ namespace LyaranTV
             bool finished = false;
             dialog.Closed += delegate { if (!finished) loadCancelled = true; if (loadingWindow == dialog) loadingWindow = null; };
             dialog.CancelRequested += delegate { loadCancelled = true; finished = true; dialog.Close(); SetStatus("Restauration annulée."); };
-            dialog.Show();
+            dialog.ShowSoon();
             dialog.Report(0, 6, "Lecture de la copie locale…", false);
 
             var worker = new BackgroundWorker { WorkerReportsProgress = true };

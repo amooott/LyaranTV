@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -18,111 +19,156 @@ namespace LyaranTV
         bool startupSplashShown;
 
         /// <summary>
-        /// Voile de démarrage : logo, halo animé puis fondu vers l'interface.
-        /// Il ne dure qu'un peu plus d'une seconde et se coupe si l'utilisateur
-        /// a demandé moins d'animations.
+        /// Générique de lancement : halo qui s'ouvre, logo qui prend sa place,
+        /// nom écrit lettre à lettre, puis fondu vers l'interface. Il couvre la
+        /// fenêtre entière, en fenêtré comme en plein écran, s'efface au clic et
+        /// se coupe si l'utilisateur a demandé moins d'animations.
         /// </summary>
         void ShowStartupSplash()
         {
             if (startupSplashShown || rootGrid == null) return;
             startupSplashShown = true;
+            // Animations réduites : la marque s'affiche d'un coup, sans mouvement.
+            bool animate = !UiMotion.Reduced;
 
-            var overlay = new Grid { Background = Brush(Back), IsHitTestVisible = true };
-            overlay.Children.Add(new Border
+
+            var overlay = new Grid { Background = Brush(Back), IsHitTestVisible = true, ClipToBounds = true };
+
+            // Halo qui s'ouvre derrière la marque : la lumière vient de l'accent,
+            // la seconde teinte du dégradé donne la profondeur.
+            var halo = new Border
             {
+                Width = 640, Height = 640, CornerRadius = new CornerRadius(320),
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
                 Background = new RadialGradientBrush
                 {
-                    Center = new Point(0.5, 0.42), GradientOrigin = new Point(0.5, 0.42),
-                    RadiusX = 0.7, RadiusY = 0.9,
+                    Center = new Point(0.5, 0.5), GradientOrigin = new Point(0.5, 0.5), RadiusX = 0.5, RadiusY = 0.5,
                     GradientStops = new GradientStopCollection
                     {
-                        new GradientStop(WithAlpha(Accent, 34), 0),
-                        new GradientStop(WithAlpha(Back, 0), 0.52),
-                        new GradientStop(Back, 1)
+                        new GradientStop(WithAlpha(Accent, 42), 0),
+                        new GradientStop(WithAlpha(Secondary, 18), 0.42),
+                        new GradientStop(WithAlpha(Back, 0), 1)
                     }
-                }
-            });
+                },
+                Opacity = 0
+            };
+            overlay.Children.Add(halo);
 
             var content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            var brandLine = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+
             var logo = new Image
             {
-                Source = CreateLogoMark(), Width = 74, Height = 66, Stretch = Stretch.Uniform,
-                Margin = new Thickness(0, 0, 16, 0), VerticalAlignment = VerticalAlignment.Center
+                Source = CreateLogoMark(), Width = 128, Height = 114, Stretch = Stretch.Uniform,
+                HorizontalAlignment = HorizontalAlignment.Center, Opacity = 0,
+                RenderTransformOrigin = new Point(0.5, 0.5)
             };
-            brandLine.Children.Add(logo);
-            var wordmark = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            var name = Text("LyaranTV", 36, Brush(TextPrimary), true);
-            name.TextWrapping = TextWrapping.NoWrap;
-            name.HorizontalAlignment = HorizontalAlignment.Left;
-            wordmark.Children.Add(name);
-            var tagline = Text("CINÉMA  ·  DIRECT  ·  SÉRIES", 10, Brush(Accent), true);
-            tagline.HorizontalAlignment = HorizontalAlignment.Left;
-            tagline.Margin = new Thickness(2, 3, 0, 0);
-            wordmark.Children.Add(tagline);
-            brandLine.Children.Add(wordmark);
-            content.Children.Add(brandLine);
+            var logoScale = new ScaleTransform(0.86, 0.86);
+            logo.RenderTransform = logoScale;
+            logo.Effect = new DropShadowEffect { BlurRadius = 54, ShadowDepth = 0, Opacity = 0.55, Color = Accent };
+            content.Children.Add(logo);
 
-            var status = Text("Préparation de votre espace", 10.5, Brush(Muted), false);
-            status.HorizontalAlignment = HorizontalAlignment.Center;
-            status.Margin = new Thickness(0, 22, 0, 0);
-            content.Children.Add(status);
+            // Nom écrit lettre à lettre, comme une signature qui se pose.
+            var letters = new StackPanel
+            {
+                Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 20, 0, 0)
+            };
+            var letterBlocks = new List<TextBlock>();
+            foreach (char letter in "LyaranTV")
+            {
+                var block = Text(letter.ToString(), 40, Brush(TextPrimary), true);
+                block.Opacity = 0;
+                block.RenderTransform = new TranslateTransform(0, 10);
+                letters.Children.Add(block);
+                letterBlocks.Add(block);
+            }
+            content.Children.Add(letters);
+
+            var tagline = Text("CINÉMA  ·  DIRECT  ·  SÉRIES", 10, Brush(Accent), true);
+            tagline.HorizontalAlignment = HorizontalAlignment.Center;
+            tagline.Margin = new Thickness(0, 9, 0, 0);
+            tagline.Opacity = 0;
+            content.Children.Add(tagline);
 
             var track = new Border
             {
-                Width = 210, Height = 3, CornerRadius = new CornerRadius(2), Background = Brush(WithAlpha(TextPrimary, 26)),
-                Margin = new Thickness(0, 13, 0, 0), HorizontalAlignment = HorizontalAlignment.Center, ClipToBounds = true
+                Width = 168, Height = 2.5, CornerRadius = new CornerRadius(2), Background = Brush(WithAlpha(TextPrimary, 22)),
+                Margin = new Thickness(0, 26, 0, 0), HorizontalAlignment = HorizontalAlignment.Center,
+                ClipToBounds = true, Opacity = 0
             };
             var fill = new Border
             {
-                Width = 0, Height = 3, CornerRadius = new CornerRadius(2), HorizontalAlignment = HorizontalAlignment.Left,
-                Background = new LinearGradientBrush(WithAlpha(Accent, 120), Accent, 0)
+                Width = 0, Height = 2.5, HorizontalAlignment = HorizontalAlignment.Left,
+                Background = new LinearGradientBrush(WithAlpha(Accent, 70), Accent, 0)
             };
             track.Child = fill;
             content.Children.Add(track);
+
             overlay.Children.Add(content);
             System.Windows.Controls.Panel.SetZIndex(overlay, 500);
             rootGrid.Children.Add(overlay);
 
-            if (!UiMotion.Reduced)
+            // Certaines pages reconstruisent la coquille pendant le démarrage :
+            // on rattache le générique tant qu'il n'est pas terminé.
+            bool dismissed = false;
+            EventHandler keep = null;
+            keep = delegate(object sender, EventArgs args)
             {
-                var rise = new TranslateTransform(0, 10);
-                content.RenderTransform = rise;
-                content.Opacity = 0;
-                content.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(380))
+                if (dismissed || overlay == null || rootGrid == null)
                 {
-                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-                });
-                rise.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(10, 0, TimeSpan.FromMilliseconds(450))
-                {
-                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-                });
-                fill.BeginAnimation(FrameworkElement.WidthProperty, new DoubleAnimation(0, 210, TimeSpan.FromMilliseconds(1050))
-                {
-                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
-                });
-                var ease = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(800)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
-                logo.BeginAnimation(UIElement.OpacityProperty, ease);
+                    if (rootGrid != null) rootGrid.LayoutUpdated -= keep;
+                    return;
+                }
+                if (overlay.Parent == null) rootGrid.Children.Add(overlay);
+                System.Windows.Controls.Panel.SetZIndex(overlay, 500);
+            };
+            rootGrid.LayoutUpdated += keep;
+
+            if (!animate)
+            {
+                halo.Opacity = 1; logo.Opacity = 1; tagline.Opacity = 1; track.Opacity = 1; fill.Width = 168;
+                foreach (var block in letterBlocks) block.Opacity = 1;
+            }
+            else
+            {
+            var easeOut = new CubicEase { EasingMode = EasingMode.EaseOut };
+            var when = TimeSpan.FromMilliseconds(120);
+
+            halo.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(760)) { EasingFunction = easeOut });
+            logo.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(620)) { BeginTime = when, EasingFunction = easeOut });
+            var pop = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.35 };
+            logoScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0.86, 1, TimeSpan.FromMilliseconds(1050)) { BeginTime = when, EasingFunction = pop });
+            logoScale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.86, 1, TimeSpan.FromMilliseconds(1050)) { BeginTime = when, EasingFunction = pop });
+
+            for (int i = 0; i < letterBlocks.Count; i++)
+            {
+                var block = letterBlocks[i];
+                var drop = (TranslateTransform)block.RenderTransform;
+                var start = TimeSpan.FromMilliseconds(400 + i * 52);
+                block.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(340)) { BeginTime = start, EasingFunction = easeOut });
+                drop.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(10, 0, TimeSpan.FromMilliseconds(420)) { BeginTime = start, EasingFunction = easeOut });
             }
 
-            var close = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(UiMotion.Reduced ? 280 : 1250) };
-            close.Tick += delegate
+            tagline.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(420)) { BeginTime = TimeSpan.FromMilliseconds(880), EasingFunction = easeOut });
+            track.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(300)) { BeginTime = TimeSpan.FromMilliseconds(960) });
+            fill.BeginAnimation(FrameworkElement.WidthProperty, new DoubleAnimation(0, 168, TimeSpan.FromMilliseconds(640)) { BeginTime = TimeSpan.FromMilliseconds(960), EasingFunction = easeOut });
+            }
+
+            Action dismiss = delegate
             {
-                close.Stop();
-                if (!UiMotion.Reduced)
-                {
-                    var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(280))
-                    {
-                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
-                    };
-                    fade.Completed += delegate { try { rootGrid.Children.Remove(overlay); } catch { } };
-                    overlay.BeginAnimation(UIElement.OpacityProperty, fade);
-                }
-                else
-                {
-                    try { rootGrid.Children.Remove(overlay); } catch { }
-                }
+                if (dismissed) return;
+                dismissed = true;
+                if (rootGrid != null) rootGrid.LayoutUpdated -= keep;
+                var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(340)) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn } };
+                fade.Completed += delegate { try { rootGrid.Children.Remove(overlay); } catch { } };
+                overlay.BeginAnimation(UIElement.OpacityProperty, fade);
             };
+            // Un clic ou une touche passe le générique : l'application reste
+            // accessible immédiatement.
+            overlay.MouseLeftButtonDown += delegate { dismiss(); };
+
+            var close = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(animate ? 1550 : 520) };
+            close.Tick += delegate { close.Stop(); dismiss(); };
             close.Start();
         }
 

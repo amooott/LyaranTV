@@ -87,6 +87,12 @@ namespace LyaranTV
         public const string Subtitles = "\uE8D2";
         public const string Repeat = "\uE8EE";
         public const string Keyboard = "\uE765";
+        // Boutons de fenêtre : glyphes fins Segoe, dessinés dans la barre
+        // supérieure de l'application à la place de la barre de titre Windows.
+        public const string ChromeMinimize = "\uE921";
+        public const string ChromeMaximize = "\uE922";
+        public const string ChromeRestore = "\uE923";
+        public const string ChromeClose = "\uE8BB";
     }
 
     public sealed partial class MainWindow
