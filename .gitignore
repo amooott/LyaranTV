@@ -22,3 +22,4 @@ Installer/build/
 *.rar
 *.sha256.tmp
 *.exe.sha256
+/tmp-*.jpg
