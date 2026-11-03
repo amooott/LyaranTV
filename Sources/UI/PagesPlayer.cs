@@ -424,6 +424,12 @@ namespace LyaranTV
             playerTopBar.Children.Add(topTitles);
             videoGrid.Children.Add(playerTopBar);
             System.Windows.Controls.Panel.SetZIndex(playerTopBar, 28);
+            // Bande haute de la fenêtre : ces commandes restent cliquables même
+            // quand la zone de déplacement de WindowChrome est active.
+            System.Windows.Shell.WindowChrome.SetIsHitTestVisibleInChrome(playerTopBar, true);
+            System.Windows.Shell.WindowChrome.SetIsHitTestVisibleInChrome(playerTopBackButton, true);
+            System.Windows.Shell.WindowChrome.SetIsHitTestVisibleInChrome(playerChannelsButton, true);
+            System.Windows.Shell.WindowChrome.SetIsHitTestVisibleInChrome(playerLiveButton, true);
 
             // Bouton central : rappel visuel lecture/pause.
             playerCenterButton = new Button

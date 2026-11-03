@@ -199,7 +199,7 @@ namespace LyaranTV
             // toujours la taille exacte de la surface disponible.
             SizeChanged += delegate { UpdatePlayerVideoSize(); };
             SourceInitialized += delegate { ApplyDarkTitleBar(); };
-            StateChanged += delegate { UpdateCaptionButtons(); SetChromeCaptionHeight(fullScreen ? 0 : ChromeCaptionHeight); };
+            StateChanged += delegate { UpdateCaptionButtons(); UpdateChromeCaptionHeight(); };
             Microsoft.Win32.SystemEvents.UserPreferenceChanged += SystemThemePreferenceChanged;
             Loaded += delegate
             {
@@ -642,6 +642,20 @@ namespace LyaranTV
                 UseAeroCaptionButtons = false
             };
             WindowChrome.SetWindowChrome(this, chrome);
+        }
+
+        /// <summary>
+        /// Hauteur de la zone de déplacement (drag) de la fenêtre. Nulle en plein
+        /// écran, et pendant la lecture d'une fenêtre maximisée : sans cela, la
+        /// bande haute de la fenêtre interceptait les clics sur les commandes du
+        /// lecteur, qui paraissaient inactives. En fenêtre normale, la zone reste
+        /// active pour pouvoir déplacer la fenêtre, et les boutons du lecteur
+        /// sont marqués « IsHitTestVisibleInChrome ».
+        /// </summary>
+        void UpdateChromeCaptionHeight()
+        {
+            bool blocked = fullScreen || (page == "Lecture" && WindowState == WindowState.Maximized);
+            SetChromeCaptionHeight(blocked ? 0 : ChromeCaptionHeight);
         }
 
         /// <summary>Zone de déplacement de la fenêtre : nulle en plein écran.</summary>
@@ -1844,6 +1858,10 @@ namespace LyaranTV
             if (chromeTop != null) chromeTop.Visibility = hide ? Visibility.Collapsed : Visibility.Visible;
             if (chromeSidebar != null) chromeSidebar.Visibility = hide ? Visibility.Collapsed : Visibility.Visible;
             if (chromeStatus != null) chromeStatus.Visibility = hide ? Visibility.Collapsed : Visibility.Visible;
+            // Le lecteur occupe le haut de la fenêtre : la zone de déplacement de
+            // WindowChrome avalait les clics sur ses boutons (retour, chaînes,
+            // DIRECT), qui paraissaient alors morts.
+            UpdateChromeCaptionHeight();
             if (!playing) return;
             if (playerInfoCard != null) playerInfoCard.Visibility = fullScreen ? Visibility.Collapsed : Visibility.Visible;
             if (episodesSection != null)

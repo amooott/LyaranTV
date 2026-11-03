@@ -1,10 +1,10 @@
-# LyaranTV 1.4.6
+# LyaranTV 1.4.7
 
-La mise à jour affiche de nouveau sa progression pendant l'installation.
+Les commandes du lecteur redeviennent cliquables.
 
-## Nouveautés
+## Correction
 
-- **Barre de progression d'installation** : après le téléchargement, l'application se ferme et l'installateur affiche une fenêtre compacte — « Installation de la mise à jour », étape en cours, pourcentage et barre animée — puis « Redémarrage de LyaranTV… » et relance la nouvelle version. Elle reste au premier plan et ne s'ouvre que pour les mises à jour interactives.
+- **Boutons en haut à gauche du lecteur** : la zone de déplacement de la fenêtre (WindowChrome) couvrait la bande haute et avalait les clics sur le retour, la liste des chaînes et la pastille DIRECT. Elle est désactivée pendant la lecture d'une fenêtre maximisée comme en plein écran, et ces boutons sont explicitement marqués comme cliquables dans la zone de déplacement.
 
 ## Vérifications
 
