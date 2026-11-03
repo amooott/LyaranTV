@@ -723,13 +723,13 @@ namespace LyaranTV
         void ShowLoadingCard(PlaylistLoadingWindow dialog)
         {
             if (dialog == null) return;
-            if (!splashRunning) { dialog.ShowSoon(); return; }
+            if (!SplashPending) { dialog.ShowSoon(); return; }
             var watcher = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
             int ticks = 0;
             watcher.Tick += delegate
             {
                 ticks++;
-                if (splashRunning && ticks < 40) return;
+                if (SplashPending && ticks < 40) return;
                 watcher.Stop();
                 dialog.ShowSoon();
             };

@@ -21,6 +21,13 @@ namespace LyaranTV
         bool splashRunning;
 
         /// <summary>
+        /// Vrai tant que le générique n'a pas fini : soit il est affiché, soit il
+        /// n'a pas encore été lancé. Au démarrage le chargement de la playlist
+        /// part avant le générique, d'où ce second cas.
+        /// </summary>
+        bool SplashPending { get { return splashRunning || !startupSplashShown; } }
+
+        /// <summary>
         /// Générique de lancement : halo qui s'ouvre, logo qui prend sa place,
         /// nom écrit lettre à lettre, puis fondu vers l'interface. Il couvre la
         /// fenêtre entière, en fenêtré comme en plein écran, s'efface au clic et
