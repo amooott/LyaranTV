@@ -17,6 +17,8 @@ namespace LyaranTV
     public sealed partial class MainWindow
     {
         bool startupSplashShown;
+        /// <summary>Vrai tant que le générique de lancement n'est pas terminé.</summary>
+        bool splashRunning;
 
         /// <summary>
         /// Générique de lancement : halo qui s'ouvre, logo qui prend sa place,
@@ -187,9 +189,10 @@ namespace LyaranTV
                 overlay.BeginAnimation(UIElement.OpacityProperty,
                     new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(320)) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn } });
                 var guard = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(360) };
-                guard.Tick += delegate { guard.Stop(); try { splash.Close(); } catch { } };
+                guard.Tick += delegate { guard.Stop(); splashRunning = false; try { splash.Close(); } catch { } };
                 guard.Start();
             };
+            splashRunning = true;
             splash.Show();
 
             // Un clic dans l'application passe le générique immédiatement.
@@ -202,7 +205,7 @@ namespace LyaranTV
             // Filet de sécurité : la fenêtre du générique ne doit jamais survivre
             // au démarrage, même si une animation échoue.
             var failsafe = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
-            failsafe.Tick += delegate { failsafe.Stop(); try { if (!dismissed) dismiss(); splash.Close(); } catch { } };
+            failsafe.Tick += delegate { failsafe.Stop(); splashRunning = false; try { if (!dismissed) dismiss(); splash.Close(); } catch { } };
             failsafe.Start();
         }
 

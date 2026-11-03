@@ -714,6 +714,28 @@ namespace LyaranTV
             maximizeCaptionButton.ToolTip = maximized ? "Restaurer" : "Agrandir";
         }
 
+        /// <summary>
+        /// Présente la carte de chargement seulement une fois le générique de
+        /// lancement terminé : elle ne doit jamais s'ouvrir par-dessus
+        /// l'animation d'ouverture. Un garde-fou de 6 s évite d'attendre
+        /// indéfiniment si le générique ne se ferme pas.
+        /// </summary>
+        void ShowLoadingCard(PlaylistLoadingWindow dialog)
+        {
+            if (dialog == null) return;
+            if (!splashRunning) { dialog.ShowSoon(); return; }
+            var watcher = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+            int ticks = 0;
+            watcher.Tick += delegate
+            {
+                ticks++;
+                if (splashRunning && ticks < 40) return;
+                watcher.Stop();
+                dialog.ShowSoon();
+            };
+            watcher.Start();
+        }
+
         void RebuildSidebar()
         {
             if (sidebar == null) return;
@@ -2113,7 +2135,7 @@ namespace LyaranTV
                 loadingWindow = dialog;
                 dialog.Closed += delegate { if (!finished) loadCancelled = true; if (loadingWindow == dialog) loadingWindow = null; };
                 dialog.CancelRequested += delegate { loadCancelled = true; finished = true; dialog.Close(); SetStatus("Chargement annulé."); ShowToast("Chargement annulé.", false, false); };
-                dialog.ShowSoon();
+                ShowLoadingCard(dialog);
             }
             var worker = new BackgroundWorker { WorkerReportsProgress = true };
             worker.ProgressChanged += delegate(object sender, ProgressChangedEventArgs e)
@@ -2262,7 +2284,7 @@ namespace LyaranTV
             bool finished = false;
             dialog.Closed += delegate { if (!finished) loadCancelled = true; if (loadingWindow == dialog) loadingWindow = null; };
             dialog.CancelRequested += delegate { loadCancelled = true; finished = true; dialog.Close(); SetStatus("Restauration annulée."); };
-            dialog.ShowSoon();
+            ShowLoadingCard(dialog);
             dialog.Report(0, 6, "Lecture de la copie locale…", false);
 
             var worker = new BackgroundWorker { WorkerReportsProgress = true };
