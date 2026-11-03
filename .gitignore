@@ -23,3 +23,7 @@ Installer/build/
 *.sha256.tmp
 *.exe.sha256
 /tmp-*.jpg
+
+# Jetons et secrets locaux : jamais versionnes
+token*.txt
+*.token
