@@ -127,6 +127,24 @@ namespace LyaranTV
                 splash.Height = ActualHeight > 0 ? ActualHeight : Height;
             }
             catch { }
+
+            // Fenêtre strictement décorative : transparente aux clics
+            // (WS_EX_TRANSPARENT) et sans activation. Sans cela, elle interceptait
+            // les boutons du lecteur et les raccourcis — dont « C » — tant
+            // qu'elle restait affichée.
+            splash.IsHitTestVisible = false;
+            overlay.IsHitTestVisible = false;
+            splash.SourceInitialized += delegate
+            {
+                try
+                {
+                    var handle = new System.Windows.Interop.WindowInteropHelper(splash).Handle;
+                    const int extendedStyle = -20;
+                    int style = GetWindowLong(handle, extendedStyle);
+                    SetWindowLong(handle, extendedStyle, style | 0x00000020 | 0x08000000);
+                }
+                catch { }
+            };
             bool dismissed = false;
 
             if (!animate)
@@ -163,19 +181,36 @@ namespace LyaranTV
             {
                 if (dismissed) return;
                 dismissed = true;
-                var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(340)) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn } };
-                fade.Completed += delegate { try { splash.Close(); } catch { } };
-                splash.BeginAnimation(UIElement.OpacityProperty, fade);
+                // Le fondu porte sur le contenu, pas sur la fenêtre : animer
+                // Window.Opacity demande AllowsTransparency et laissait sinon
+                // le générique ouvert, au-dessus de l'application.
+                overlay.BeginAnimation(UIElement.OpacityProperty,
+                    new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(320)) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn } });
+                var guard = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(360) };
+                guard.Tick += delegate { guard.Stop(); try { splash.Close(); } catch { } };
+                guard.Start();
             };
-            // Un clic passe le générique : l'application reste accessible
-            // immédiatement.
-            splash.MouseLeftButtonDown += delegate { dismiss(); };
             splash.Show();
+
+            // Un clic dans l'application passe le générique immédiatement.
+            PreviewMouseDown += delegate { dismiss(); };
 
             var close = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(animate ? 1550 : 520) };
             close.Tick += delegate { close.Stop(); dismiss(); };
             close.Start();
+
+            // Filet de sécurité : la fenêtre du générique ne doit jamais survivre
+            // au démarrage, même si une animation échoue.
+            var failsafe = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
+            failsafe.Tick += delegate { failsafe.Stop(); try { if (!dismissed) dismiss(); splash.Close(); } catch { } };
+            failsafe.Start();
         }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern int GetWindowLong(IntPtr hwnd, int index);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern int SetWindowLong(IntPtr hwnd, int index, int value);
 
         Grid busyOverlay;
         TextBlock busyOverlayLabel;

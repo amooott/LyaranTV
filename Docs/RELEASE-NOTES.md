@@ -1,16 +1,10 @@
-# LyaranTV 1.4.4
+# LyaranTV 1.4.5
 
-Le générique de lancement s'affiche réellement au démarrage.
+Le lecteur retrouve ses commandes : retour, « C » et liste des chaînes.
 
-## Corrections
+## Correction
 
-- **Générique visible** : la séquence d'ouverture était posée dans la fenêtre principale, où les reconstructions de page du démarrage la recouvraient aussitôt. Elle vit désormais dans sa propre fenêtre, calée sur la fenêtre principale — en fenêtré comme en plein écran — et disparaît d'elle-même après 1,5 s, ou d'un clic.
-- **Chargement de playlist compact** : carte de 376 × 138 en bas à gauche, affichée seulement si le chargement dépasse 320 ms ; l'application reste utilisable et le ✕ annule toujours l'opération.
-- **Logo non rogné en mode cinéma** : le bouton retour et la marque tiennent ensemble dans la colonne de 76 px.
-
-## Notes de version
-
-- Chaque release GitHub ne contient que sa propre version ; les notes des versions précédentes sont dans `Docs/RELEASE-HISTORY.md`.
+- **Générique qui bloquait l'interface** : la fenêtre du générique restait ouverte au-dessus de l'application quand son fondu échouait, et interceptait clics et raccourcis — d'où le bouton retour et la touche « C » sans effet dans le lecteur. Elle est désormais transparente aux clics, sans activation, se ferme par minuterie (et par un filet de sécurité à 4 s) et s'efface au premier clic dans l'application.
 
 ## Vérifications
 
