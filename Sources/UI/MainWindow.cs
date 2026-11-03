@@ -248,6 +248,7 @@ namespace LyaranTV
             Closing += delegate
             {
                 appClosing = true;
+                ExitMiniPlayer(false);
                 Mouse.OverrideCursor = null;
                 SaveCurrentPosition();
                 if (player != null) { try { player.Stop(); player.Close(); } catch { } }
@@ -1858,6 +1859,7 @@ namespace LyaranTV
             else if (e.Key == Key.Down) { ChangeVolume(-0.05); e.Handled = true; }
             else if (e.Key == Key.M) { ToggleMute(); e.Handled = true; }
             else if (e.Key == Key.I) { ToggleStatsHud(); e.Handled = true; }
+            else if (e.Key == Key.P) { ToggleMiniPlayer(); e.Handled = true; }
             else if (e.Key == Key.Back) { ReturnToPreviousPoint(); e.Handled = true; }
             else if (e.Key == Key.C) { ToggleChannelDrawer(); e.Handled = true; }
             else if (e.Key == Key.E) { ToggleEpisodesSection(); e.Handled = true; }
@@ -2116,6 +2118,9 @@ namespace LyaranTV
 
         void ShowFullscreenControls()
         {
+            // La petite fenêtre a sa propre barre : la grande ne doit pas s'y
+            // superposer au moindre mouvement de souris.
+            if (MiniPlayerActive) return;
             if (playerControlWrap == null || page != "Lecture") return;
             ShowPlayerCursor();
             bool wasShown = playerChromeShown;
