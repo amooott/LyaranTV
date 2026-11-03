@@ -1047,14 +1047,10 @@ namespace LyaranTV
                 var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
                 if (DwmSetWindowAttribute(hwnd, 20, ref dark, sizeof(int)) != 0) DwmSetWindowAttribute(hwnd, 19, ref dark, sizeof(int));
                 DwmSetWindowAttribute(hwnd, 35, ref caption, sizeof(int)); DwmSetWindowAttribute(hwnd, 36, ref text, sizeof(int));
-                // Coins arrondis Windows 11 (attribut 33) : sans lui, la fenêtre
-                // reste à angles droits alors que tout l'intérieur est arrondi.
-                int corner = 2;
-                DwmSetWindowAttribute(hwnd, 33, ref corner, sizeof(int));
-                // Liseré natif (attribut 34, COLORREF 0x00BBGGRR) : il suit la
-                // bordure du thème, y compris en mode clair.
-                int edge = ((int)BorderColor.B << 16) | ((int)BorderColor.G << 8) | BorderColor.R;
-                DwmSetWindowAttribute(hwnd, 34, ref edge, sizeof(int));
+                ApplyNativeFrame();
+                // Coins arrondis et liseré natifs (attributs 33 et 34) : ils sont
+                // posés par ApplyNativeFrame, qui sait aussi les retirer en plein
+                // écran pour ne pas encadrer toute l'image.
             }
             catch { }
         }

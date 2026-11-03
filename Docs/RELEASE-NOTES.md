@@ -1,37 +1,18 @@
-# LyaranTV 1.4.11
+# LyaranTV 1.4.12
 
-Sept finitions d'interface, toutes visibles sans rien changer à l'usage.
+Deux réparations : le plein écran du lecteur et la relance de la sortie audio.
 
-## Navigation
+## Plein écran
 
-- **Indicateur glissant** : le trait d'accent de la barre latérale ne réapparaît plus sous chaque libellé, il glisse d'un onglet à l'autre en 240 ms, avec un léger halo qui l'accompagne. Il suit aussi le défilement du menu.
-- **Anneau de focus** : au clavier comme à la manette, le bouton actif reçoit un second liseré détaché de 2 px, lisible d'un coup d'œil au lieu d'un simple changement de bordure.
+- **Plus de filet autour de l'image** : le liseré natif demandé à Windows 11 (attribut DWM 34) restait dessiné une fois la fenêtre sans bordure, et encadrait tout l'écran. Il est maintenant retiré en plein écran, avec l'arrondi, puis rétabli à la sortie.
+- **Contour de l'application masqué** : le filet d'un pixel qui dessine la fenêtre en mode normal disparaît lui aussi en plein écran. L'image touche réellement les bords de la dalle.
 
-## Chargement
+## Son
 
-- **Squelettes animés** : tant qu'une affiche n'est pas arrivée, un reflet diagonal balaie le cadre toutes les 1,15 s au lieu d'un rectangle vide. Il disparaît dès l'image posée, et ne tourne jamais indéfiniment sur un visuel introuvable.
-- **Transitions de page** : fondu, glissement et très court zoom arrière (300 ms) pour que la page se pose dans la continuité de la carte cliquée.
-
-## Couleur de l'œuvre
-
-- **Teinte dominante** : la fiche d'un film ou d'une série échantillonne son affiche (18 × 18 pixels) et en tire un halo coloré qui apparaît en fondu. Chaque œuvre éclaire sa propre fiche, au lieu de répéter l'accent de l'application.
-
-## Fenêtre
-
-- **Coins arrondis Windows 11** : la fenêtre demande enfin l'arrondi natif (attribut DWM 33) et un liseré assorti au thème (attribut 34), au lieu de rester à angles droits alors que tout l'intérieur est arrondi.
-- **Rendu des textes en mode Display** : les petites tailles restent nettes sur un écran dense.
-
-## Mises à jour
-
-- **Reflet sur la barre** : un balayage lumineux parcourt la barre pendant le téléchargement, puis s'arrête quand l'installation commence.
-
-## Sons
-
-- **Sons d'interface discrets** : tick de navigation et carillon de lancement, synthétisés par le programme (aucun fichier audio embarqué), coupables d'un seul réglage dans Apparence.
-
-## Thème clair
-
-- **Vignettes d'épisodes** : leur fond suivait une couleur sombre codée en dur, il suit désormais la palette et reste cohérent en thème clair.
+- **« Réparer le son » fonctionne à nouveau après une première tentative** : le moteur mémorisait chaque sortie essayée (mmdevice, directsound, waveout) et refusait de la retenter. Une réparation demandée par l'utilisateur rejouait donc une chaîne vide et échouait, même en relançant la sortie. Elle rejoue désormais tous les candidats, en commençant par la sortie choisie dans les réglages.
+- **Une sortie valide n'est plus écartée** : la bascule attend le périphérique (quatre lectures espacées de 25 ms) avant de conclure qu'il ne rend pas de volume.
+- **Journal plus utile** : un échec de réparation note explicitement que le périphérique est occupé ou refuse le format.
+- **Sons d'interface coupés pendant la lecture** : aucune note ne vient se mêler à la piste du flux.
 
 ## Vérifications
 

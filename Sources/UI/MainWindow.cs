@@ -152,6 +152,9 @@ namespace LyaranTV
         Border navIndicator;
         ScrollViewer sidebarScroll;
         bool navIndicatorPlaced;
+        // Filet d'un pixel qui dessine le contour de la fenêtre : il doit
+        // disparaître en plein écran, sinon il encadre toute l'image.
+        Border windowEdge;
 
         DateTime epgDate = DateTime.Today;
         string epgQuery = "";
@@ -638,7 +641,7 @@ namespace LyaranTV
             rootGrid.Children.Add(toastHost);
             // Filet d'un pixel : sans barre de titre système, la fenêtre n'aurait
             // plus aucun contour sur les thèmes sombres.
-            var windowEdge = new Border
+            windowEdge = new Border
             {
                 BorderBrush = Brush(WithAlpha(BorderColor, 210)), BorderThickness = new Thickness(1),
                 IsHitTestVisible = false
@@ -1093,7 +1096,9 @@ namespace LyaranTV
 
         void Nav(string destination)
         {
-            UiSound.Navigate();
+            // Pendant la lecture, aucune note d'interface : elle se mêlerait à
+            // la piste audio du flux.
+            if (page != "Lecture") UiSound.Navigate();
             CloseDetailOverlay();
             if (fullScreen) ExitFullScreen();
             if (destination != page) PushNavFrame();
@@ -1847,6 +1852,32 @@ namespace LyaranTV
             else EnterFullScreen();
         }
 
+        /// <summary>
+        /// Cadre natif demandé à DWM. En fenêtré : coins arrondis et liseré aux
+        /// couleurs du thème. En plein écran : ni l'un ni l'autre — Windows
+        /// dessinait sinon un filet clair tout autour de l'écran, qui donnait
+        /// l'impression que l'image n'occupait pas vraiment la dalle.
+        /// Le contour d'un pixel de l'application est masqué en même temps.
+        /// </summary>
+        void ApplyNativeFrame()
+        {
+            try
+            {
+                IntPtr hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+                if (hwnd != IntPtr.Zero)
+                {
+                    int corner = fullScreen ? 1 : 2;   // 1 = aucun arrondi, 2 = arrondi
+                    DwmSetWindowAttribute(hwnd, 33, ref corner, sizeof(int));
+                    int edge = fullScreen
+                        ? unchecked((int)0xFFFFFFFE)       // DWMWA_COLOR_NONE
+                        : (((int)BorderColor.B << 16) | ((int)BorderColor.G << 8) | BorderColor.R);
+                    DwmSetWindowAttribute(hwnd, 34, ref edge, sizeof(int));
+                }
+            }
+            catch { }
+            if (windowEdge != null) windowEdge.Visibility = fullScreen ? Visibility.Collapsed : Visibility.Visible;
+        }
+
         void EnterFullScreen()
         {
             if (fullScreen) return;
@@ -1870,6 +1901,7 @@ namespace LyaranTV
             Width = bounds.Width;
             Height = bounds.Height;
             ApplyFullScreenLayout();
+            ApplyNativeFrame();
         }
 
         void ExitFullScreen()
@@ -1894,6 +1926,7 @@ namespace LyaranTV
                 Width = savedWindowBounds.Width;
                 Height = savedWindowBounds.Height;
             }
+            ApplyNativeFrame();
         }
 
         Rect CurrentMonitorBounds()

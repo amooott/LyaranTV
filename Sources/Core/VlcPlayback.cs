@@ -724,18 +724,39 @@ namespace LyaranTV
         /// Essaie les sorties audio disponibles, de la plus moderne à la plus
         /// rudimentaire, et renvoie celle qui a été retenue (null si aucune).
         /// </summary>
-        public string TryRecoverAudioOutput()
+        public string TryRecoverAudioOutput() { return TryRecoverAudioOutput(false); }
+
+        /// <summary>
+        /// Essaie les sorties audio disponibles et renvoie celle qui a été
+        /// retenue (null si aucune). <paramref name="force"/> ignore l'historique
+        /// des essais : une réparation demandée par l'utilisateur doit pouvoir
+        /// retenter une sortie déjà essayée automatiquement. Sans cela, le bouton
+        /// « Réparer le son » ne trouvait plus aucun candidat après une première
+        /// bascule ratée, et le son restait muet pour de bon.
+        /// </summary>
+        public string TryRecoverAudioOutput(bool force)
         {
             if (disposed || mediaPlayer == IntPtr.Zero) return null;
             List<string> installed = AudioOutputs();
+            string preferred = AudioOutputPreference;
+            var order = new List<string>();
+            if (preferred.Length > 0) order.Add(preferred);
             string[] chain = { "mmdevice", "directsound", "waveout" };
-            for (int i = 0; i < chain.Length; i++)
+            foreach (string module in chain) if (!order.Contains(module)) order.Add(module);
+            for (int i = 0; i < order.Count; i++)
             {
-                string candidate = chain[i];
+                string candidate = order[i];
                 if (installed.Count > 0 && !ContainsModule(installed, candidate)) continue;
-                lock (audioGate) { if (triedOutputs.Contains(candidate)) continue; }
+                if (!force) { lock (audioGate) { if (triedOutputs.Contains(candidate)) continue; } }
                 if (!SetAudioOutput(candidate)) continue;
-                if (AudioVolumeRaw >= 0) return candidate;
+                // Le périphérique ne s'ouvre pas instantanément : sans cette
+                // attente, une sortie valide était jugée muette sur un volume lu
+                // trop tôt, puis jamais retentée.
+                for (int wait = 0; wait < 4; wait++)
+                {
+                    if (AudioVolumeRaw >= 0) return candidate;
+                    System.Threading.Thread.Sleep(25);
+                }
             }
             return null;
         }

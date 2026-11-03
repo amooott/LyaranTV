@@ -193,8 +193,14 @@ namespace LyaranTV
                 return true;
             }
             try { HttpUtil.AppendLog("Son : relance demandée."); } catch { }
-            string used = vlc.TryRecoverAudioOutput();
-            if (String.IsNullOrWhiteSpace(used)) return false;
+            // Réparation à la demande : on rejoue toute la chaîne, y compris les
+            // sorties déjà tentées automatiquement au démarrage du flux.
+            string used = vlc.TryRecoverAudioOutput(true);
+            if (String.IsNullOrWhiteSpace(used))
+            {
+                try { HttpUtil.AppendLog("Son : aucune sortie audio n'a répondu (périphérique occupé ou format refusé)."); } catch { }
+                return false;
+            }
             audioRepairAttempts = 0;
             try { vlc.Volume = volume; } catch { }
             try { HttpUtil.AppendLog("Son : sortie audio relancée sur « " + used + " »."); } catch { }
