@@ -119,6 +119,11 @@ namespace LyaranTV
         [DataMember] public string Ambience = "Équilibrée";
         // Teinte légèrement les surfaces avec l'accent au lieu d'un gris neutre.
         [DataMember] public bool TintedBackground = false;
+        // Barre latérale réduite aux icônes : plus de place pour les affiches.
+        [DataMember] public bool CompactSidebar = false;
+        // Navigation pensée pour une manette ou une télécommande : focus spatial
+        // et clavier virtuel dans la recherche.
+        [DataMember] public bool TvNavigation = false;
         [DataMember] public bool AutoPlayLast = false;
         [DataMember] public bool LoadLastSource = false;
         [DataMember] public bool ResumePlayback = true;

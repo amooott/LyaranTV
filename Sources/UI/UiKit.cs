@@ -86,6 +86,7 @@ namespace LyaranTV
         public const string Cast = "\uE8B5";
         public const string Subtitles = "\uE8D2";
         public const string Repeat = "\uE8EE";
+        public const string Keyboard = "\uE765";
     }
 
     public sealed partial class MainWindow

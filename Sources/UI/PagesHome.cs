@@ -321,6 +321,16 @@ namespace LyaranTV
                 root.Children.Add(EmptyState(Glyphs.Search, "Aucune bibliothèque chargée", "Ajoutez ou chargez une playlist pour lancer une recherche.", Button(Glyphs.Add, "Ajouter une playlist", AddPlaylist, true)));
                 SetContent(root); return;
             }
+            // Requête vide : la page devient un accueil de recherche avec
+            // l'historique récent, effaçable d'un geste.
+            if (query.Length == 0)
+            {
+                var historyHost = new StackPanel();
+                root.Children.Add(historyHost);
+                RenderSearchHistory(historyHost);
+                SetContent(root);
+                return;
+            }
             var modeBase = BaseViewForMode("Recherche").ToList();
             var chips = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
             AddKindChip(chips, "Tout", "Tous", modeBase.Count);
@@ -334,6 +344,87 @@ namespace LyaranTV
             root.Children.Add(channelList);
             RenderChannels();
             SetContent(root);
+        }
+
+        /// <summary>
+        /// Accueil de la recherche : historique récent sous forme de pastilles
+        /// cliquables, avec une action explicite pour tout effacer. Les requêtes
+        /// sont enregistrées à la validation (Entrée ou clavier virtuel).
+        /// </summary>
+        void RenderSearchHistory(StackPanel host)
+        {
+            if (host == null) return;
+            host.Children.Clear();
+            var history = SearchHistoryStore.Load();
+            // Accès clavier virtuel : visible dès qu'une manette ou une
+            // télécommande pilote l'interface, sans attendre le focus du champ.
+            var inputRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+            if (TvMode || !pointerInput)
+            {
+                var kbOpen = Button(Glyphs.Keyboard, "Clavier à l’écran", delegate { if (searchBox != null) ShowVirtualKeyboard(searchBox); }, false);
+                kbOpen.Margin = new Thickness(0, 0, 8, 0);
+                kbOpen.ToolTip = "Ouvrir le clavier à l’écran · Y sur la manette";
+                inputRow.Children.Add(kbOpen);
+                var padHint = Text("Manette / télécommande : Y pour le clavier, A pour valider, B pour revenir.", 11.5, Brush(Muted), false);
+                padHint.VerticalAlignment = VerticalAlignment.Center;
+                inputRow.Children.Add(padHint);
+                host.Children.Add(inputRow);
+            }
+            if (history.Count == 0)
+            {
+                var empty = new StackPanel();
+                empty.Children.Add(Text("Recherchez dans votre bibliothèque", 20, Brush(TextPrimary), true));
+                var hint = Text("Tapez le nom d’un film, d’une série, d’une chaîne, d’un acteur ou d’un réalisateur. Les recherches validées apparaîtront ici.", 13, Brush(Muted), false);
+                hint.Margin = new Thickness(0, 7, 0, 0);
+                hint.TextWrapping = TextWrapping.Wrap;
+                hint.MaxWidth = 720;
+                empty.Children.Add(hint);
+                host.Children.Add(Card(empty, 24));
+                return;
+            }
+
+            var header = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var label = Text("RECHERCHES RÉCENTES", 12.5, Brush(Accent), true);
+            label.VerticalAlignment = VerticalAlignment.Center;
+            header.Children.Add(label);
+            var clear = TextAction("Effacer l’historique", delegate
+            {
+                SearchHistoryStore.Clear();
+                ShowSearch();
+                ShowToast("Historique de recherche effacé.", false, true);
+            }, "Supprimer toutes les recherches enregistrées");
+            Grid.SetColumn(clear, 1);
+            header.Children.Add(clear);
+            host.Children.Add(header);
+
+            var wrap = new WrapPanel();
+            foreach (string entry in history)
+            {
+                string captured = entry;
+                var chip = new Button
+                {
+                    Content = IconText(Glyphs.Search, entry, Brush(TextPrimary), 12.5),
+                    Height = 38, Padding = new Thickness(13, 4, 15, 4), Margin = new Thickness(0, 0, 8, 8),
+                    Background = Brush(Raised), BorderBrush = Brush(BorderColor), BorderThickness = new Thickness(1),
+                    Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(),
+                    ToolTip = "Rechercher à nouveau « " + entry + " »"
+                };
+                chip.Click += delegate
+                {
+                    if (searchBox != null)
+                    {
+                        suppressSearch = true;
+                        searchBox.Text = captured;
+                        suppressSearch = false;
+                    }
+                    OpenSearch();
+                };
+                wrap.Children.Add(chip);
+            }
+            host.Children.Add(wrap);
+            host.Children.Add(Text("Cliquez sur une recherche pour la relancer. Les plus récentes restent en tête.", 11, Brush(Muted), false));
         }
 
         void AddKindChip(Panel panel, string label, string kind, int count)

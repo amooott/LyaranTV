@@ -17,29 +17,103 @@ namespace LyaranTV
     public sealed partial class MainWindow
     {
         Channel detailChannel;
+        Grid detailOverlay;
 
         void ShowChannelInfo(Channel channel)
         {
             if (channel == null) return;
             if (fullScreen) ExitFullScreen();
-            if (page != "Fiche") PushNavFrame();
             detailChannel = channel;
-            page = "Fiche";
-            RebuildSidebar();
-            UpdateStatusBar();
-            SetPageStatus();
-            BuildChannelDetailPage(channel);
+            // Comme la fiche d'un titre sur une plateforme de streaming : un
+            // panneau flottant par-dessus la page, pas une page entière.
+            ShowChannelDetailOverlay(channel);
+        }
+
+        /// <summary>
+        /// Panneau de fiche : largeur confortable, hauteur bornée et défilement
+        /// interne. La page sous-jacente reste visible autour, ce qui donne le
+        /// rendu « quick view » de Netflix.
+        /// </summary>
+        void ShowChannelDetailOverlay(Channel channel)
+        {
+            if (rootGrid == null || channel == null) return;
+            CloseDetailOverlay();
+
+            var backdrop = new Grid { Background = Brush(Color.FromArgb(196, 3, 4, 9)) };
+            backdrop.MouseLeftButtonUp += delegate(object sender, MouseButtonEventArgs e)
+            {
+                if (e.OriginalSource == backdrop) CloseDetailOverlay();
+            };
+
+            double windowWidth = ActualWidth > 200 ? ActualWidth : 1380;
+            double windowHeight = ActualHeight > 200 ? ActualHeight : 860;
+            var card = new Border
+            {
+                Width = Math.Min(1020, Math.Max(640, windowWidth - 170)),
+                MaxHeight = Math.Max(440, windowHeight - 110),
+                CornerRadius = new CornerRadius(22),
+                Background = Brush(Panel), BorderBrush = Brush(WithAlpha(Accent, 60)),
+                BorderThickness = new Thickness(1), ClipToBounds = true,
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 46, ShadowDepth = 16, Opacity = 0.55, Color = Colors.Black }
+            };
+
+            var scroll = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Content = BuildChannelDetailContent(channel, true)
+            };
+            card.Child = scroll;
+
+            var host = new Grid();
+            host.Children.Add(card);
+            var close = IconButton(Glyphs.Close, "Fermer la fiche · Échap", CloseDetailOverlay, false);
+            close.HorizontalAlignment = HorizontalAlignment.Right;
+            close.VerticalAlignment = VerticalAlignment.Top;
+            close.Margin = new Thickness(0, 14, 14, 0);
+            close.Background = Brush(Color.FromArgb(170, 8, 9, 14));
+            close.BorderBrush = Brush(WithAlpha(Colors.White, 40));
+            System.Windows.Controls.Panel.SetZIndex(close, 20);
+            host.Children.Add(close);
+
+            backdrop.Children.Add(host);
+            detailOverlay = backdrop;
+            System.Windows.Controls.Panel.SetZIndex(backdrop, 700);
+            rootGrid.Children.Add(backdrop);
+
+            if (!UiMotion.Reduced)
+            {
+                backdrop.Opacity = 0;
+                backdrop.BeginAnimation(UIElement.OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(1, TimeSpan.FromMilliseconds(170))
+                {
+                    EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                });
+            }
+            SetStatus(channel.Name + " · " + KindLabel(channel.Kind) + ".");
+        }
+
+        void CloseDetailOverlay()
+        {
+            if (detailOverlay == null) return;
+            try { rootGrid.Children.Remove(detailOverlay); } catch { }
+            detailOverlay = null;
         }
 
         void BuildChannelDetailPage(Channel channel)
         {
             if (channel == null) return;
+            SetContent(BuildChannelDetailContent(channel, false));
+        }
+
+        FrameworkElement BuildChannelDetailContent(Channel channel, bool modal)
+        {
             var root = new StackPanel { Margin = new Thickness(0) };
-            root.Children.Add(BuildChannelDetailHero(channel));
+            root.Children.Add(BuildChannelDetailHero(channel, modal));
 
             var body = new StackPanel
             {
-                Margin = new Thickness(34, 22, 34, 40),
+                Margin = modal ? new Thickness(26, 18, 26, 30) : new Thickness(34, 22, 34, 40),
                 MaxWidth = 1120,
                 HorizontalAlignment = HorizontalAlignment.Left
             };
@@ -155,11 +229,11 @@ namespace LyaranTV
             }
 
             root.Children.Add(body);
-            SetContent(root);
             SetStatus(channel.Name + " · " + KindLabel(channel.Kind) + ".");
+            return root;
         }
 
-        FrameworkElement BuildChannelDetailHero(Channel channel)
+        FrameworkElement BuildChannelDetailHero(Channel channel, bool modal)
         {
             // Un épisode n'a souvent qu'un aperçu 16:9 : il tient le rôle du fond.
             string preferredBackdrop = !String.IsNullOrWhiteSpace(channel.BackdropUrl) ? channel.BackdropUrl : channel.StillUrl;
@@ -168,7 +242,9 @@ namespace LyaranTV
 
             var hero = new Grid
             {
-                Height = 430, ClipToBounds = true,
+                // En panneau flottant, l'image reste un aperçu compact façon Netflix :
+                // la fiche ne prend jamais toute la fenêtre.
+                Height = modal ? 280 : 400, ClipToBounds = true,
                 Background = Brush(Color.FromRgb(8, 8, 14))
             };
             if (hasBackdrop)
@@ -226,23 +302,28 @@ namespace LyaranTV
                 }, new Point(0, 0.5), new Point(1, 0.5))
             });
 
-            var back = PlayerButton(Glyphs.Back, "Retour", delegate { NavBack(); }, false, 38);
+            var back = PlayerButton(Glyphs.Back, modal ? "Fermer la fiche" : "Retour",
+                delegate { if (modal) CloseDetailOverlay(); else NavBack(); }, false, 38);
             back.HorizontalAlignment = HorizontalAlignment.Left;
             back.VerticalAlignment = VerticalAlignment.Top;
-            back.Margin = new Thickness(28, 22, 0, 0);
+            back.Margin = new Thickness(modal ? 20 : 28, modal ? 18 : 22, 0, 0);
             hero.Children.Add(back);
 
-            var content = new Grid { Margin = new Thickness(34, 0, 34, 26), VerticalAlignment = VerticalAlignment.Bottom };
-            content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) });
+            var content = new Grid
+            {
+                Margin = modal ? new Thickness(26, 0, 26, 20) : new Thickness(34, 0, 34, 26),
+                VerticalAlignment = VerticalAlignment.Bottom
+            };
+            content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(modal ? 148 : 190) });
             content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             var poster = new Border
             {
-                Width = 178, Height = 264, CornerRadius = new CornerRadius(12),
+                Width = modal ? 136 : 178, Height = modal ? 202 : 264, CornerRadius = new CornerRadius(12),
                 Background = Brush(Color.FromRgb(18, 18, 26)),
                 BorderBrush = Brush(Color.FromArgb(95, 255, 255, 255)), BorderThickness = new Thickness(1),
                 ClipToBounds = true, VerticalAlignment = VerticalAlignment.Bottom,
-                Child = PosterVisual(channel, 178, 264)
+                Child = PosterVisual(channel, modal ? 136 : 178, modal ? 202 : 264)
             };
             RoundClip(poster, 12);
             Grid.SetColumn(poster, 0);
@@ -265,7 +346,7 @@ namespace LyaranTV
             var eyebrow = Text(String.Join("  ·  ", eyebrowParts.ToArray()), 12.5, Brush(Color.FromArgb(220, 255, 255, 255)), true);
             copy.Children.Add(eyebrow);
 
-            var title = Text(TextUtil.DisplayTitle(channel.Name), 34, Brushes.White, true);
+            var title = Text(TextUtil.DisplayTitle(channel.Name), modal ? 27 : 34, Brushes.White, true);
             title.Margin = new Thickness(0, 4, 0, 0);
             title.TextWrapping = TextWrapping.Wrap;
             title.MaxHeight = 88;

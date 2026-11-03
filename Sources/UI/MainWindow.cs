@@ -91,7 +91,12 @@ namespace LyaranTV
         StackPanel sidebar;
         ScrollViewer mainScroll;
         TextBox searchBox;
-        Button refreshButton;
+        Button refreshButton, chromeFullscreenButton;
+        // Barre latérale réduite : largeur et éléments de marque à ajuster.
+        ColumnDefinition topBrandColumn;
+        StackPanel topBrandText;
+        Image topBrandMark;
+        bool sidebarCompact;
         TextBlock statusText, statusRight, pageTitle;
 
         StackPanel channelList;
@@ -185,6 +190,7 @@ namespace LyaranTV
             if (settings.Maximized) WindowState = WindowState.Maximized;
             KeyDown += HandleWindowKeys;
             PreviewKeyDown += HandleWindowPreviewKeys;
+            InitializeTvInput();
             // Redimensionnement (ou passage en plein écran) : la vidéo garde
             // toujours la taille exacte de la surface disponible.
             SizeChanged += delegate { UpdatePlayerVideoSize(); };
@@ -443,7 +449,8 @@ namespace LyaranTV
                 }, new Point(0, 0), new Point(0, 1))
             };
             var top = new Grid();
-            top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(236) });
+            topBrandColumn = new ColumnDefinition { Width = new GridLength(236) };
+            top.ColumnDefinitions.Add(topBrandColumn);
             top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             topBorder.Child = top;
@@ -455,12 +462,12 @@ namespace LyaranTV
             backButton.Margin = new Thickness(0, 0, 10, 0);
             backButton.VerticalAlignment = VerticalAlignment.Center;
             brand.Children.Add(backButton);
-            var mark = new Image { Source = CreateLogoMark(), Width = 43, Height = 38, Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 9, 0) };
-            brand.Children.Add(mark);
-            var brandText = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            brandText.Children.Add(Text("LyaranTV", 19, Brush(TextPrimary), true));
-            brandText.Children.Add(Text("Cinéma, direct et séries", 9, Brush(Muted), false));
-            brand.Children.Add(brandText);
+            topBrandMark = new Image { Source = CreateLogoMark(), Width = 43, Height = 38, Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 9, 0) };
+            brand.Children.Add(topBrandMark);
+            topBrandText = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            topBrandText.Children.Add(Text("LyaranTV", 19, Brush(TextPrimary), true));
+            topBrandText.Children.Add(Text("Cinéma, direct et séries", 9, Brush(Muted), false));
+            brand.Children.Add(topBrandText);
             brand.MouseLeftButtonUp += delegate(object sender, MouseButtonEventArgs e)
             {
                 if (IsInsideButton(e.OriginalSource as DependencyObject)) return;
@@ -496,11 +503,37 @@ namespace LyaranTV
                 if (e.Key == Key.Enter) { OpenSearch(); e.Handled = true; }
                 else if (e.Key == Key.Escape) { ClearSearch(); e.Handled = true; }
             };
-            searchBox.GotKeyboardFocus += delegate { searchWrap.BorderBrush = Brush(Accent); };
+            searchBox.GotKeyboardFocus += delegate
+            {
+                searchWrap.BorderBrush = Brush(Accent);
+                // Champ vide : ouvrir l'accueil de recherche (historique) plutôt
+                // que de laisser la page précédente sans contexte.
+                if (String.IsNullOrWhiteSpace(searchBox.Text) && page != "Recherche"
+                    && page != "Lecture" && page != "Épisodes")
+                {
+                    pageBeforeSearch = page;
+                    page = "Recherche";
+                    RebuildSidebar();
+                    ShowSearch();
+                }
+                // Manette ou télécommande : le champ de recherche ouvre le
+                // clavier à l'écran, utilisable sans clavier physique.
+                if (TvMode && !pointerInput) ShowVirtualKeyboard(searchBox);
+            };
             searchBox.LostKeyboardFocus += delegate { searchWrap.BorderBrush = Brush(BorderColor); };
             SetPlaceholder(searchBox, hint);
 
             var actions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0) };
+            // Réduit la barre latérale aux icônes : plus d'espace pour les affiches.
+            var compactButton = IconButton(Glyphs.List, "Mode cinéma · logos seuls · Ctrl+B", ToggleSidebarCompact, false);
+            compactButton.Background = Brushes.Transparent;
+            compactButton.BorderBrush = Brushes.Transparent;
+            actions.Children.Add(compactButton);
+            // Plein écran de l'application entière, disponible sur toutes les pages.
+            chromeFullscreenButton = IconButton(Glyphs.FullScreen, "Plein écran de l'application · F11", ToggleFullScreen, false);
+            chromeFullscreenButton.Background = Brushes.Transparent;
+            chromeFullscreenButton.BorderBrush = Brushes.Transparent;
+            actions.Children.Add(chromeFullscreenButton);
             refreshButton = IconButton(Glyphs.Refresh, "Actualiser la playlist active · Ctrl+R", RefreshActiveSource, false);
             refreshButton.IsEnabled = activeSource != null;
             refreshButton.Background = Brushes.Transparent;
@@ -561,6 +594,7 @@ namespace LyaranTV
         void RebuildSidebar()
         {
             if (sidebar == null) return;
+            sidebarCompact = settings.CompactSidebar;
             sidebar.Children.Clear();
             var nav = new StackPanel { Margin = new Thickness(0, 10, 0, 4) };
             sidebar.Children.Add(nav);
@@ -572,20 +606,38 @@ namespace LyaranTV
             nav.Children.Add(NavItem(Glyphs.Recent, "Récents", "Récents", -1));
             nav.Children.Add(NavItem(Glyphs.Guide, "Guide EPG", "Guide EPG", -1));
 
-            var section = Text("MES PLAYLISTS", 9.5, Brush(Muted), true);
-            section.Margin = new Thickness(22, 18, 0, 6); sidebar.Children.Add(section);
-            if (sources.Count == 0)
+            if (sidebarCompact)
             {
-                var empty = Text("Aucune playlist ajoutée.", 11.5, Brush(Muted), false);
-                empty.Margin = new Thickness(22, 4, 12, 6); sidebar.Children.Add(empty);
+                sidebar.Children.Add(new Border { Height = 1, Background = Brush(BorderColor), Margin = new Thickness(14, 12, 14, 10) });
+            }
+            else
+            {
+                var section = Text("MES PLAYLISTS", 9.5, Brush(Muted), true);
+                section.Margin = new Thickness(22, 18, 0, 6); sidebar.Children.Add(section);
+                if (sources.Count == 0)
+                {
+                    var empty = Text("Aucune playlist ajoutée.", 11.5, Brush(Muted), false);
+                    empty.Margin = new Thickness(22, 4, 12, 6); sidebar.Children.Add(empty);
+                }
             }
             foreach (var source in sources)
             {
                 var item = SourceSidebarItem(source);
                 sidebar.Children.Add(item);
             }
-            var add = Button(Glyphs.Add, "Ajouter une playlist", AddPlaylist, false);
-            add.Margin = new Thickness(10, 4, 10, 4); add.HorizontalContentAlignment = HorizontalAlignment.Left;
+            var add = sidebarCompact
+                ? IconButton(Glyphs.Add, "Ajouter une playlist", AddPlaylist, false)
+                : Button(Glyphs.Add, "Ajouter une playlist", AddPlaylist, false);
+            if (sidebarCompact)
+            {
+                add.Width = 44; add.Height = 40; add.Margin = new Thickness(0, 4, 0, 6);
+                add.HorizontalAlignment = HorizontalAlignment.Center;
+                add.Background = Brushes.Transparent; add.BorderBrush = Brushes.Transparent;
+            }
+            else
+            {
+                add.Margin = new Thickness(10, 4, 10, 4); add.HorizontalContentAlignment = HorizontalAlignment.Left;
+            }
             sidebar.Children.Add(add);
 
             var spacer = new Border { Height = 1, Background = Brush(BorderColor), Margin = new Thickness(18, 14, 18, 10) };
@@ -605,11 +657,66 @@ namespace LyaranTV
             // La barre latérale est reconstruite à chaque navigation : on la
             // retraduit ici, sinon elle repasserait en français.
             I18n.Apply(sidebar);
+            ApplySidebarChrome();
+        }
+
+        /// <summary>
+        /// Applique la largeur de la barre latérale et l'en-tête correspondant.
+        /// En mode réduit, seules les icônes restent : le logo tient la place de
+        /// la marque et les libellés passent en infobulle.
+        /// </summary>
+        void ApplySidebarChrome()
+        {
+            sidebarCompact = settings.CompactSidebar;
+            double width = sidebarCompact ? 76 : 236;
+            if (chromeSidebar != null) chromeSidebar.Width = width;
+            if (topBrandColumn != null) topBrandColumn.Width = new GridLength(width);
+            if (topBrandText != null) topBrandText.Visibility = sidebarCompact ? Visibility.Collapsed : Visibility.Visible;
+            if (topBrandMark != null)
+            {
+                topBrandMark.Width = sidebarCompact ? 32 : 43;
+                topBrandMark.Height = sidebarCompact ? 30 : 38;
+                topBrandMark.Margin = new Thickness(0, 0, sidebarCompact ? 0 : 9, 0);
+            }
+            if (backButton != null)
+            {
+                backButton.Margin = new Thickness(0, 0, sidebarCompact ? 6 : 10, 0);
+            }
+        }
+
+        void ToggleSidebarCompact()
+        {
+            settings.CompactSidebar = !settings.CompactSidebar;
+            sidebarCompact = settings.CompactSidebar;
+            SettingsStore.Save(settings);
+            RebuildSidebar();
+            ApplySidebarChrome();
+            ShowToast(sidebarCompact ? "Mode cinéma · seuls les logos restent." : "Menu complet.", false, true);
         }
 
         Button NavItem(string glyph, string label, string destination, int count)
         {
             bool active = page == destination;
+            if (sidebarCompact)
+            {
+                var compactIcon = Icon(glyph, 17, active ? Brush(Accent) : Brush(Muted));
+                var compactButton = new Button
+                {
+                    Content = compactIcon, Width = 52, Height = 44, Padding = new Thickness(0),
+                    Margin = new Thickness(6, 1, 6, 1), HorizontalAlignment = HorizontalAlignment.Center,
+                    Background = active ? AccentSoftGradientBrush() : Brushes.Transparent, BorderThickness = new Thickness(0),
+                    Cursor = Cursors.Hand, FocusVisualStyle = null, ToolTip = label,
+                    Template = RoundedButtonTemplate(10, false), HorizontalContentAlignment = HorizontalAlignment.Center,
+                    VerticalContentAlignment = VerticalAlignment.Center
+                };
+                if (!active)
+                {
+                    compactButton.MouseEnter += delegate { compactButton.Background = HoverBrush; compactIcon.Foreground = Brush(TextPrimary); };
+                    compactButton.MouseLeave += delegate { compactButton.Background = Brushes.Transparent; compactIcon.Foreground = Brush(Muted); };
+                }
+                compactButton.Click += delegate { Nav(destination); };
+                return compactButton;
+            }
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -652,6 +759,42 @@ namespace LyaranTV
         Border SourceSidebarItem(PlaylistSource source)
         {
             bool active = activeSource == source;
+            if (sidebarCompact)
+            {
+                // Mode cinéma : chaque playlist devient un logo (initiale) net.
+                string initial = String.IsNullOrWhiteSpace(source.Name) ? "?" : source.Name.Trim().Substring(0, 1).ToUpperInvariant();
+                var logoLabel = Text(initial, 17, Brush(active ? Colors.White : TextPrimary), true);
+                logoLabel.HorizontalAlignment = HorizontalAlignment.Center;
+                logoLabel.VerticalAlignment = VerticalAlignment.Center;
+                logoLabel.TextAlignment = TextAlignment.Center;
+                var logoBack = new Border
+                {
+                    Child = logoLabel, Width = 40, Height = 40, CornerRadius = new CornerRadius(12),
+                    Background = active ? AccentGradientBrush() : Brush(Raised),
+                    BorderBrush = Brush(active ? Accent : BorderColor), BorderThickness = new Thickness(1)
+                };
+                var compactSource = new Button
+                {
+                    Content = logoBack, Width = 52, Height = 48, Padding = new Thickness(0),
+                    Margin = new Thickness(6, 1, 6, 1), HorizontalAlignment = HorizontalAlignment.Center,
+                    Background = active ? AccentSoftGradientBrush() : Brushes.Transparent, BorderThickness = new Thickness(0),
+                    Cursor = Cursors.Hand, FocusVisualStyle = null, ToolTip = source.Name + " · " + source.DisplayType,
+                    Template = RoundedButtonTemplate(10, false), HorizontalContentAlignment = HorizontalAlignment.Center,
+                    VerticalContentAlignment = VerticalAlignment.Center
+                };
+                if (!active)
+                {
+                    compactSource.MouseEnter += delegate { compactSource.Background = HoverBrush; };
+                    compactSource.MouseLeave += delegate { compactSource.Background = Brushes.Transparent; };
+                }
+                var compactMenu = CreateContextMenu();
+                compactMenu.Items.Add(MenuItem("Charger", delegate { Activate(source); }, Glyphs.Play));
+                compactMenu.Items.Add(MenuItem("Modifier", delegate { EditSource(source); }, Glyphs.Edit));
+                compactMenu.Items.Add(MenuItem("Supprimer", delegate { RemoveSource(source); }, Glyphs.Delete));
+                compactSource.ContextMenu = compactMenu;
+                compactSource.Click += delegate { Activate(source); };
+                return new Border { Child = compactSource };
+            }
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -694,6 +837,7 @@ namespace LyaranTV
 
         void Nav(string destination)
         {
+            CloseDetailOverlay();
             if (fullScreen) ExitFullScreen();
             if (destination != page) PushNavFrame();
             page = destination;
@@ -954,6 +1098,12 @@ namespace LyaranTV
         Border ProfileSidebarItem()
         {
             var profile = activeProfile ?? new UserProfile { Name = "Principal", AvatarColor = "#8B5CF6" };
+            if (sidebarCompact)
+            {
+                var avatarButton = ProfileAvatarButton(36);
+                avatarButton.HorizontalAlignment = HorizontalAlignment.Center;
+                return new Border { Child = avatarButton, Margin = new Thickness(0, 8, 0, 4) };
+            }
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -1282,9 +1432,9 @@ namespace LyaranTV
             {
                 if (page == "Recherche")
                 {
-                    page = activeSource == null ? "Accueil" : "Bibliothèque";
-                    RebuildSidebar();
-                    Navigate();
+                    // Rester sur la page de recherche : elle affiche l'historique
+                    // au lieu de renvoyer l'utilisateur en arrière.
+                    ShowSearch();
                 }
                 else if (page == "Bibliothèque" || page == "Favoris" || page == "Récents") RenderChannels();
                 return;
@@ -1310,6 +1460,7 @@ namespace LyaranTV
             string query = searchBox.Text.Trim();
             if (query.Length == 0) { searchBox.Focus(); return; }
             searchQuery = query;
+            SearchHistoryStore.Add(query);
             if (page != "Recherche") pageBeforeSearch = page;
             page = "Recherche";
             RebuildSidebar();
@@ -1341,10 +1492,17 @@ namespace LyaranTV
         void HandleWindowKeys(object sender, KeyEventArgs e)
         {
             bool typing = Keyboard.FocusedElement is TextBox || Keyboard.FocusedElement is PasswordBox;
+            if (virtualKeyboardOverlay != null)
+            {
+                if (e.Key == Key.Escape) { HideVirtualKeyboard(); e.Handled = true; return; }
+                if (e.Key == Key.Back) { BackspaceVirtualKeyboard(); e.Handled = true; return; }
+            }
             if (e.Key == Key.F11) { ToggleFullScreen(); e.Handled = true; return; }
             if (e.Key == Key.Escape)
             {
-                if (fullScreen) { ExitFullScreen(); e.Handled = true; }
+                if (detailOverlay != null) { CloseDetailOverlay(); e.Handled = true; }
+                else if (IsChannelDrawerOpen()) { CloseChannelDrawer(); e.Handled = true; }
+                else if (fullScreen) { ExitFullScreen(); e.Handled = true; }
                 else if (page == "Lecture") { PlayerBack(); e.Handled = true; }
                 else if (page == "Épisodes") { NavBack(); e.Handled = true; }
                 else if (page == "Recherche") { ClearSearch(); NavBack(); e.Handled = true; }
@@ -1352,6 +1510,7 @@ namespace LyaranTV
             }
             ShowFullscreenControls();
             if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { if (searchBox != null) { searchBox.Focus(); searchBox.SelectAll(); } e.Handled = true; return; }
+            if (e.Key == Key.B && Keyboard.Modifiers == ModifierKeys.Control) { ToggleSidebarCompact(); e.Handled = true; return; }
             if (e.Key == Key.R && Keyboard.Modifiers == ModifierKeys.Control) { RefreshActiveSource(); e.Handled = true; return; }
             if (e.Key == Key.N && Keyboard.Modifiers == ModifierKeys.Control) { AddPlaylist(); e.Handled = true; return; }
             if (typing) return;
@@ -1393,6 +1552,7 @@ namespace LyaranTV
             else if (e.Key == Key.M) { ToggleMute(); e.Handled = true; }
             else if (e.Key == Key.I) { ToggleStatsHud(); e.Handled = true; }
             else if (e.Key == Key.Back) { ReturnToPreviousPoint(); e.Handled = true; }
+            else if (e.Key == Key.C) { ToggleChannelDrawer(); e.Handled = true; }
             else if (e.Key == Key.E) { ToggleEpisodesSection(); e.Handled = true; }
             else if (e.Key == Key.S) { OpenSubtitleMenu(); e.Handled = true; }
             else if (e.Key == Key.A) { OpenAudioTrackMenu(); e.Handled = true; }
@@ -1588,6 +1748,11 @@ namespace LyaranTV
             {
                 playerFullscreenButton.Content = Icon(glyph, 16, Brushes.White);
                 playerFullscreenButton.ToolTip = tip;
+            }
+            if (chromeFullscreenButton != null)
+            {
+                chromeFullscreenButton.Content = Icon(glyph, 15, Brush(TextPrimary));
+                chromeFullscreenButton.ToolTip = tip;
             }
         }
 

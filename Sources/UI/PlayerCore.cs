@@ -28,7 +28,7 @@ namespace LyaranTV
         int nextEpisodeCountdown;
         bool playbackFailed;
         bool volumeChanging;
-        Button playerHeaderBackButton, playerTopBackButton;
+        Button playerHeaderBackButton, playerTopBackButton, playerChannelsButton;
 
         // ---------------------------------------------------------------- lecture
 
@@ -312,6 +312,7 @@ namespace LyaranTV
         // comme dans une application vidéo classique.
         void PlayerBack()
         {
+            if (IsChannelDrawerOpen()) { CloseChannelDrawer(); return; }
             ExitPlayerPage();
         }
 
@@ -407,6 +408,8 @@ namespace LyaranTV
 
         void SwitchChannel(int direction)
         {
+            if (page != "Lecture") return;
+            if (IsChannelDrawerOpen()) { MoveChannelDrawerSelection(direction); return; }
             if (playQueue == null || playQueue.Count == 0 || currentPlaying == null) return;
             int index = playQueue.FindIndex(delegate(Channel item) { return item != null && String.Equals(item.Id, currentPlaying.Id, StringComparison.OrdinalIgnoreCase); });
             if (index < 0) index = 0;

@@ -78,6 +78,7 @@ namespace LyaranTV
         void Play(Channel channel, List<Channel> queue, double startPosition, bool startPaused)
         {
             if (channel == null) return;
+            CloseDetailOverlay();
             if (!IsChannelAllowed(channel)) { ShowError("Ce contenu est verrouillé par le contrôle parental."); return; }
             if ((channel.IsSeries || channel.Kind == "Séries") && String.IsNullOrWhiteSpace(channel.Url))
             {
@@ -288,6 +289,12 @@ namespace LyaranTV
             playerLayout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             playerHeaderBackButton = null;
             playerHeaderFullscreenButton = null;
+            playerChannelsButton = null;
+            channelDrawer = null;
+            channelDrawerList = null;
+            channelDrawerFilter = null;
+            channelDrawerCount = null;
+            channelDrawerQuery = "";
 
             var videoGrid = new Grid { Background = Brushes.Black, MinHeight = 250, ClipToBounds = true };
             playerVideoGrid = videoGrid;
@@ -393,6 +400,12 @@ namespace LyaranTV
             playerTopBackButton.Margin = new Thickness(0, 0, 14, 0);
             DockPanel.SetDock(playerTopBackButton, Dock.Left);
             playerTopBar.Children.Add(playerTopBackButton);
+            // Direct : colonne de gauche avec toutes les chaînes, façon box TV.
+            playerChannelsButton = PlayerButton(Glyphs.TV, "Liste des chaînes · C", ToggleChannelDrawer, false, 38);
+            playerChannelsButton.Margin = new Thickness(0, 0, 14, 0);
+            playerChannelsButton.Visibility = playerLive ? Visibility.Visible : Visibility.Collapsed;
+            DockPanel.SetDock(playerChannelsButton, Dock.Left);
+            playerTopBar.Children.Add(playerChannelsButton);
             // Direct : retour immédiat au bord du flux, sans quitter le lecteur.
             playerLiveButton = PlayerButton(Glyphs.Refresh, "Revenir au direct", ResyncLiveStream, false, 34);
             playerLiveButton.Margin = new Thickness(12, 0, 0, 0);
@@ -678,6 +691,8 @@ namespace LyaranTV
                 EnsureSeriesEpisodes(currentPlaying);
 
             ApplyPlayerImageTransform();
+            // Tiroir des chaînes : prêt dès l'ouverture pour un zapping immédiat.
+            if (playerLive && videoGrid != null) BuildChannelDrawer();
             playbackTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
             playbackTimer.Tick += delegate { UpdatePlaybackProgress(); };
             playbackTimer.Start();
