@@ -1,3 +1,23 @@
+# LyaranTV 1.4.1
+
+Pensée pour le salon : pilotage à la manette ou à la télécommande, clavier virtuel, historique de recherche et tiroir des chaînes façon box TV.
+
+## Nouveautés
+
+- **Navigation manette / télécommande** : focus spatial visible, croix et stick pour se déplacer, A pour valider, B pour revenir, Y pour la recherche, Start pour le plein écran, X pour le tiroir des chaînes ou lecture/pause, LB/RB pour zapper.
+- **Clavier virtuel** : il s'ouvre dans la recherche (et le filtre du tiroir) quand une manette ou une télécommande est utilisée sans clavier, ou via le bouton « Clavier à l'écran ».
+- **Historique de recherche** : la page Recherche vide affiche les dernières recherches en pastilles cliquables, avec un bouton « Effacer l'historique ».
+- **Tiroir des chaînes du lecteur** : bouton TV, touche `C` ou X sur manette. La vidéo reste en place pendant qu'on zappe : vrais logos des chaînes, programme en cours avec barre de progression, badge « EN COURS », favoris, filtre rapide et compteur.
+- **Fiche de contenu compacte** : panneau flottant resserré façon Netflix (hero réduit, coins adoucis), sans prendre tout l'écran.
+- **Mode cinéma** : `Ctrl+B` réduit la colonne de gauche aux seuls logos pour laisser toute la place aux affiches.
+
+## Vérifications
+
+- Auto-test : **34/34**.
+- Compilation avec `Sources\Reconstruire.bat`.
+
+---
+
 # LyaranTV 1.4.0
 
 Une mise à jour dédiée aux finitions : des boutons qui réagissent au survol, des dégradés plus soignés et une personnalisation d'apparence beaucoup plus large.
