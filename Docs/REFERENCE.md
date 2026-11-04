@@ -1,6 +1,6 @@
 # Référence LyaranTV
 
-Cette référence décrit les commandes, raccourcis, formats, fichiers de données et points d'architecture de LyaranTV 1.5.1.
+Cette référence décrit les commandes, raccourcis, formats, fichiers de données et points d'architecture de LyaranTV 1.6.0.
 
 ## Ligne de commande
 
@@ -305,4 +305,4 @@ Dist\LyaranTV.exe --selftest
 
 Journal : `%TEMP%\LyaranTV-selftest.log`.
 
-La suite compte **34 auto-tests** et couvre : chemins, utilitaires texte, priorité des flux, erreurs réseau lisibles, chiffrement, réglages et migration d'accent, **apparence des sous-titres**, **extraction des notes de version**, playlists, favoris/positions, **suppression de l'historique d'une playlist**, démonstration, M3U, en-têtes de flux M3U, Xtream, **conversion M3U vers Xtream**, XMLTV, **nettoyage et correspondance prudente des titres TMDb**, recherche dans les métadonnées, correspondances séparées par profil et source, **pistes audio et sous-titres en ligne**, **pistes audio universelles**, affiches et aperçus de secours, cache TMDb, profils/PIN, état par profil, export portable, sous-titres SRT/WebVTT, **pistes embarquées MKV et MP4**, thèmes/champs/scrollbars, décodage des images en mémoire et lecture du cache disque d'affiches, et sauvegarde ZIP.
+La suite compte **35 auto-tests** et couvre : chemins, utilitaires texte, priorité des flux, erreurs réseau lisibles, chiffrement, réglages et migration d'accent, **apparence des sous-titres**, **extraction des notes de version**, playlists, favoris/positions, **suppression de l'historique d'une playlist**, démonstration, M3U, en-têtes de flux M3U, Xtream, **conversion M3U vers Xtream**, XMLTV, **nettoyage et correspondance prudente des titres TMDb**, recherche dans les métadonnées, correspondances séparées par profil et source, **pistes audio et sous-titres en ligne**, **pistes audio universelles**, affiches et aperçus de secours, cache TMDb, profils/PIN, état par profil, export portable, sous-titres SRT/WebVTT, **pistes embarquées MKV et MP4**, thèmes/champs/scrollbars, décodage des images en mémoire et lecture du cache disque d'affiches, et sauvegarde ZIP.

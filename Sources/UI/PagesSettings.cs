@@ -9,6 +9,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 using System.Windows.Threading;
 
 namespace LyaranTV
@@ -20,17 +22,17 @@ namespace LyaranTV
             page = "Paramètres";
             RebuildSidebar();
             UpdateStatusBar();
-            var root = PageRoot("Paramètres", "Apparence, lecture, profils, services connectés et données LyaranTV.");
+            var root = PageRoot("Paramètres", "Apparence, lecture, profils et données.");
 
-            root.Children.Add(SettingsCard("Apparence", "Un thème, une couleur d’accent et des animations discrètes.",
+            root.Children.Add(SettingsCard("Apparence", "Thème, accent et animations.",
                 BuildAppearanceSettings()));
-            root.Children.Add(SettingsCard("Lecture", "Comportement du lecteur intégré et des médias.",
+            root.Children.Add(SettingsCard("Lecture", "Lecteur intégré et médias.",
                 BuildPlaybackSettings()));
-            root.Children.Add(SettingsCard("Profils et contrôle parental", "Des espaces personnels et des catégories protégées pour les enfants.",
+            root.Children.Add(SettingsCard("Profils et contrôle parental", "Un espace et une photo par personne.",
                 BuildProfileSettings()));
-            root.Children.Add(SettingsCard("Métadonnées et sous-titres", "Affiches, notes et synopsis (TMDb), recherche de sous-titres (OpenSubtitles). Facultatif.",
+            root.Children.Add(SettingsCard("Métadonnées et sous-titres", "Affiches et sous-titres, en option.",
                 BuildTmdbSettings()));
-            root.Children.Add(SettingsCard("Mode langue", "N’afficher que les catégories de la langue choisie (FR, EN, AR, ES…).",
+            root.Children.Add(SettingsCard("Mode langue", "N’afficher que les catégories de la langue choisie.",
                 BuildLanguageModeSettings()));
             root.Children.Add(SettingsCard("Démarrage", "Ce que LyaranTV ouvre au lancement.",
                 BuildStartupSettings()));
@@ -418,9 +420,6 @@ namespace LyaranTV
         StackPanel BuildProfileSettings()
         {
             var stack = new StackPanel();
-            stack.Children.Add(Text("PROFILS", 9.5, Brush(Muted), true));
-            stack.Children.Add(Text("Chaque profil conserve ses propres favoris, son historique et ses positions de reprise.", 10.5, Brush(Muted), false));
-
             foreach (var profile in profiles.ToList())
             {
                 var captured = profile;
@@ -429,15 +428,25 @@ namespace LyaranTV
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 Color avatar; if (!TryParseHexColor(profile.AvatarColor, out avatar)) avatar = Accent;
-                var circle = new Border
-                {
-                    Width = 32, Height = 32, CornerRadius = new CornerRadius(16), Background = Brush(avatar),
-                    VerticalAlignment = VerticalAlignment.Center, Child = Text(profile.Name.Substring(0, 1).ToUpperInvariant(), 13, Brush(Colors.White), true)
-                };
-                ((TextBlock)circle.Child).HorizontalAlignment = HorizontalAlignment.Center;
+                var circle = ProfileAvatars.Build(profile, 32, 16, avatar, false);
+                circle.VerticalAlignment = VerticalAlignment.Center;
                 Grid.SetColumn(circle, 0); row.Children.Add(circle);
                 var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(9, 0, 8, 0) };
-                labels.Children.Add(Text(profile.Name + (profile == activeProfile ? "  ·  actif" : ""), 12.5, Brush(profile == activeProfile ? Accent : TextPrimary), profile == activeProfile));
+                var nameRow = new StackPanel { Orientation = Orientation.Horizontal };
+                nameRow.Children.Add(Text(profile.Name, 12.5, Brush(profile == activeProfile ? Accent : TextPrimary), profile == activeProfile));
+                if (profile == activeProfile)
+                {
+                    var activePill = new Border
+                    {
+                        Child = Text("ACTIF", 10, Brush(TextOnAccentColor()), true),
+                        Background = Brush(WithAlpha(Accent, 34)), BorderBrush = Brush(WithAlpha(Accent, 90)),
+                        BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5),
+                        Padding = new Thickness(6, 1, 6, 2), Margin = new Thickness(8, 0, 0, 0),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    nameRow.Children.Add(activePill);
+                }
+                labels.Children.Add(nameRow);
                 string meta = profile.IsChild ? "Profil enfant" : "Profil standard";
                 if (!String.IsNullOrWhiteSpace(profile.PinProtected)) meta += "  ·  code PIN";
                 labels.Children.Add(Text(meta, 10, Brush(Muted), false));
@@ -957,6 +966,8 @@ namespace LyaranTV
             string oldName = profile.Name;
             profile.Name = updated.Name;
             profile.AvatarColor = updated.AvatarColor;
+            profile.AvatarImage = updated.AvatarImage;
+            profile.AvatarPreset = updated.AvatarPreset;
             profile.IsChild = updated.IsChild;
             profile.PinProtected = updated.PinProtected;
             if (!String.Equals(oldName, profile.Name, StringComparison.Ordinal))
@@ -998,7 +1009,7 @@ namespace LyaranTV
             var dialog = new Window
             {
                 Title = existing == null ? "Ajouter un profil" : "Modifier le profil",
-                Width = 560, SizeToContent = SizeToContent.Height, MaxHeight = 720,
+                Width = 640, SizeToContent = SizeToContent.Height, MaxHeight = 780,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this, ResizeMode = ResizeMode.NoResize,
                 WindowStyle = WindowStyle.None, Background = Brushes.Transparent, AllowsTransparency = true,
                 FontFamily = new FontFamily("Inter, Segoe UI"), ShowInTaskbar = false
@@ -1006,35 +1017,65 @@ namespace LyaranTV
             var frame = new Border
             {
                 Margin = new Thickness(2), Background = Brush(Panel), BorderBrush = Brush(BorderColor), BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(18), Padding = new Thickness(24)
+                CornerRadius = new CornerRadius(20), Padding = new Thickness(26), Opacity = 0
             };
+            frame.RenderTransform = new ScaleTransform(0.985, 0.985);
+            frame.RenderTransformOrigin = new Point(0.5, 0.5);
             dialog.Content = frame;
+
+            var scroll = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                MaxHeight = 716, Focusable = false
+            };
             var root = new StackPanel();
-            frame.Child = root;
-            var header = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 16) };
+            scroll.Content = root;
+            frame.Child = scroll;
+
+            var header = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 18) };
             var close = IconButton(Glyphs.Close, "Fermer", delegate { dialog.DialogResult = false; }, false);
             close.Width = 32; close.Height = 30; close.Margin = new Thickness(0);
             DockPanel.SetDock(close, Dock.Right); header.Children.Add(close);
-            header.Children.Add(Text(existing == null ? "Nouveau profil" : "Modifier le profil", 20, Brush(TextPrimary), true));
+            var heading = new StackPanel();
+            heading.Children.Add(Text(existing == null ? "Nouveau profil" : "Modifier le profil", 21, Brush(TextPrimary), true));
+            heading.Children.Add(Text("Une identité, une photo, un espace rien qu'à vous.", 12.5, Brush(Muted), false));
+            header.Children.Add(heading);
             root.Children.Add(header);
 
-            root.Children.Add(FieldLabel("NOM DU PROFIL"));
+            string selectedColor = existing == null ? "#8B5CF6" : (String.IsNullOrWhiteSpace(existing.AvatarColor) ? "#8B5CF6" : existing.AvatarColor);
+            string selectedImage = existing == null ? "" : (existing.AvatarImage ?? "");
+            string selectedPreset = existing == null ? "" : (existing.AvatarPreset ?? "");
+            Color accentColor;
+            if (!TryParseHexColor(selectedColor, out accentColor)) accentColor = Accent;
+
+            var hero = new Grid { Margin = new Thickness(0, 0, 0, 16) };
+            hero.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(116) });
+            hero.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var preview = new Border
+            {
+                Width = 104, Height = 104, Padding = new Thickness(5), CornerRadius = new CornerRadius(26),
+                Background = Brush(WithAlpha(accentColor, 18)), BorderBrush = Brush(WithAlpha(accentColor, 110)),
+                BorderThickness = new Thickness(1), HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0)
+            };
+            hero.Children.Add(preview);
+            var fields = new StackPanel { Margin = new Thickness(4, 0, 0, 0) };
+            fields.Children.Add(FieldLabel("NOM DU PROFIL"));
             var nameBox = StyledTextBox();
             nameBox.Text = existing == null ? "" : existing.Name;
-            nameBox.Margin = new Thickness(0, 4, 0, 12);
-            root.Children.Add(nameBox);
-
-            root.Children.Add(FieldLabel("COULEUR"));
-            var colors = new WrapPanel { Margin = new Thickness(0, 6, 0, 12) };
-            string selectedColor = existing == null ? "#8B5CF6" : (String.IsNullOrWhiteSpace(existing.AvatarColor) ? "#8B5CF6" : existing.AvatarColor);
+            nameBox.Margin = new Thickness(0, 5, 0, 12);
+            fields.Children.Add(nameBox);
+            fields.Children.Add(FieldLabel("COULEUR D'ACCENT"));
+            var colors = new WrapPanel { Margin = new Thickness(0, 7, 0, 0) };
             var swatches = new List<Border>();
+            Action refresh = null;
             foreach (string hex in new[] { "#8B5CF6", "#22D3EE", "#3B82F6", "#10B981", "#F59E0B", "#F43F5E" })
             {
                 Color color; if (!TryParseHexColor(hex, out color)) continue;
                 string captured = hex;
                 var swatch = new Border
                 {
-                    Width = 30, Height = 30, CornerRadius = new CornerRadius(9), Background = Brush(color),
+                    Width = 28, Height = 28, CornerRadius = new CornerRadius(9), Background = Brush(color),
                     BorderBrush = String.Equals(hex, selectedColor, StringComparison.OrdinalIgnoreCase) ? Brush(TextPrimary) : Brush(BorderColor),
                     BorderThickness = String.Equals(hex, selectedColor, StringComparison.OrdinalIgnoreCase) ? new Thickness(3) : new Thickness(1),
                     Margin = new Thickness(0, 0, 8, 0), Cursor = Cursors.Hand
@@ -1042,46 +1083,176 @@ namespace LyaranTV
                 swatch.MouseLeftButtonUp += delegate
                 {
                     selectedColor = captured;
+                    if (!TryParseHexColor(selectedColor, out accentColor)) accentColor = Accent;
                     foreach (var item in swatches)
                     {
                         item.BorderBrush = Brush(BorderColor); item.BorderThickness = new Thickness(1);
                     }
                     swatch.BorderBrush = Brush(TextPrimary); swatch.BorderThickness = new Thickness(3);
+                    if (refresh != null) refresh();
                 };
                 swatches.Add(swatch);
                 colors.Children.Add(swatch);
             }
-            root.Children.Add(colors);
+            fields.Children.Add(colors);
+            Grid.SetColumn(fields, 1); hero.Children.Add(fields);
+            root.Children.Add(hero);
+
+            root.Children.Add(FieldLabel("PHOTO DE PROFIL"));
+            var gallery = new WrapPanel { Margin = new Thickness(0, 8, 0, 2) };
+            var tiles = new List<Action>();
+            var error = Text("", 12.5, Brush(Danger), false);
+            error.Visibility = Visibility.Collapsed;
+            error.Margin = new Thickness(0, 0, 0, 8);
+
+            Action<string, string> addTile = delegate(string preset, string image)
+            {
+                string capturedPreset = preset;
+                bool isInitial = String.IsNullOrEmpty(preset) && String.IsNullOrEmpty(image);
+                var ring = new Border
+                {
+                    Width = 50, Height = 50, Padding = new Thickness(3), CornerRadius = new CornerRadius(13),
+                    BorderThickness = new Thickness(2), BorderBrush = Brushes.Transparent, Background = Brushes.Transparent
+                };
+                var tileButton = new Button
+                {
+                    Content = ring, Width = 54, Height = 54, Padding = new Thickness(0), Margin = new Thickness(0, 0, 2, 2),
+                    Background = Brushes.Transparent, BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
+                    FocusVisualStyle = null, Template = RoundedButtonTemplate(13, false, false),
+                    ToolTip = isInitial ? "Initiale du profil" : ProfileAvatars.Label(capturedPreset)
+                };
+                tileButton.SetValue(System.Windows.Automation.AutomationProperties.NameProperty,
+                    isInitial ? "Avatar initiale" : "Avatar " + ProfileAvatars.Label(capturedPreset));
+                Action update = delegate
+                {
+                    bool selected = String.IsNullOrEmpty(selectedImage) && String.Equals(selectedPreset, capturedPreset, StringComparison.Ordinal);
+                    ring.BorderBrush = selected ? Brush(accentColor) : Brushes.Transparent;
+                    ring.Effect = selected ? new DropShadowEffect { BlurRadius = 20, ShadowDepth = 0, Opacity = 0.42, Color = accentColor } : null;
+                    ring.Child = ProfileAvatars.Build(
+                        new UserProfile { Name = nameBox.Text, AvatarColor = selectedColor, AvatarImage = "", AvatarPreset = capturedPreset },
+                        44, 12, Accent, false);
+                };
+                tileButton.Click += delegate
+                {
+                    selectedPreset = capturedPreset;
+                    selectedImage = "";
+                    if (refresh != null) refresh();
+                };
+                tiles.Add(update);
+                update();
+                gallery.Children.Add(tileButton);
+            };
+
+            addTile("", "");
+            foreach (string preset in ProfileAvatars.Presets)
+                addTile(ProfileAvatars.PresetValue(preset), "");
+
+            var importRing = new Border
+            {
+                Width = 50, Height = 50, Padding = new Thickness(3), CornerRadius = new CornerRadius(13),
+                BorderThickness = new Thickness(2), BorderBrush = Brushes.Transparent, Background = Brushes.Transparent
+            };
+            var importButton = new Button
+            {
+                Content = importRing, Width = 54, Height = 54, Padding = new Thickness(0), Margin = new Thickness(0, 0, 2, 2),
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
+                FocusVisualStyle = null, Template = RoundedButtonTemplate(13, false, false),
+                ToolTip = "Importer une photo (PNG, JPG ou BMP)"
+            };
+            importButton.SetValue(System.Windows.Automation.AutomationProperties.NameProperty, "Importer une photo");
+            var importFrame = new System.Windows.Shapes.Rectangle
+            {
+                RadiusX = 12, RadiusY = 12, StrokeThickness = 1.3, Stroke = Brush(WithAlpha(TextPrimary, 55)),
+                Fill = Brushes.Transparent, StrokeDashArray = new DoubleCollection { 3, 3 }
+            };
+            var importGlyph = Icon(Glyphs.Camera, 18, Brush(Muted));
+            importGlyph.HorizontalAlignment = HorizontalAlignment.Center;
+            importGlyph.VerticalAlignment = VerticalAlignment.Center;
+            var importHost = new Grid();
+            importHost.Children.Add(importFrame);
+            importHost.Children.Add(importGlyph);
+            importRing.Child = importHost;
+            Action updateImport = delegate
+            {
+                bool selected = !String.IsNullOrEmpty(selectedImage);
+                importRing.BorderBrush = selected ? Brush(accentColor) : Brushes.Transparent;
+                importRing.Effect = selected ? new DropShadowEffect { BlurRadius = 20, ShadowDepth = 0, Opacity = 0.42, Color = accentColor } : null;
+                if (selected)
+                {
+                    importRing.Child = ProfileAvatars.Build(
+                        new UserProfile { Name = nameBox.Text, AvatarColor = selectedColor, AvatarImage = selectedImage, AvatarPreset = "" },
+                        44, 12, Accent, false);
+                }
+                else
+                {
+                    importRing.Child = importHost;
+                }
+            };
+            importButton.Click += delegate
+            {
+                var dialogFile = new OpenFileDialog
+                {
+                    Filter = "Images (*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff)|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff|Tous les fichiers (*.*)|*.*",
+                    Title = "Choisir une photo de profil"
+                };
+                if (dialogFile.ShowDialog() != true) return;
+                string importError;
+                string encoded = ProfileAvatars.Import(dialogFile.FileName, out importError);
+                if (encoded == null)
+                {
+                    error.Text = importError;
+                    error.Visibility = Visibility.Visible;
+                    return;
+                }
+                selectedImage = encoded;
+                selectedPreset = "";
+                error.Visibility = Visibility.Collapsed;
+                if (refresh != null) refresh();
+            };
+            tiles.Add(updateImport);
+            updateImport();
+            gallery.Children.Add(importButton);
+            root.Children.Add(gallery);
+
+            var removePhoto = TextAction("Retirer la photo", delegate
+            {
+                selectedImage = "";
+                selectedPreset = "";
+                if (refresh != null) refresh();
+            }, "Revenir à l'initiale ou à un avatar prédéfini");
+            removePhoto.Margin = new Thickness(0, 2, 0, 8);
+            removePhoto.HorizontalAlignment = HorizontalAlignment.Left;
+            root.Children.Add(removePhoto);
 
             var child = new CheckBox
             {
-                Content = Text("Profil enfant · les catégories verrouillées sont masquées", 12, Brush(TextPrimary), false),
+                Content = Text("Profil enfant", 12.5, Brush(TextPrimary), false),
                 IsChecked = existing != null && existing.IsChild,
-                Foreground = Brush(TextPrimary), Template = ModernCheckBoxTemplate(), Margin = new Thickness(0, 0, 0, 12),
-                HorizontalContentAlignment = HorizontalAlignment.Left
+                Foreground = Brush(TextPrimary), Template = ModernCheckBoxTemplate(), Margin = new Thickness(0, 2, 0, 4),
+                HorizontalContentAlignment = HorizontalAlignment.Left, ToolTip = "Les catégories verrouillées sont masquées."
             };
             root.Children.Add(child);
+            var childHint = Text("Les catégories verrouillées sont masquées.", 12.5, Brush(Muted), false);
+            childHint.Margin = new Thickness(27, 0, 0, 12);
+            root.Children.Add(childHint);
 
             root.Children.Add(FieldLabel("CODE PIN (FACULTATIF)"));
             var pinBox = StyledPasswordBox();
-            pinBox.Margin = new Thickness(0, 4, 0, 6);
+            pinBox.Margin = new Thickness(0, 5, 0, 5);
             pinBox.ToolTip = "4 caractères ou plus. Laissez vide pour ne pas changer.";
             root.Children.Add(pinBox);
             var removePin = new CheckBox
             {
-                Content = Text("Supprimer le code PIN existant", 11, Brush(Muted), false),
+                Content = Text("Supprimer le code PIN existant", 12.5, Brush(Muted), false),
                 Foreground = Brush(TextPrimary), Template = ModernCheckBoxTemplate(), Margin = new Thickness(0, 0, 0, 10),
                 Visibility = existing != null && !String.IsNullOrWhiteSpace(existing.PinProtected) ? Visibility.Visible : Visibility.Collapsed,
                 HorizontalContentAlignment = HorizontalAlignment.Left
             };
             root.Children.Add(removePin);
 
-            var error = Text("", 10.5, Brush(Danger), false);
-            error.Visibility = Visibility.Collapsed;
-            error.Margin = new Thickness(0, 0, 0, 8);
             root.Children.Add(error);
 
-            var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
             var cancel = Button("Annuler", delegate { dialog.DialogResult = false; }, false);
             cancel.Margin = new Thickness(0, 0, 8, 0);
             actions.Children.Add(cancel);
@@ -1098,16 +1269,50 @@ namespace LyaranTV
                 else if (pin.Length > 0) protectedPin = CredentialVault.Protect(pin);
                 result = new UserProfile
                 {
-                    Name = name, AvatarColor = selectedColor, IsChild = child.IsChecked == true,
-                    PinProtected = protectedPin, Created = existing == null ? DateTime.Now.ToString("s") : existing.Created
+                    Name = name, AvatarColor = selectedColor, AvatarImage = selectedImage, AvatarPreset = selectedPreset,
+                    IsChild = child.IsChecked == true, PinProtected = protectedPin,
+                    Created = existing == null ? DateTime.Now.ToString("s") : existing.Created
                 };
                 dialog.DialogResult = true;
             }, true);
             actions.Children.Add(save);
             root.Children.Add(actions);
 
+            refresh = delegate
+            {
+                UserProfile draft = new UserProfile
+                {
+                    Name = nameBox.Text, AvatarColor = selectedColor, AvatarImage = selectedImage, AvatarPreset = selectedPreset
+                };
+                preview.Child = ProfileAvatars.Build(draft, 92, 23, Accent, true);
+                preview.Background = Brush(WithAlpha(accentColor, 18));
+                preview.BorderBrush = Brush(WithAlpha(accentColor, 110));
+                preview.Effect = new DropShadowEffect { BlurRadius = 30, ShadowDepth = 0, Opacity = 0.30, Color = accentColor };
+                foreach (var update in tiles) update();
+                removePhoto.Visibility = (String.IsNullOrEmpty(selectedImage) && String.IsNullOrEmpty(selectedPreset))
+                    ? Visibility.Collapsed : Visibility.Visible;
+            };
+            refresh();
+
+            nameBox.TextChanged += delegate { if (refresh != null) refresh(); };
             nameBox.KeyDown += delegate(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) { save.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent)); e.Handled = true; } };
-            dialog.Loaded += delegate { nameBox.Focus(); nameBox.SelectAll(); };
+            dialog.KeyDown += delegate(object sender, KeyEventArgs e) { if (e.Key == Key.Escape) dialog.DialogResult = false; };
+            dialog.Loaded += delegate
+            {
+                nameBox.Focus(); nameBox.SelectAll();
+                if (!UiMotion.Reduced)
+                {
+                    var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+                    frame.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)) { EasingFunction = ease });
+                    var scale = frame.RenderTransform as ScaleTransform;
+                    if (scale != null)
+                    {
+                        scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(0.985, 1, TimeSpan.FromMilliseconds(220)) { EasingFunction = ease });
+                        scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(0.985, 1, TimeSpan.FromMilliseconds(220)) { EasingFunction = ease });
+                    }
+                }
+                else frame.Opacity = 1;
+            };
             return dialog.ShowDialog() == true ? result : null;
         }
 
@@ -1203,6 +1408,8 @@ namespace LyaranTV
                 {
                     if (String.IsNullOrWhiteSpace(profile.Name)) profile.Name = "Principal";
                     if (String.IsNullOrWhiteSpace(profile.AvatarColor)) profile.AvatarColor = "#8B5CF6";
+                    if (profile.AvatarImage == null || profile.AvatarImage.Length > 800000) profile.AvatarImage = "";
+                    if (profile.AvatarPreset == null || ProfileAvatars.PresetId(profile.AvatarPreset).Length == 0) profile.AvatarPreset = "";
                     if (String.IsNullOrWhiteSpace(profile.PinProtected))
                     {
                         var old = oldProfiles.FirstOrDefault(p => String.Equals(p.Name, profile.Name, StringComparison.OrdinalIgnoreCase));

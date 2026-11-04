@@ -255,6 +255,10 @@ namespace LyaranTV
     {
         [DataMember] public string Name = "Principal";
         [DataMember] public string AvatarColor = "#8B5CF6";
+        // Photo personnelle (PNG redimensionné, encodé en base64) ou avatar
+        // illustré prédéfini. Les deux champs restent vides pour l'initiale.
+        [DataMember] public string AvatarImage = "";
+        [DataMember] public string AvatarPreset = "";
         [DataMember] public bool IsChild = false;
         [DataMember] public string PinProtected = "";
         [DataMember] public string Created = "";
@@ -326,6 +330,8 @@ namespace LyaranTV
                             {
                                 if (String.IsNullOrWhiteSpace(profile.Name)) profile.Name = "Principal";
                                 if (String.IsNullOrWhiteSpace(profile.AvatarColor)) profile.AvatarColor = "#8B5CF6";
+                                if (profile.AvatarImage == null) profile.AvatarImage = "";
+                                if (profile.AvatarPreset == null) profile.AvatarPreset = "";
                                 if (String.IsNullOrWhiteSpace(profile.Created)) profile.Created = DateTime.Now.ToString("s");
                             }
                             return loaded;
@@ -1123,7 +1129,8 @@ namespace LyaranTV
             }).ToList();
             data.Profiles = (profiles ?? new List<UserProfile>()).Select(p => new UserProfile
             {
-                Name = p.Name, AvatarColor = p.AvatarColor, IsChild = p.IsChild, Created = p.Created, PinProtected = ""
+                Name = p.Name, AvatarColor = p.AvatarColor, AvatarImage = p.AvatarImage ?? "",
+                AvatarPreset = p.AvatarPreset ?? "", IsChild = p.IsChild, Created = p.Created, PinProtected = ""
             }).ToList();
             return data;
         }

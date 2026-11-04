@@ -1,14 +1,29 @@
-# LyaranTV 1.5.1
+# LyaranTV 1.6.0
 
-Une retouche nette sur l’écran des profils.
+Photos de profil et finitions premium.
+
+## Photos de profil
+
+- **Photos personnelles** : importez une photo (PNG, JPG, BMP, GIF) depuis vos fichiers. Elle est recadrée en carré, l'orientation EXIF est appliquée, puis réduite à 256 px et stockée en base64 dans `profiles.json` — elle suit le profil dans les sauvegardes et les exports portables.
+- **Avatars prédéfinis** : huit illustrations vectorielles dessinées par le programme (Aurore, Nuit, Vague, Flamme, Forêt, Cosmos, Or, Glacier), sans fichier image ajouté au projet.
+- **Initiale** : l'initiale du profil sur un dégradé de sa couleur reste une option.
+- **Dialogue repensé** : prévisualisation en direct, galerie des présélections, tuile d'import, choix de la couleur d'accent, action « Retirer la photo », boutons nommés pour l'accessibilité, ouverture en fondu et à l'échelle.
 
 ## Écran « Qui regarde ? »
 
-- **Anneau de focus ajusté** : le liseré épouse désormais exactement le bord de l’avatar (même rayon intérieur, 2 px de bord). Les croissants sombres qui apparaissaient aux coins supérieurs de la carte sélectionnée ont disparu.
-- **Bas d’écran allégé** : la phrase d’aide « Flèches ou manette pour choisir · Entrée pour continuer » a été retirée. Seul le lien **Quitter LyaranTV**, aligné à droite, reste visible.
+- Chaque carte affiche maintenant la photo ou l'avatar du profil (plus seulement l'initiale).
+- Au survol : l'avatar s'agrandit, un anneau et une lueur d'accent s'allument, le nom s'illumine et un reflet diagonal balaie la carte.
+- La phrase d'aide en bas à gauche a été retirée ; seuls le titre et le lien « Quitter LyaranTV » restent.
+
+## Réglages allégés
+
+- Les descriptions des cartes de réglages sont raccourcies ; l'introduction de la section profils est retirée.
+- Le profil actif est mis en avant par une pastille **ACTIF**.
+- Les cases et champs de contrôle parental sont plus compacts.
 
 ## Vérifications
 
-- Compilation des 53 sources.
-- Auto-test : **34/34**.
-- Compilation de l’installateur.
+- Compilation des 54 sources.
+- Auto-test : **35/35**.
+- Compilation de l'installateur.
+- Empreintes SHA-256 régénérées pour `LyaranTV.exe` et `setup-LyaranTV-1.6.0.exe`.

@@ -404,18 +404,12 @@ namespace LyaranTV
             };
 
             // Titre très espacé, à la Netflix : de fines espaces entre les lettres.
-            var title = Text("Q\u2009U\u2009I\u2002\u2002R\u2009E\u2009G\u2009A\u2009R\u2009D\u2009E\u2002\u2002?", 36, Brush(TextPrimary), true);
+            var title = Text("Q\u2009U\u2009I\u2002\u2002R\u2009E\u2009G\u2009A\u2009R\u2009D\u2009E\u2002\u2002?", 35, Brush(TextPrimary), true);
             title.HorizontalAlignment = HorizontalAlignment.Center;
             title.TextAlignment = TextAlignment.Center;
             title.Opacity = animate ? 0 : 1;
             title.RenderTransform = new TranslateTransform(0, 14);
             center.Children.Add(title);
-
-            var subtitle = Text("Choisissez un profil pour continuer.", 13, Brush(Muted), false);
-            subtitle.HorizontalAlignment = HorizontalAlignment.Center;
-            subtitle.Margin = new Thickness(0, 12, 0, 0);
-            subtitle.Opacity = animate ? 0 : 1;
-            center.Children.Add(subtitle);
 
             launchProfileError = Text("", 12, Brush(Danger), false);
             launchProfileError.HorizontalAlignment = HorizontalAlignment.Center;
@@ -459,10 +453,6 @@ namespace LyaranTV
                 });
                 ((TranslateTransform)title.RenderTransform).BeginAnimation(TranslateTransform.YProperty,
                     new DoubleAnimation(14, 0, TimeSpan.FromMilliseconds(500)) { BeginTime = TimeSpan.FromMilliseconds(240), EasingFunction = ease });
-                subtitle.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(380))
-                {
-                    BeginTime = TimeSpan.FromMilliseconds(360), EasingFunction = ease
-                });
             }
 
             return stage;
@@ -500,31 +490,28 @@ namespace LyaranTV
             avatarHost.RenderTransform = avatarGroup;
             avatarHost.RenderTransformOrigin = new Point(0.5, 0.5);
 
-            var avatar = new Border
-            {
-                CornerRadius = new CornerRadius(15), ClipToBounds = true,
-                Background = new LinearGradientBrush(
-                    LightMix(color, Colors.White, 0.18),
-                    LightMix(color, Color.FromRgb(0, 0, 0), 0.36),
-                    new Point(0, 0), new Point(1, 1))
-            };
-            string initial = String.IsNullOrWhiteSpace(profile.Name) ? "?" : profile.Name.Trim().Substring(0, 1).ToUpperInvariant();
-            var initialText = Text(initial, 52, Brushes.White, true);
-            initialText.HorizontalAlignment = HorizontalAlignment.Center;
-            initialText.VerticalAlignment = VerticalAlignment.Center;
-            initialText.TextAlignment = TextAlignment.Center;
-            avatar.Child = initialText;
-            RoundClip(avatar, 15);
-            avatarHost.Children.Add(avatar);
+            // Photo importée, illustration prédéfinie ou initiale : le même
+            // composant sert dans le portail de lancement et dans les réglages.
+            avatarHost.Children.Add(ProfileAvatars.Build(profile, 148, 15, color, true));
 
-            var gloss = new Border
+            // Reflet qui traverse la photo au survol : un détail discret, mais
+            // qui rend la carte vivante sans attirer l'œil.
+            var sheenHost = new Grid { Width = 148, Height = 148, IsHitTestVisible = false, ClipToBounds = true };
+            var sheenShift = new TranslateTransform(-190, 0);
+            var sheen = new Border
             {
-                Background = new LinearGradientBrush(Color.FromArgb(30, 255, 255, 255), Color.FromArgb(0, 255, 255, 255),
-                    new Point(0, 0), new Point(1, 1)),
-                IsHitTestVisible = false
+                Width = 58, HorizontalAlignment = HorizontalAlignment.Left,
+                Background = new LinearGradientBrush(new GradientStopCollection
+                {
+                    new GradientStop(Color.FromArgb(0, 255, 255, 255), 0),
+                    new GradientStop(Color.FromArgb(56, 255, 255, 255), 0.5),
+                    new GradientStop(Color.FromArgb(0, 255, 255, 255), 1)
+                }, new Point(0, 0), new Point(1, 0)),
+                RenderTransform = sheenShift
             };
-            RoundClip(gloss, 15);
-            avatarHost.Children.Add(gloss);
+            sheenHost.Children.Add(sheen);
+            RoundClip(sheenHost, 15);
+            avatarHost.Children.Add(sheenHost);
 
             // L'anneau épouse exactement l'avatar : même rayon intérieur, deux
             // pixels de bord. L'ancien décalage de six pixels laissait des
@@ -612,6 +599,18 @@ namespace LyaranTV
                 ring.BorderBrush = on ? Brush(Accent) : Brushes.Transparent;
                 ring.Effect = on ? new DropShadowEffect { BlurRadius = 28, ShadowDepth = 0, Opacity = 0.55, Color = color } : null;
                 name.Foreground = on ? Brushes.White : Brush(TextPrimary);
+                if (on)
+                {
+                    sheenShift.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(-190, 210, TimeSpan.FromMilliseconds(620))
+                    {
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
+                    });
+                }
+                else
+                {
+                    sheenShift.BeginAnimation(TranslateTransform.XProperty, null);
+                    sheenShift.X = -190;
+                }
             };
 
             button.MouseEnter += delegate { pointerOver = true; updateHover(); UiSound.Navigate(); };

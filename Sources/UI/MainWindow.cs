@@ -1366,8 +1366,28 @@ namespace LyaranTV
             foreach (var item in profiles)
             {
                 var captured = item;
-                menu.Items.Add(MenuItem(item.Name + (item.IsChild ? "  ·  enfant" : "") + (item == activeProfile ? "  ✓" : ""),
-                    delegate { SwitchProfile(captured); }, item == activeProfile ? Glyphs.Check : Glyphs.Admin));
+                Color avatar;
+                if (!TryParseHexColor(item.AvatarColor, out avatar)) avatar = Accent;
+                var header = new Grid { Width = 228 };
+                header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(26) });
+                header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var mini = ProfileAvatars.Build(item, 20, 10, avatar, false);
+                mini.VerticalAlignment = VerticalAlignment.Center;
+                header.Children.Add(mini);
+                var label = Text(item.Name + (item.IsChild ? "  ·  enfant" : ""), 13, Brush(TextPrimary), item == activeProfile);
+                label.Margin = new Thickness(8, 0, 8, 0);
+                Grid.SetColumn(label, 1); header.Children.Add(label);
+                if (item == activeProfile)
+                {
+                    var check = Icon(Glyphs.Check, 12, Brush(Accent));
+                    check.VerticalAlignment = VerticalAlignment.Center;
+                    Grid.SetColumn(check, 2); header.Children.Add(check);
+                }
+                var entry = new MenuItem { Header = header };
+                entry.SetValue(System.Windows.Automation.AutomationProperties.NameProperty, item.Name);
+                entry.Click += delegate { SwitchProfile(captured); };
+                menu.Items.Add(entry);
             }
             menu.Items.Add(new Separator());
             menu.Items.Add(MenuItem("Gérer les profils", delegate { Nav("Paramètres"); }, Glyphs.Settings));
@@ -1379,18 +1399,16 @@ namespace LyaranTV
             var profile = activeProfile ?? new UserProfile { Name = "Principal", AvatarColor = "#8B5CF6" };
             Color avatar;
             if (!TryParseHexColor(profile.AvatarColor, out avatar)) avatar = Accent;
-            string initial = String.IsNullOrWhiteSpace(profile.Name) ? "?" : profile.Name.Substring(0, 1).ToUpperInvariant();
-            var label = Text(initial, Math.Round(size * 0.38), Brush(Color.FromRgb(255, 255, 255)), true);
-            label.HorizontalAlignment = HorizontalAlignment.Center;
-            label.TextAlignment = TextAlignment.Center;
             var button = new Button
             {
-                Content = label, Width = size, Height = size, Padding = new Thickness(0),
-                Background = Brush(avatar), BorderBrush = Brush(WithAlpha(Colors.White, 60)), BorderThickness = new Thickness(1),
+                Content = ProfileAvatars.Build(profile, size, size / 2.0, avatar, false),
+                Width = size, Height = size, Padding = new Thickness(0),
+                Background = Brushes.Transparent, BorderBrush = Brush(WithAlpha(Colors.White, 60)), BorderThickness = new Thickness(0),
                 Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(size / 2),
                 ToolTip = "Profil · " + profile.Name, HorizontalContentAlignment = HorizontalAlignment.Center,
                 VerticalContentAlignment = VerticalAlignment.Center
             };
+            button.SetValue(System.Windows.Automation.AutomationProperties.NameProperty, "Profil " + profile.Name);
             var menu = BuildProfileMenu();
             button.ContextMenu = menu;
             button.Click += delegate
@@ -1417,15 +1435,9 @@ namespace LyaranTV
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             Color avatar;
             if (!TryParseHexColor(profile.AvatarColor, out avatar)) avatar = Accent;
-            var circle = new Border
-            {
-                Width = 32, Height = 32, CornerRadius = new CornerRadius(16), Background = Brush(avatar),
-                VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left,
-                Child = Text(String.IsNullOrWhiteSpace(profile.Name) ? "?" : profile.Name.Substring(0, 1).ToUpperInvariant(), 13, Brush(Color.FromRgb(255, 255, 255)), true)
-            };
-            var initial = (TextBlock)circle.Child;
-            initial.HorizontalAlignment = HorizontalAlignment.Center;
-            initial.TextAlignment = TextAlignment.Center;
+            var circle = ProfileAvatars.Build(profile, 32, 16, avatar, false);
+            circle.VerticalAlignment = VerticalAlignment.Center;
+            circle.HorizontalAlignment = HorizontalAlignment.Left;
             Grid.SetColumn(circle, 0); grid.Children.Add(circle);
             var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             labels.Children.Add(Text(profile.Name, 13, Brush(TextPrimary), true));

@@ -220,6 +220,9 @@ namespace LyaranTV
                 RenderTransformOrigin = new Point(0.5, 0.5),
                 HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center
             };
+            // Le contenu est une icône : sans nom explicite, les lecteurs
+            // d'écran et l'automatisation ne verraient qu'un bouton vide.
+            button.SetValue(System.Windows.Automation.AutomationProperties.NameProperty, tooltip ?? "");
             if (click != null) button.Click += delegate { click(); };
             return button;
         }

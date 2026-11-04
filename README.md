@@ -1,4 +1,4 @@
-# LyaranTV 1.5.1
+# LyaranTV 1.6.0
 
 **LyaranTV** est un lecteur IPTV pour Windows, construit avec WPF et .NET Framework 4.x. Il reprend les usages essentiels d'un lecteur IPTV moderne — sources, bibliothèque, direct, guide EPG, recherche, favoris, reprise de lecture et fiches de contenus — avec une identité visuelle originale.
 
@@ -56,7 +56,7 @@ L'exemple fictif se trouve dans `Examples\` et utilise une vidéo locale. Il ne 
 
 Au lancement, LyaranTV prend le temps d’un générique : le logo apparaît, les lettres de la marque se posent une à une, une fine barre de progression accompagne cinq messages (« Initialisation de l’interface », « Lecture de vos réglages », « Préparation de votre bibliothèque », « Application de votre thème », « Presque prêt »), puis l’écran laisse place au choix du profil.
 
-- **« Qui regarde ? »** présente chaque profil dans une carte de 148 px, avec sa couleur, son initiale, son badge **ENFANT** ou son cadenas, et la mention **DERNIER PROFIL** pour le dernier utilisé.
+- **« Qui regarde ? »** présente chaque profil dans une carte de 148 px, avec sa photo ou son avatar prédéfini, sa couleur, sa mention « DERNIER PROFIL » pour le dernier utilisé, son badge **ENFANT** ou son cadenas.
 - **Clavier, souris ou manette** : les flèches déplacent le focus, `Entrée` ou `A` entre dans le profil, le survol agrandit l’avatar et allume un anneau coloré. Un profil protégé demande son code PIN ; un code incorrect fait trembler la carte et affiche un message, sans quitter l’écran.
 - **Ajouter un profil** est accessible directement depuis l’écran d’ouverture, avec la même vérification parentale que dans les réglages.
 - **Transition** : l’avatar choisi zoome brièvement, le voile se dissout, l’accueil apparaît en fondu et un toast « Bienvenue, … » confirme l’entrée.
@@ -166,7 +166,7 @@ libVLC à côté de l'application installée.
 Dist\LyaranTV.exe --selftest
 ```
 
-Le rapport est écrit dans `%TEMP%\LyaranTV-selftest.log`. Les **34 auto-tests** couvrent notamment le nettoyage et les correspondances TMDb prudentes, la recherche par titre original/casting/réalisation/genres/synopsis, l’isolation par profil et source, les pistes audio et sous-titres, l’apparence des sous-titres, l’extraction des notes de version et la sauvegarde.
+Le rapport est écrit dans `%TEMP%\LyaranTV-selftest.log`. Les **35 auto-tests** couvrent notamment le nettoyage et les correspondances TMDb prudentes, la recherche par titre original/casting/réalisation/genres/synopsis, l’isolation par profil et source, les pistes audio et sous-titres, l’apparence des sous-titres, l’extraction des notes de version, la sauvegarde et les photos de profil.
 
 ## Connexion et chargement
 

@@ -815,6 +815,38 @@ namespace LyaranTV
                     Assert(!ProfileStore.VerifyPin(child, "0000"), "Code PIN incorrect accepté.");
                 });
 
+                test("Photos de profil", delegate
+                {
+                    Assert(ProfileAvatars.PresetId(ProfileAvatars.PresetValue("aurore")) == "aurore", "Avatar prédéfini non reconnu.");
+                    Assert(ProfileAvatars.PresetId("preset:inconnu") == "", "Avatar prédéfini invalide accepté.");
+
+                    string source = Path.Combine(tempDir, "avatar-source.png");
+                    var visual = new DrawingVisual();
+                    using (DrawingContext context = visual.RenderOpen())
+                    {
+                        context.DrawRectangle(Brushes.MediumPurple, null, new Rect(0, 0, 64, 64));
+                        context.DrawEllipse(Brushes.White, null, new Point(32, 32), 18, 18);
+                    }
+                    var bitmap = new RenderTargetBitmap(64, 64, 96, 96, PixelFormats.Pbgra32);
+                    bitmap.Render(visual);
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                    using (var stream = File.Create(source)) encoder.Save(stream);
+
+                    string error;
+                    string photo = ProfileAvatars.Import(source, out error);
+                    Assert(!String.IsNullOrEmpty(photo), "Photo de profil non importée : " + error);
+                    var decoded = ProfileAvatars.Decode(photo) as BitmapSource;
+                    Assert(decoded != null && decoded.PixelWidth == ProfileAvatars.StoredSize && decoded.PixelHeight == ProfileAvatars.StoredSize,
+                        "Photo de profil non recadrée à la taille attendue.");
+
+                    var profile = new UserProfile { Name = "Photo", AvatarColor = "#8B5CF6", AvatarImage = photo, AvatarPreset = "" };
+                    var portable = StateStore.BuildPortable(new AppSettings(), new List<PlaylistSource>(), new List<string>(), new List<string>(),
+                        new Dictionary<string, double>(), new[] { profile }, new List<string>(), new List<string>());
+                    Assert(portable.Profiles.Count == 1 && portable.Profiles[0].AvatarImage == photo,
+                        "Photo de profil perdue dans l'export portable.");
+                });
+
                 test("État séparé par profil", delegate
                 {
                     ProfileScope.Current = "Enfant";
