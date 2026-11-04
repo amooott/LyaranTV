@@ -25,7 +25,7 @@ namespace LyaranTV
         /// n'a pas encore été lancé. Au démarrage le chargement de la playlist
         /// part avant le générique, d'où ce second cas.
         /// </summary>
-        bool SplashPending { get { return splashRunning || !startupSplashShown; } }
+        bool SplashPending { get { return splashRunning || !startupSplashShown || launchOverlay != null; } }
 
         /// <summary>
         /// Générique de lancement : halo qui s'ouvre, logo qui prend sa place,

@@ -688,6 +688,18 @@ namespace LyaranTV
         StackPanel BuildStartupSettings()
         {
             var stack = new StackPanel();
+            stack.Children.Add(SettingToggle("Afficher « Qui regarde ? » au démarrage", !settings.HideProfilePicker, delegate(bool value)
+            {
+                settings.HideProfilePicker = !value;
+                SaveSettings();
+                Notice(value ? "Le choix du profil s’affichera au prochain lancement." : "LyaranTV ouvrira directement le dernier profil utilisé.");
+            }));
+            stack.Children.Add(SettingToggle("Navigation manette / télécommande", settings.TvNavigation, delegate(bool value)
+            {
+                settings.TvNavigation = value;
+                SaveSettings();
+                Notice(value ? "Navigation salon activée : croix directionnelle, A/B et clavier virtuel." : "Navigation salon désactivée.");
+            }));
             stack.Children.Add(SettingToggle("Charger la dernière playlist au démarrage", settings.LoadLastSource, delegate(bool value) { settings.LoadLastSource = value; SaveSettings(); }));
             var startPage = new ComboBox { Width = 190, Height = 34, Style = ModernComboStyle() };
             startPage.Items.Add("Accueil"); startPage.Items.Add("Bibliothèque"); startPage.Items.Add("Favoris"); startPage.Items.Add("Guide EPG");

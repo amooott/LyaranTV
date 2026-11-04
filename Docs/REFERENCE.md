@@ -1,6 +1,6 @@
 # Référence LyaranTV
 
-Cette référence décrit les commandes, raccourcis, formats, fichiers de données et points d'architecture de LyaranTV 2.0.
+Cette référence décrit les commandes, raccourcis, formats, fichiers de données et points d'architecture de LyaranTV 1.5.0.
 
 ## Ligne de commande
 
@@ -15,6 +15,9 @@ Cette référence décrit les commandes, raccourcis, formats, fichiers de donné
 | `LyaranTV.exe --theme <nom>` | Force un thème : `Sombre`, `Clair`, `Noir AMOLED`, `Automatique`. |
 | `LyaranTV.exe --detail <titre>` | Ouvre la fiche du premier contenu dont le titre contient la chaîne. |
 | `LyaranTV.exe --screenshot <fichier.png>` | Capture la fenêtre principale après 2,2 s, puis quitte. |
+| `LyaranTV.exe --screenshot-delay <secondes>` | Délai de la capture (0,5 à 60 s). |
+| `LyaranTV.exe --profiles` | Force l'écran **« Qui regarde ? »** au lancement (captures et diagnostic). |
+| `LyaranTV.exe --fullscreen` | Bascule l'application en plein écran après le chargement (diagnostic). |
 | `LyaranTV.exe --selftest` | Exécute les auto-tests sans interface et écrit un journal. |
 
 Les options peuvent être combinées, par exemple :
@@ -27,7 +30,11 @@ LyaranTV.exe --demo --screenshot "%TEMP%\lyarantv.png"
 
 Noms de pages reconnus : `Accueil`, `Bibliothèque`, `Favoris`, `Récents`, `Guide EPG`, `Catégories`, `Chaînes masquées`, `Paramètres`, `Guide rapide`.
 
-`--detail` attend que la bibliothèque soit chargée ; avec `--example`, la fiche s'ouvre après l'indexation. `--screenshot` ne capture que la fenêtre principale, pas les dialogues modaux.
+`--detail` attend que la bibliothèque soit chargée ; avec `--example`, la fiche s'ouvre après l'indexation. `--screenshot` ne capture que la fenêtre principale, pas les dialogues modaux. Les modes capture, démo, page, fiche et lecture sautent l'écran de choix du profil ; `--profiles` le force au contraire, ce qui permet de photographier le générique ou les cartes.
+
+## Écran d'ouverture
+
+Au lancement normal, LyaranTV affiche un générique d'environ 1,8 s, puis l'écran **« Qui regarde ? »** si l'option est active. Le profil choisi détermine immédiatement les favoris, l'historique, les reprises et les réglages de source. Un profil protégé demande son PIN ; un code erroné laisse l'écran ouvert et signale l'erreur. L'écran peut être désactivé dans **Paramètres → Démarrage → Afficher « Qui regarde ? » au démarrage** : LyaranTV ouvre alors directement le dernier profil utilisé.
 
 ## Raccourcis clavier
 
@@ -39,7 +46,8 @@ Noms de pages reconnus : `Accueil`, `Bibliothèque`, `Favoris`, `Récents`, `Gui
 | `Ctrl+R` | Actualiser la source active. |
 | `Ctrl+N` | Ajouter une playlist. |
 | `Ctrl+D` | Ajouter ou retirer le contenu en cours des favoris. |
-| `F11` | Basculer en plein écran. |
+| `Ctrl+B` | Réduire la barre latérale aux icônes ou la rétablir. |
+| `F11` | Basculer toute l'application en plein écran (fenêtre sans bordure sur le moniteur courant). |
 | `Échap` | Quitter le plein écran ou la recherche ; dans la lecture, quitter le lecteur et revenir à l'interface ; dans les épisodes, à la page précédente. |
 | `Page préc.` / `Page suiv.` | Faire défiler la page active. |
 | `Home` / `End` | Aller au début ou à la fin de la page active. |
@@ -83,7 +91,9 @@ Sous les étagères, **Toutes les catégories** présente l'intégralité des ca
 | `A` | Ouvrir le menu des pistes audio détectées. |
 | `Retour arrière` | Revenir au dernier point de retour (position quittée lors du dernier saut). |
 | `E` | Faire défiler jusqu'aux autres épisodes, sous le lecteur. |
-| `Page préc.` / `Page suiv.` | Chaîne précédente / suivante. |
+| `C` | Ouvrir ou fermer le tiroir des chaînes en direct. |
+| `↑` / `↓` (tiroir ouvert) | Parcourir la liste ; `Entrée` lance la chaîne sélectionnée. |
+| `Page préc.` / `Page suiv.` | Chaîne précédente / suivante ; dans le tiroir, change immédiatement de chaîne. |
 | `+` / `-` | Chaîne suivante / précédente. |
 | `Échap` | Quitter le plein écran, puis quitter le lecteur et revenir à l'interface. |
 
@@ -92,6 +102,26 @@ La barre de progression se pilote à la souris : le survol épaissit la piste et
 Un **clic droit** sur l'image ouvre le menu complet du lecteur : lecture, sauts, pistes audio et sous-titres, vitesse, boucle, séquence A-B, minuterie de veille, format d'image, raccourcis, fiche du contenu et lecteur externe. Le bouton de vitesse affiche la valeur courante et ouvre les vitesses prédéfinies ; le bouton de veille propose 15 à 90 minutes ou la fin de l'épisode ; le bouton de boucle reste accentué quand il est actif. La séquence A-B se matérialise par un segment coloré sur la barre de progression et ramène automatiquement au point A.
 
 Pour les séries, la rangée **Autres épisodes** s'ouvre automatiquement sous le lecteur (bouton ou `E` pour la replier) : vignettes, avancement, badges **EN COURS** / **À SUIVRE**, sélecteur de saison, bouton **Épisode suivant** et défilement calé sur l'épisode en cours. La lecture enchaîne l'épisode suivant à la fin, avec un compte à rebours annulable.
+
+### Manette et télécommande
+
+La manette Xbox est lue par XInput (`xinput9_1_0.dll`), jusqu'à quatre manettes. Le mode salon s'active tout seul à la première touche ; il est aussi réglable dans **Paramètres → Démarrage → Navigation manette / télécommande**.
+
+| Commande | Action |
+|---|---|
+| Croix directionnelle / stick gauche | Déplacer le focus spatialement. |
+| `A` | Valider l'élément ciblé. |
+| `B` / `Back` | Revenir en arrière ; inactif sur l'écran « Qui regarde ? ». |
+| `Y` | Ouvrir la recherche et le clavier virtuel. |
+| `X` | Ouvrir le tiroir des chaînes en lecture ; sinon lecture/pause. |
+| `Start` | Basculer le plein écran. |
+| `LB` / `RB` | Chaîne précédente / suivante en lecture. |
+| Stick gauche (clic) | Lecture / pause. |
+| Stick droit (clic) | Tiroir des chaînes. |
+
+Télécommande multimédia : `BrowserBack` revient, `BrowserForward` avance d'une chaîne en lecture, `BrowserHome` ouvre l'accueil, `BrowserRefresh` actualise la source, `MediaPlayPause` lit ou met en pause, `MediaStop` quitte le lecteur, `MediaNextTrack` / `MediaPreviousTrack` changent de chaîne.
+
+Le **clavier virtuel AZERTY** s'ouvre avec `Y` dans la recherche ou depuis la page de recherche. Il écrit dans le champ actif, affiche un aperçu de la saisie, propose retour arrière, espace, chiffres, ponctuation et validation ; `Échap` le referme.
 
 ## Formats pris en charge
 
@@ -162,6 +192,7 @@ Répertoire par défaut : `%APPDATA%\LyaranTV`. Surcharge : variable `LYARANTV_D
 | `positions.json` | Positions de reprise du profil Principal. |
 | `durations.json` | Durées connues des contenus (tous profils). |
 | `episodes.json` | Épisodes en cours (tous profils). |
+| `search-history.txt` | Dernières recherches validées (12 maximum, plus récentes d'abord). |
 | `history-sources.json` | Propriétaire (playlist) de chaque contenu de l’historique ; sert à purger une playlist sans toucher aux autres. |
 | `favorites.<profil>.txt` | Favoris d'un autre profil. |
 | `recent.<profil>.txt` | Historique d'un autre profil. |
@@ -188,6 +219,9 @@ Réglages dans **Paramètres → Apparence**, enregistrés dans `settings.json` 
 | Seconde teinte | `AccentSecondary` | Couleur du dégradé des boutons, halos et accents secondaires. |
 | Ambiance | `Ambience` | `Discrète`, `Équilibrée`, `Vive` — intensité des halos de fond. |
 | Surfaces teintées | `TintedBackground` | `true` / `false` — teinte légère des panneaux par l'accent. |
+| Barre latérale compacte | `CompactSidebar` | `true` / `false` — colonne de 76 px réduite aux icônes. |
+| Écran des profils | `HideProfilePicker` | `false` par défaut : l'écran « Qui regarde ? » s'affiche. `true` ouvre directement le dernier profil. |
+| Navigation salon | `TvNavigation` | `true` / `false` — focus spatial, manette et clavier virtuel. |
 
 Les valeurs inconnues sont normalisées au chargement : une ambiance invalide revient à `Équilibrée` et une seconde teinte vide reprend le cyan par défaut.
 
@@ -239,6 +273,11 @@ Attribution affichée dans l'application :
 | `Sources/UI/PagesUpdates.cs` | Vérification des mises à jour et notes de version mises en forme. |
 | `Sources/UI/PagesGuide.cs` | Guide EPG. |
 | `Sources/UI/PagesSettings.cs` | Paramètres, profils, TMDb, données, à propos. |
+| `Sources/UI/StartupExperience.cs` | Générique de lancement, écran « Qui regarde ? », sélection et PIN des profils. |
+| `Sources/UI/TvInput.cs` | Manette XInput, télécommande, focus spatial et clavier virtuel AZERTY. |
+| `Sources/UI/PlayerDrawer.cs` | Tiroir des chaînes en direct du lecteur. |
+| `Sources/UI/TestHooks.cs` | Points d'entrée des captures et diagnostics. |
+| `Sources/Core/SearchHistory.cs` | Persistance de l'historique de recherche. |
 | `Sources/UI/Dialogs.cs` | Sources, TMDb manuel, chargement, dialogues. |
 | `Sources/UI/UiKit.cs` | Thèmes, styles, champs, scrollbars, logo, toasts, composants. |
 | `Sources/UI/Images.cs` | Chargement d'images en ligne, cache mémoire, cache disque et affiches de l'écran de chargement. |

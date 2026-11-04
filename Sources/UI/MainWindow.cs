@@ -216,7 +216,9 @@ namespace LyaranTV
             Microsoft.Win32.SystemEvents.UserPreferenceChanged += SystemThemePreferenceChanged;
             Loaded += delegate
             {
-                EnsureActiveProfileUnlocked();
+                // Le choix du profil remplace le déverrouillage automatique :
+                // c'est la personne qui entre qui saisit son code PIN.
+                if (settings.HideProfilePicker || SkipProfilePickerForTest) EnsureActiveProfileUnlocked();
                 // Démarrage instantané : le catalogue est relu depuis le cache
                 // local sous la fenêtre de progression dédiée. Sans cache, ou si
                 // la copie est périmée ou incompatible, le chargement réseau avec
@@ -226,7 +228,7 @@ namespace LyaranTV
                     Activate(activeSource);
                 }
                 else ShowStartPage();
-                ShowStartupSplash();
+                ShowLaunchExperience();
                 // Carillon d'ouverture : il accompagne le générique, coupé avec
                 // les autres sons d'interface depuis les réglages.
                 UiSound.Launch();
@@ -774,6 +776,9 @@ namespace LyaranTV
             watcher.Tick += delegate
             {
                 ticks++;
+                // L'écran « Qui regarde ? » peut rester ouvert longtemps : la
+                // carte de chargement attend sagement derrière lui.
+                if (launchOverlay != null && ticks < 1200) return;
                 if (SplashPending && ticks < 40) return;
                 watcher.Stop();
                 dialog.ShowSoon();
@@ -1803,6 +1808,12 @@ namespace LyaranTV
             {
                 if (e.Key == Key.Escape) { HideVirtualKeyboard(); e.Handled = true; return; }
                 if (e.Key == Key.Back) { BackspaceVirtualKeyboard(); e.Handled = true; return; }
+            }
+            // Générique / choix du profil : l'interface en dessous est inactive.
+            if (launchOverlay != null)
+            {
+                if (e.Key == Key.Escape) e.Handled = true;
+                return;
             }
             if (e.Key == Key.F11) { ToggleFullScreen(); e.Handled = true; return; }
             if (e.Key == Key.Escape)

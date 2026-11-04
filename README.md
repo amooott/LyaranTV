@@ -1,4 +1,4 @@
-# LyaranTV 1.4.19
+# LyaranTV 1.5.0
 
 **LyaranTV** est un lecteur IPTV pour Windows, construit avec WPF et .NET Framework 4.x. Il reprend les usages essentiels d'un lecteur IPTV moderne — sources, bibliothèque, direct, guide EPG, recherche, favoris, reprise de lecture et fiches de contenus — avec une identité visuelle originale.
 
@@ -10,19 +10,23 @@
 - **Apparence personnalisable** : huit accents prédéfinis ou accent personnalisé, **seconde couleur de dégradé**, **ambiance du fond** (Discrète / Équilibrée / Vive) et option de **surfaces teintées** par l'accent. L'ancien ambre est migré automatiquement vers le violet LyaranTV.
 - Sources **M3U/M3U8**, **Xtream Codes**, **Stalker/MAC**, démonstration intégrée et fichiers locaux.
 - Chargement des comptes Xtream **en parallèle** avec barre de progression, temps écoulé et **temps restant estimé** ; guide EPG chargé en arrière-plan. Une étape dédiée **« Chargement des affiches »** affiche sa progression réelle : les jaquettes du premier écran sont téléchargées avant l'ouverture, et une **file de fond** complète ensuite l'accueil puis la bibliothèque en continu. Les images sont conservées sur disque, donc les lancements suivants s'ouvrent avec toutes leurs affiches. Les téléchargements passent d'abord par le moteur HTTPS standard (délai court), puis par un client **IPv4** en repli (TLS 1.2, redirections, réponses chunked) : une adresse CDN morte ne bloque plus la file.
+- **Ouverture cinématique** : un générique de lancement animé (logo, lettres qui apparaissent une à une, barre de progression et messages d’étape), puis l’écran **« Qui regarde ? »** façon plateforme de streaming. Chaque profil a sa carte, sa couleur, son badge enfant ou cadenas ; le profil choisi ouvre l’application en fondu et en léger zoom, avec un message de bienvenue. L’écran reste optionnel depuis **Paramètres → Démarrage**.
 - **Accueil « billboard »** : bannière plein cadre sur 486 px, rotation automatique entre les contenus à reprendre et les mieux notés, affiche portrait nette à droite quand seule une affiche existe, fond flou et fondu progressif vers la page, boutons d’action blancs, favori et pastilles cliquables. En dessous : salutation, raccourcis, **Top 10**, nouveautés, films, séries, rangée **En direct** avec programme en cours et barre de progression, puis les playlists.
 - **Ouverture de la bibliothèque avec chargement visible** : sur un gros catalogue, la page s'affiche immédiatement avec un indicateur, pendant que les listes et les catégories sont préparées en arrière-plan — la fenêtre reste réactive.
 - Bibliothèque repensée en mode découverte : hero cinématique avec rotation automatique et aperçu au survol, étagères horizontales avec flèches au survol, **grandes cartes de 236 × 354 px** (2:3 strict) dont l'affiche remplit tout le cadre, filtres en onglets texte, **bascule liste / grille** qui affiche toute la sélection dans une grille paginée, vue « Tout parcourir » en grille et **toutes les catégories de chaînes, films et séries** réunies en blocs verticaux.
 - **Palette cinéma neutre** : charcoal `#07080B`, surfaces `#101218`, accent violet conservé comme seule couleur d’action ; halo animé très lent, vignette et dégradés. **Boutons réactifs** au survol (reflet diagonal et légère élévation), boutons principaux en dégradé accent → seconde teinte, bordure supérieure et barre latérale dégradées. Thèmes clair et AMOLED alignés.
 - Lecteur intégré Windows Media Foundation : sonde de connexion, proxy local, ordre des liens TS → MP4/MKV → HLS, reconnexion du direct, pause, volume, plein écran, reprise, raccourcis ±5 s, sous-titres SRT/WebVTT **et pistes texte embarquées MKV/MP4**, détection des pistes audio, lecteur externe. Les menus de pistes affichent toujours la **langue et le type technique** (par exemple `Français · 5.1 · AC-3`, `Japonais · stéréo · AAC`, `Français · VOSTFR · SubRip`). Les contrôles sont **superposés à la vidéo** (fenêtré comme plein écran), avec une **barre de progression interactive** (piste de 6 px qui s'épaissit à 10 px au survol, curseur lumineux de 15 px, infobulle et glissement), une **partie tampon blanche** indiquant ce qui est déjà chargé, et un masquage automatique après 3,5 s en lecture ; le curseur disparaît aussi en plein écran. Pour le direct, un bouton **Retour au direct** recharge le flux au bord du live.
+- **Tiroir des chaînes en direct** : depuis le lecteur, `C` ou le bouton de la barre supérieure ouvre une colonne à gauche avec filtre instantané, logos, programme EPG en cours et badge de la chaîne regardée. Les flèches ou la manette changent de chaîne sans quitter la lecture, et la vidéo reste visible derrière le tiroir.
 - **Outils de lecteur classiques** : vitesse de 0,5× à 2× mémorisée, lecture en boucle, **séquence A-B** avec repères sur la timeline, **minuterie de veille** (15–90 min ou fin de l’épisode), avance **image par image**, sauts ±10 s, menu contextuel complet au clic droit et aide des raccourcis (`?`).
 - **Sous-titres personnalisables depuis le lecteur** : taille, couleur du texte, couleur et opacité du fond, affichage du fond et contour, avec aperçu en direct. La langue préférée est utilisée par la recherche OpenSubtitles et les fichiers voisins. L’enchaînement automatique de l’épisode suivant est réglable.
 - **Bouton Retour du lecteur** : il quitte la lecture et retrouve l’interface, avec la page, les filtres et la position de défilement d’origine. Le retour au dernier point de saut reste disponible avec `Retour arrière` et dans le menu contextuel du lecteur.
 - Guide EPG XMLTV avec navigation par jour et programmes en cours.
 - Favoris, historique, positions de reprise, profils séparés et contrôle parental. Supprimer une playlist efface aussi son historique, ses reprises et ses épisodes en cours dans tous les profils, sans toucher aux autres playlists.
-- Fiches de contenus en page pleine avec image d'ambiance, affiche, synopsis, métadonnées, programme EPG et actions ; titre original, casting, réalisation, durée, pays, classification et bande-annonce via **TMDb** lorsque vous fournissez votre propre clé. Les séries disposent d'un en-tête cinématographique et de cartes d'épisodes interactives.
+- **Fiches en superposition** : la fiche d’un contenu s’ouvre désormais dans une grande carte modale (jusqu’à 1 120 px) au-dessus de la page, avec image d’ambiance, affiche, synopsis, métadonnées, programme EPG et actions. Le fond reste visible, `Échap` ou un clic à l’extérieur referme la fiche sans perdre la page. Titre original, casting, réalisation, durée, pays, classification et bande-annonce via **TMDb** lorsque vous fournissez votre propre clé. Les séries disposent d'un en-tête cinématographique et de cartes d'épisodes interactives.
 - **Mode langue** facultatif : un code (FR, EN, AR, ES…) ne laisse visibles que les catégories qui le contiennent. Le choix reste actif en changeant de page et après un redémarrage.
 - Affiches, vignettes et logos chargés **en ligne**, avec un cache disque borné (`%APPDATA%\LyaranTV\covers`) et un cache mémoire : aucun visuel n'est fourni avec le programme.
+- **Navigation salon** : manette Xbox (XInput), télécommande multimédia et **clavier virtuel AZERTY** dans la recherche, avec focus spatial, raccourcis et aide contextuelle. La barre latérale peut passer en **icônes seules** (76 px) avec `Ctrl+B`, et `F11` met toute l’application en plein écran.
+- **Recherche mémorisée** : les dernières recherches validées apparaissent en pastilles cliquables, avec un bouton **Effacer l’historique**.
 - Barres de défilement personnalisées, champs de saisie lisibles dans tous les thèmes, animations discrètes et option de réduction des mouvements.
 - Sauvegarde complète `.lyaran`, export/import JSON portable et export M3U.
 - Aucun compte LyaranTV, aucun serveur obligatoire, aucune télémétrie et aucun paywall.
@@ -48,6 +52,28 @@ Dist\LyaranTV.exe --example --page "Guide EPG"
 
 L'exemple fictif se trouve dans `Examples\` et utilise une vidéo locale. Il ne contient aucun contenu réel.
 
+## Ouverture et profils
+
+Au lancement, LyaranTV prend le temps d’un générique : le logo apparaît, les lettres de la marque se posent une à une, une fine barre de progression accompagne cinq messages (« Initialisation de l’interface », « Lecture de vos réglages », « Préparation de votre bibliothèque », « Application de votre thème », « Presque prêt »), puis l’écran laisse place au choix du profil.
+
+- **« Qui regarde ? »** présente chaque profil dans une carte de 148 px, avec sa couleur, son initiale, son badge **ENFANT** ou son cadenas, et la mention **DERNIER PROFIL** pour le dernier utilisé.
+- **Clavier, souris ou manette** : les flèches déplacent le focus, `Entrée` ou `A` entre dans le profil, le survol agrandit l’avatar et allume un anneau coloré. Un profil protégé demande son code PIN ; un code incorrect fait trembler la carte et affiche un message, sans quitter l’écran.
+- **Ajouter un profil** est accessible directement depuis l’écran d’ouverture, avec la même vérification parentale que dans les réglages.
+- **Transition** : l’avatar choisi zoome brièvement, le voile se dissout, l’accueil apparaît en fondu et un toast « Bienvenue, … » confirme l’entrée.
+- **Réglage** : *Paramètres → Démarrage → Afficher « Qui regarde ? » au démarrage*. Désactivé, LyaranTV ouvre directement le dernier profil. L’option *Réduire les animations* raccourcit le générique et supprime les mouvements.
+
+Le mode diagnostic `--profiles` force l’affichage de cet écran pour les captures ; les autres modes de capture et l’auto-test l’ignorent.
+
+## Navigation salon
+
+La manette Xbox est détectée automatiquement via XInput, sans pilote supplémentaire. La télécommande multimédia utilise les touches navigateur et média standard.
+
+- **Croix directionnelle / stick gauche** : déplacement spatial du focus. **A** valide, **B** revient, **Y** ouvre la recherche et son clavier virtuel, **X** ouvre le tiroir des chaînes en lecture, **Start** bascule le plein écran.
+- **Gâchettes LB / RB** : chaîne précédente / suivante en lecture. **Stick droit** : tiroir des chaînes.
+- **Télécommande** : `BrowserBack` revient, `BrowserHome` ouvre l’accueil, `BrowserRefresh` actualise la source, `MediaPlayPause` lit ou met en pause, `MediaNextTrack` / `MediaPreviousTrack` changent de chaîne.
+- **Clavier virtuel AZERTY** : ouvert par `Y` dans la recherche, il écrit dans le champ actif, avec aperçu, retour arrière et validation. La souris reprend la main dès qu’elle bouge.
+- **Barre latérale compacte** : `Ctrl+B` ou le bouton de la barre supérieure réduit la colonne à 76 px et ne garde que les icônes, avec infobulles.
+
 ## Bibliothèque en mode découverte
 
 La page **Bibliothèque** fonctionne comme une page d'accueil de streaming : un hero plein format présente le contenu sélectionné, les étagères horizontales regroupent les films, les séries et le direct, et les catégories sont accessibles en un survol.
@@ -65,7 +91,8 @@ Les affiches et backdrops TMDb remplissent le hero et les cartes ; sans image, u
 
 L'interface privilégie le contenu et retire les informations répétées :
 
-- **Barre latérale** : navigation, playlists, profil et langue, sans compteurs ni numéro de version.
+- **Barre latérale** : navigation, playlists, profil et langue, sans compteurs ni numéro de version. Elle peut être réduite aux icônes (76 px) avec `Ctrl+B`.
+- **Plein écran application** : `F11` ou le bouton de la barre supérieure masque le cadre Windows et occupe tout le moniteur ; `Échap` ou `F11` restaure la fenêtre et sa position.
 - **Filtres intégrés** : `Tout`, `Direct`, `Films`, `Séries` et `Effacer les filtres` sont des onglets texte soulignés par l'accent, sans pastille ni cadre.
 - **Titres lisibles** : les préfixes de playlist (`FR - `, `EN - `) et l'année finale sont retirés à l'affichage ; le nom d'origine reste utilisé pour la recherche et TMDb.
 - **Cartes calmes** : note discrète, pas de badge de type, méta réduite à l'année, à la saison/épisode ou à la reprise.

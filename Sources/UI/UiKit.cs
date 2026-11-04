@@ -320,7 +320,7 @@ namespace LyaranTV
             return button;
         }
 
-        ControlTemplate RoundedButtonTemplate(double radius = 9, bool pressable = true)
+        ControlTemplate RoundedButtonTemplate(double radius = 9, bool pressable = true, bool focusRing = true)
         {
             var grid = new FrameworkElementFactory(typeof(Grid));
             var chrome = new FrameworkElementFactory(typeof(Border));
@@ -335,15 +335,21 @@ namespace LyaranTV
             grid.AppendChild(hover);
             // Anneau de focus : un second liseré détaché qui fait le tour du
             // bouton, lisible d'un coup d'œil au clavier comme à la manette.
-            var focusRing = new FrameworkElementFactory(typeof(Border));
-            focusRing.Name = "FocusRing";
-            focusRing.SetValue(Border.CornerRadiusProperty, new CornerRadius(radius + 3));
-            focusRing.SetValue(Border.BorderBrushProperty, Brush(WithAlpha(Accent, 168)));
-            focusRing.SetValue(Border.BorderThicknessProperty, new Thickness(2));
-            focusRing.SetValue(FrameworkElement.MarginProperty, new Thickness(-3));
-            focusRing.SetValue(UIElement.IsHitTestVisibleProperty, false);
-            focusRing.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
-            grid.AppendChild(focusRing);
+            // Les cartes de profil gèrent leur propre halo : l'anneau du
+            // template est alors désactivé pour ne pas encadrer le nom.
+            FrameworkElementFactory focusFrame = null;
+            if (focusRing)
+            {
+                focusFrame = new FrameworkElementFactory(typeof(Border));
+                focusFrame.Name = "FocusRing";
+                focusFrame.SetValue(Border.CornerRadiusProperty, new CornerRadius(radius + 3));
+                focusFrame.SetValue(Border.BorderBrushProperty, Brush(WithAlpha(Accent, 168)));
+                focusFrame.SetValue(Border.BorderThicknessProperty, new Thickness(2));
+                focusFrame.SetValue(FrameworkElement.MarginProperty, new Thickness(-3));
+                focusFrame.SetValue(UIElement.IsHitTestVisibleProperty, false);
+                focusFrame.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+                grid.AppendChild(focusFrame);
+            }
             var content = new FrameworkElementFactory(typeof(ContentPresenter));
             content.SetBinding(ContentPresenter.ContentProperty, new Binding("Content") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
             content.SetBinding(ContentPresenter.ContentTemplateProperty, new Binding("ContentTemplate") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
@@ -363,7 +369,7 @@ namespace LyaranTV
             template.Triggers.Add(pressed);
             var focused = new Trigger { Property = UIElement.IsKeyboardFocusedProperty, Value = true };
             focused.Setters.Add(new Setter(Border.BorderBrushProperty, Brush(Accent), "Chrome"));
-            focused.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "FocusRing"));
+            if (focusRing) focused.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "FocusRing"));
             template.Triggers.Add(focused);
             var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
             disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.46, "Chrome"));

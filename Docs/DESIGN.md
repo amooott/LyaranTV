@@ -85,7 +85,7 @@ Le logo LyaranTV est la piste **17 · Égaliseur** : un carré arrondi violet-bl
 
 ## Mise en page
 
-- Barre latérale fixe d'environ 248 px : navigation, playlists, profil. Les compteurs et la version ne s'y affichent plus : ils restent dans les pages et la barre d'état.
+- Barre latérale fixe de 236 px : navigation, playlists, profil. Les compteurs et la version ne s'y affichent plus : ils restent dans les pages et la barre d'état. Le mode compact (`Ctrl+B`) la ramène à 76 px et ne garde que les icônes, avec infobulles.
 - Barre supérieure d'environ 72 px : recherche centrale, thème, actualisation, ajout, paramètres.
 - Zone de contenu avec marges de 28–38 px et largeur de lecture confortable.
 - Barre d'état discrète : page à gauche, source active à droite.
@@ -106,6 +106,16 @@ Le logo LyaranTV est la piste **17 · Égaliseur** : un carré arrondi violet-bl
 - **Barre latérale** : dégradé vertical sombre, plus clair en haut, l'indicateur de page actif restant en dégradé d'accent.
 - **Cartes** : surface légèrement dégradée de haut en bas, sans effet de verre ni ombre lourde au repos.
 - **Listes groupées** : catégories et chaînes masquées réunies dans une seule carte, séparées par des filets fins, avec des lignes compactes au survol accentué.
+
+### Ouverture et profils
+
+- **Générique** : fond charcoal, deux halos radiaux (accent en haut à droite, seconde teinte en bas à gauche) qui dérivent très lentement. Le logo entre en fondu avec un léger dépassement, les lettres de **LyaranTV** se posent une à une (54 ms d'écart), puis la signature et la barre de progression apparaissent.
+- **Progression** : piste de 300 px, remplissage en dégradé accent → seconde teinte, pourcentage à droite et message d'étape à gauche. La barre progresse de façon lissée sur environ 1,8 s ; cinq messages se succèdent toutes les 560 ms. Aucun travail réel n'est bloqué.
+- **« Qui regarde ? »** : titre très espacé, sous-titre discret, puis une rangée de cartes centrées. Chaque carte fait 188 px de large et son avatar 148 px, avec coins arrondis de 15 px, dégradé de la couleur du profil, initiale blanche, reflet diagonal et anneau de focus. Les cartes entrent en cascade (90 ms d'écart) avec fondu, translation et léger rebond.
+- **Détails** : badge **ENFANT** en bas à gauche, cadenas rond en haut à droite pour un profil protégé, mention **DERNIER PROFIL** sous le nom. La carte « Ajouter un profil » reprend le même gabarit avec un carré en pointillés et un signe plus.
+- **Interaction** : le survol ou le focus agrandit l'avatar de 6,5 % et allume l'anneau ; le nom seul reste en texte clair, sans encadré. Un PIN incorrect fait trembler la carte horizontalement et affiche un message en rouge.
+- **Transition** : l'avatar choisi zoome à 1,16, le voile disparaît en 460 ms et l'accueil apparaît en fondu décalé. Le toast « Bienvenue, … » arrive après le voile.
+- **Réduction des animations** : toutes les entrées, dérives et secousses sont supprimées ; le générique dure 320 ms et les écrans apparaissent directement.
 
 ### Bibliothèque en mode découverte
 
@@ -155,6 +165,8 @@ Le logo LyaranTV est la piste **17 · Égaliseur** : un carré arrondi violet-bl
 - **Plein écran** : `F11`, le bouton du lecteur ou un double-clic. Fenêtre sans bordure sur le moniteur courant, vidéo plein cadre, fiche et épisodes masqués ; les contrôles s'espacent de 26 px des bords. L'icône devient « retour à la fenêtre » et `Échap`/`F11` restaurent la position exacte.
 - **Fiche du contenu** : page intégrée à la navigation, avec image d'ambiance plein cadre, affiche, sur-titre (`FILM`, `SÉRIE`, `CHAÎNE`), titre, ligne méta, synopsis, métadonnées, programme EPG et actions (lecture, favori, TMDb, lecteur externe). Depuis le lecteur, « Informations » fait défiler la fiche sous la vidéo sans interrompre la lecture.
 - **Page de série** : en-tête cinématographique avec affiche et actions, onglets de saison et cartes d'épisodes interactives — survol et focus clavier, progression de reprise, états `EN COURS` et `À SUIVRE`, bouton de lecture. La rangée **Épisodes sous la vidéo** reprend les mêmes états en format horizontal.
+- **Tiroir des chaînes** : colonne de 348 px ancrée à gauche, fond presque opaque, liseré à droite, en-tête `CHAÎNES EN DIRECT` avec compteur et fermeture. Le filtre occupe une pastille arrondie, chaque ligne montre le logo, le nom, le programme EPG et une barre de progression ; la chaîne en cours porte un fond et un contour d'accent. Les lignes se survolent sans déplacer la vidéo, qui reste visible à droite.
+- **Fiche en superposition** : voile sombre sur la page, carte centrée de 1 120 px maximum, coins de 20 px et ombre profonde. Le hero interne fait 300 px, le contenu défile à l'intérieur et la croix, `Échap` ou un clic sur le voile referment la fiche.
 - **Sous-titres** : texte centré sur un fond personnalisable, remonté au-dessus des contrôles lorsqu'ils sont visibles (122 px en fenêtré, 132 px en plein écran), puis reposé à 30 px. Le bouton `CC` indique le nombre de pistes détectées et ouvre le menu `S` : désactivation, pistes texte du fichier, fichiers à côté du média, ouverture manuelle et **Réglages des sous-titres** (taille, couleur du texte, couleur et opacité du fond, contour, aperçu en direct). Les pistes image (PGS/VobSub) restent listées comme non prises en charge.
 - **Pistes audio** : menu `A`, détection MKV/MP4 et libellés langue/codec. Le lecteur intégré utilise la première piste ; les autres s'ouvrent dans VLC à la même position.
 
@@ -168,7 +180,9 @@ Le logo LyaranTV est la piste **17 · Égaliseur** : un carré arrondi violet-bl
 
 ## Mouvement
 
-- Durées : 150–300 ms pour les apparitions, survols et transitions de thème.
+- Durées : 150–300 ms pour les apparitions, survols et transitions de thème ; 320–560 ms pour les entrées de page, les cartes de profil et le fondu du générique.
+- Générique de lancement : logo 1,08 s, lettres de 360 à 790 ms, signature à 860 ms, barre à 920 ms, progression environ 1,76 s, choix du profil après un court repos de 280 ms.
+- Cartes de profil : entrée décalée de 90 ms par carte (fondu 320 ms, translation 440 ms, échelle 540 ms), survol 170 ms, zoom de sortie 300 ms.
 - Rotation du hero : 8,5 s entre deux contenus, 14 s de pause après un survol de carte, 30 s dans le hero.
 - Courbes douces, pas de rebond.
 - `UiMotion.Reduced` désactive les animations, les élévations et la rotation automatique lorsque l'option **Réduire les animations et les effets de mouvement** est active.
@@ -177,6 +191,7 @@ Le logo LyaranTV est la piste **17 · Égaliseur** : un carré arrondi violet-bl
 ## Accessibilité
 
 - Navigation clavier complète, focus visible.
+- **Navigation salon** : focus spatial à la manette ou à la télécommande, clavier virtuel AZERTY dans la recherche, aide des touches affichée, activation automatique du mode dès qu'une manette est utilisée.
 - Bibliothèque parcourable au clavier : `Tab`, `←` / `→`, `Entrée` / `Espace`.
 - Aperçu au survol sans clic, avec repli sur le clavier et les contrôles du hero.
 - Contrastes élevés pour le texte principal et les contrôles.

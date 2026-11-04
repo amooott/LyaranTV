@@ -14,6 +14,13 @@ namespace LyaranTV
     /// </summary>
     public sealed partial class MainWindow
     {
+        /// <summary>
+        /// Les captures d'écran et les lancements de diagnostic sautent l'écran
+        /// « Qui regarde ? » pour photographier directement la page demandée.
+        /// L'option --profiles force au contraire son affichage.
+        /// </summary>
+        internal static bool SkipProfilePickerForTest;
+
         internal void ToggleFullScreenForTest()
         {
             ToggleFullScreen();

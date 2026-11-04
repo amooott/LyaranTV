@@ -135,6 +135,17 @@ namespace LyaranTV
 
         void HandleGamepadButtons(ushort pressed)
         {
+            // Pendant le choix du profil, la manette ne sert qu'à parcourir les
+            // cartes et à entrer : les autres commandes restent inactives.
+            if (launchOverlay != null)
+            {
+                if ((pressed & PadUp) != 0) MoveFocusSpatially(0);
+                if ((pressed & PadDown) != 0) MoveFocusSpatially(2);
+                if ((pressed & PadLeft) != 0) MoveFocusSpatially(3);
+                if ((pressed & PadRight) != 0) MoveFocusSpatially(1);
+                if ((pressed & PadA) != 0) ActivateFocusedElement();
+                return;
+            }
             if ((pressed & PadUp) != 0) MoveFocusSpatially(0);
             if ((pressed & PadDown) != 0) MoveFocusSpatially(2);
             if ((pressed & PadLeft) != 0) MoveFocusSpatially(3);
@@ -174,6 +185,9 @@ namespace LyaranTV
         {
             if (IsRemoteKey(e.Key))
             {
+                // Pendant le choix du profil, les touches de la télécommande ne
+                // pilotent pas l'interface en arrière-plan.
+                if (launchOverlay != null) { e.Handled = true; return; }
                 pointerInput = false;
                 EnableTvNavigation();
                 if (e.Key == Key.BrowserBack) { TvBack(); e.Handled = true; return; }
@@ -218,7 +232,12 @@ namespace LyaranTV
             try
             {
                 var candidates = new List<FrameworkElement>();
-                CollectFocusable(this, candidates, 0);
+                // Le focus reste dans la couche active : générique, clavier
+                // virtuel ou interface normale, jamais derrière un voile.
+                DependencyObject scope = launchOverlay != null
+                    ? (DependencyObject)launchOverlay
+                    : (virtualKeyboardOverlay != null ? (DependencyObject)virtualKeyboardOverlay : (DependencyObject)this);
+                CollectFocusable(scope, candidates, 0);
                 if (candidates.Count == 0) return;
 
                 var focused = Keyboard.FocusedElement as FrameworkElement;
@@ -308,6 +327,8 @@ namespace LyaranTV
 
         void TvBack()
         {
+            // Le choix du profil ne se referme pas : il faut entrer ou quitter.
+            if (launchOverlay != null) return;
             if (virtualKeyboardOverlay != null) { HideVirtualKeyboard(); return; }
             if (detailOverlay != null) { CloseDetailOverlay(); return; }
             if (fullScreen) { ExitFullScreen(); return; }

@@ -124,6 +124,11 @@ namespace LyaranTV
         // Navigation pensée pour une manette ou une télécommande : focus spatial
         // et clavier virtuel dans la recherche.
         [DataMember] public bool TvNavigation = false;
+        // Écran « Qui regarde ? » au lancement, comme sur une plateforme de
+        // streaming : chaque personne choisit son profil avant d'entrer.
+        // Le champ est inversé pour que les réglages existants, qui ne le
+        // connaissent pas, gardent l'écran activé par défaut.
+        [DataMember] public bool HideProfilePicker = false;
         [DataMember] public bool AutoPlayLast = false;
         [DataMember] public bool LoadLastSource = false;
         [DataMember] public bool ResumePlayback = true;
