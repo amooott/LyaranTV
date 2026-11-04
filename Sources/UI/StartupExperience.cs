@@ -440,15 +440,10 @@ namespace LyaranTV
             Grid.SetRow(center, 1);
             stage.Children.Add(center);
 
-            // Bas d'écran : aide discrète et sortie de secours.
+            // Bas d'écran : seulement la sortie de secours, alignée à droite.
             var bottom = new Grid { Margin = new Thickness(40, 0, 40, 22) };
-            bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var hint = Text("Flèches ou manette pour choisir  ·  Entrée pour continuer", 10.5, Brush(Muted), false);
-            hint.VerticalAlignment = VerticalAlignment.Center;
-            bottom.Children.Add(hint);
             var quit = TextAction("Quitter LyaranTV", delegate { Close(); }, "Fermer l’application");
-            Grid.SetColumn(quit, 1);
+            quit.HorizontalAlignment = HorizontalAlignment.Right;
             bottom.Children.Add(quit);
             Grid.SetRow(bottom, 2);
             stage.Children.Add(bottom);
@@ -531,9 +526,12 @@ namespace LyaranTV
             RoundClip(gloss, 15);
             avatarHost.Children.Add(gloss);
 
+            // L'anneau épouse exactement l'avatar : même rayon intérieur, deux
+            // pixels de bord. L'ancien décalage de six pixels laissait des
+            // croissants sombres aux coins supérieurs.
             var ring = new Border
             {
-                Margin = new Thickness(-6), CornerRadius = new CornerRadius(22),
+                Margin = new Thickness(-2), CornerRadius = new CornerRadius(17),
                 BorderThickness = new Thickness(2), BorderBrush = Brushes.Transparent,
                 IsHitTestVisible = false
             };

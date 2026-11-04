@@ -1,6 +1,6 @@
 # Référence LyaranTV
 
-Cette référence décrit les commandes, raccourcis, formats, fichiers de données et points d'architecture de LyaranTV 1.5.0.
+Cette référence décrit les commandes, raccourcis, formats, fichiers de données et points d'architecture de LyaranTV 1.5.1.
 
 ## Ligne de commande
 
