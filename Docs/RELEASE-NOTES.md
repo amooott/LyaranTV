@@ -1,42 +1,27 @@
-# LyaranTV 1.6.1
+# LyaranTV 1.6.2
 
-Navigation plus directe, comptes par profil et affichage des programmes repensé.
+Navigation par type clarifiée et deuxième série de propositions de logo.
 
-## Navigation et catégories
+## Rail de catégories
 
-- **Bouton hamburger** dessiné en trois traits, en haut à gauche, toujours visible hors lecture. Un survol allume le trait central ; un clic fait glisser la barre latérale hors de l'écran (largeur, translation et opacité animées) et l'état est mémorisé. L'ancien bouton de réduction de la barre supérieure disparaît.
-- **Rail de catégories** façon site de streaming sur ordinateur : Accueil, Chaînes, Films, Séries, Ma liste et Guide. Libellés à 17 px, agrandissement et soulignement animés au survol, compatibles clavier et manette.
-- Le raccourci `Ctrl+B` commande désormais ce même tiroir latéral.
+- Le rail supérieur ne garde que les cinq entrées de découverte : **Accueil**, **Chaînes**, **Films**, **Séries** et **Ma liste**. Le **Guide EPG** reste accessible depuis la barre latérale, sans encombrer la navigation principale.
+- Chaque entrée ouvre une page dédiée : **Chaînes en direct**, **Films**, **Séries** ou **Ma liste**, avec un titre et un sous-titre qui rappellent le nombre d'éléments et la source active.
+- Les pages de type regroupent désormais le contenu en **rangées par catégorie du fournisseur** (films d'action, séries policières, chaînes sportives…), les catégories les plus fournies en premier. La bibliothèque complète conserve son exploration par catégories.
 
-## Profils et comptes
+## Filtres sans doublon
 
-- **Un compte IPTV par profil** : chaque playlist, compte Xtream ou portail MAC appartient au profil qui l'a créé. Changer de profil recharge uniquement ses sources ; aucun catalogue ne se mélange.
-- **Création de profil avec compte obligatoire** : après le nom et l'avatar, une étape animée propose les quatre types de compte (M3U, Xtream, portail MAC, fichier local). Annuler cette étape annule la création du profil.
-- Le renommage et la suppression d'un profil suivent ses comptes ; l'export portable et les sauvegardes conservent cette appartenance.
+- La rangée secondaire `Tout / Direct / Films / Séries / Effacer les filtres` disparaît de **Chaînes**, **Films**, **Séries** et **Ma liste** : le type est déjà porté par le rail, et la barre de recherche, le sélecteur de catégorie et le tri restent disponibles.
+- Cette rangée reste utile dans la bibliothèque complète, où elle permet de passer d'un type à l'autre ; elle s'efface également quand une catégorie précise est déjà ouverte.
 
-## Accueil et fiches
+## Logos
 
-- **Bannières sans reflet** : le balayage lumineux est retiré, les images sont décodées en haute définition (1 600 px, cache dédié) et les anciens titres/logos en filigrane ne recouvrent plus l'affiche.
-- **Aperçu intégré à gauche** : la fiche d'un film ou d'une série n'est plus une grande fenêtre centrale. Elle glisse dans la colonne des fonctionnalités, sous le rail de catégories, avec un en-tête collant, un fond presque transparent et une fermeture au clic extérieur ou par `Échap`.
-
-## Programmes et mouvements
-
-- **Affichage des programmes repensé** dans l'esprit du générique de lancement : cartes « à l'antenne » en verre teinté avec halo, point direct pulsé et progression vivante ; lignes de guide avec filet d'accent, heure lisible et badge « EN COURS » ; étapes de découverte numérotées avec ligne de progression animée.
-- **Micro-animations partout** : chaque bouton s'approche au survol et s'enfonce au clic, les cartes respirent légèrement, les onglets de filtre animent leur texte et leur soulignement. L'option de réduction des animations continue de tout désactiver.
-
-## Affiches
-
-- **Sources complémentaires** : OMDb, Fanart.tv et TheTVDB peuvent être activés avec une clé personnelle, en plus de TMDb. TVmaze, IMDb, iTunes et Wikipédia restent sans clé. ThePosterDB, MoviePosterDB, IMP Awards et Cinematerial sont documentés comme sources de recherche manuelle.
-- Les clés se saisissent dans **Paramètres → Métadonnées et sous-titres → Sources d'affiches**, ou par les variables `LYARANTV_OMDB_KEY`, `LYARANTV_FANART_KEY` et `LYARANTV_TVDB_KEY`. Elles ne sont jamais incluses dans les exports ni les journaux.
-- Les nouvelles sources ne prennent le relais que lorsqu'une affiche manque : la qualité des sources publiques reste prioritaire.
-
-## Logo
-
-- **Vingt propositions vectorielles** sont disponibles dans `Docs/logo-proposals.png` (planche 5 × 4) et se régénèrent avec `LyaranTV.exe --logogallery <fichier.png>`. Le logo actuel reste inchangé jusqu'au choix explicite de l'utilisateur.
+- **Vingt nouvelles propositions** rejoignent les vingt premières : quarante variantes vectorielles au total, présentées en deux planches 5 × 4.
+- [`Docs/logo-proposals.png`](logo-proposals.png) contient les propositions **01 à 20**, [`Docs/logo-proposals-2.png`](logo-proposals-2.png) les propositions **21 à 40**. Elles se régénèrent avec `--logogallery` et `--logogallery2`.
+- Le logo actuel (**n° 17 · Égaliseur**) reste inchangé jusqu'au choix explicite de l'utilisateur.
 
 ## Vérifications
 
 - Compilation des 57 sources.
 - Auto-test : **35/35**.
 - Compilation de l'installateur.
-- Empreintes SHA-256 régénérées pour `LyaranTV.exe` et `setup-LyaranTV-1.6.1.exe`.
+- Empreintes SHA-256 régénérées pour `LyaranTV.exe` et `setup-LyaranTV-1.6.2.exe`.

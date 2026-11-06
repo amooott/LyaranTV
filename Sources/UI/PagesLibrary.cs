@@ -164,7 +164,7 @@ namespace LyaranTV
             WarmLibraryCovers(filtered);
 
             string title = LibraryTitleForMode(mode);
-            string subtitle = activeSource == null ? "Aucune playlist active" : activeSource.Name;
+            string subtitle = LibrarySubtitleForMode(mode, filtered.Count);
             var root = new StackPanel { Margin = new Thickness(28, 22, 28, 38) };
             root.Children.Add(BuildLibraryHeader(mode, title, subtitle));
             long headerMs = libraryPerf.ElapsedMilliseconds;
@@ -346,23 +346,32 @@ namespace LyaranTV
             DockPanel.SetDock(tools, Dock.Right);
             bar.Children.Add(tools);
 
-            // Navigation par type en onglets texte soulignés : les compteurs
-            // restent disponibles en infobulle au lieu de saturer la barre.
-            var tabs = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            AddLibraryKindTab(tabs, "Tout", "Tous", modeBase.Count, mode);
-            AddLibraryKindTab(tabs, "Direct", "Chaînes", modeBase.Count(c => c.Kind == "Chaînes"), mode);
-            AddLibraryKindTab(tabs, "Films", "Films", modeBase.Count(c => c.Kind == "Films"), mode);
-            AddLibraryKindTab(tabs, "Séries", "Séries", modeBase.Count(c => c.Kind == "Séries"), mode);
-            if (activeKind != "Tous" || activeGroup != AllGroups)
+            // Les pages Chaînes, Films, Séries et Ma liste ont déjà leur type
+            // dans le rail de catégories : la rangée « Tout / Direct / Films /
+            // Séries / Effacer les filtres » y faisait doublon. Elle reste
+            // disponible dans la bibliothèque complète.
+            bool showKindTabs = !(mode == "Favoris" || mode == "Récents"
+                || (mode == "Bibliothèque" && activeKind != "Tous"));
+            if (showKindTabs)
             {
-                var clear = TextAction("Effacer les filtres", delegate
+                // Navigation par type en onglets texte soulignés : les compteurs
+                // restent disponibles en infobulle au lieu de saturer la barre.
+                var tabs = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                AddLibraryKindTab(tabs, "Tout", "Tous", modeBase.Count, mode);
+                AddLibraryKindTab(tabs, "Direct", "Chaînes", modeBase.Count(c => c.Kind == "Chaînes"), mode);
+                AddLibraryKindTab(tabs, "Films", "Films", modeBase.Count(c => c.Kind == "Films"), mode);
+                AddLibraryKindTab(tabs, "Séries", "Séries", modeBase.Count(c => c.Kind == "Séries"), mode);
+                if (activeKind != "Tous" || activeGroup != AllGroups)
                 {
-                    activeKind = "Tous"; activeGroup = AllGroups; ShowLibrary(mode);
-                }, "Retirer le filtre de type et de catégorie");
-                clear.Margin = new Thickness(12, 0, 0, 0);
-                tabs.Children.Add(clear);
+                    var clear = TextAction("Effacer les filtres", delegate
+                    {
+                        activeKind = "Tous"; activeGroup = AllGroups; ShowLibrary(mode);
+                    }, "Retirer le filtre de type et de catégorie");
+                    clear.Margin = new Thickness(12, 0, 0, 0);
+                    tabs.Children.Add(clear);
+                }
+                bar.Children.Add(tabs);
             }
-            bar.Children.Add(tabs);
             return bar;
         }
 
@@ -760,8 +769,18 @@ namespace LyaranTV
             bool filtered = activeKind != "Tous" || activeGroup != AllGroups;
             if (filtered)
             {
-                var shelf = BuildLibraryShelf("SÉLECTION", CollectionTitle(activeKind, activeGroup), "Tout le contenu correspondant à vos filtres.", view.Take(26).ToList(), false, mode, activeKind, activeGroup, view.Count);
-                if (shelf != null) root.Children.Add(shelf);
+                if (mode == "Bibliothèque" && activeKind != "Tous" && activeGroup == AllGroups)
+                {
+                    // Page d'un type (Chaînes, Films, Séries) : au lieu d'une
+                    // seule étagère fourre-tout, chaque catégorie du fournisseur
+                    // devient sa propre rangée, comme les rayons d'un catalogue.
+                    AddCategoryGroupShelves(root, view, mode);
+                }
+                else
+                {
+                    var shelf = BuildLibraryShelf("SÉLECTION", CollectionTitle(activeKind, activeGroup), "Tout le contenu correspondant à vos filtres.", view.Take(26).ToList(), false, mode, activeKind, activeGroup, view.Count);
+                    if (shelf != null) root.Children.Add(shelf);
+                }
             }
             else
             {
@@ -817,10 +836,40 @@ namespace LyaranTV
                 }
             }
 
-            if (activeGroup == AllGroups)
+            if (activeGroup == AllGroups && mode == "Bibliothèque" && activeKind == "Tous")
             {
                 var categories = BuildLibraryCategories(modeBase, mode);
                 if (categories != null) root.Children.Add(categories);
+            }
+        }
+
+        /// <summary>
+        /// Rangées par catégorie pour une page de type : films d'action, séries
+        /// policières, chaînes sportives… Les groupes les plus fournis passent
+        /// en premier, puis l'ordre alphabétique.
+        /// </summary>
+        void AddCategoryGroupShelves(StackPanel root, List<Channel> view, string mode)
+        {
+            var groups = view
+                .GroupBy(c => String.IsNullOrWhiteSpace(c.Group) ? "Non classé" : c.Group, StringComparer.OrdinalIgnoreCase)
+                .Where(g => !hiddenGroups.Contains(g.Key))
+                .OrderByDescending(g => g.Count())
+                .ThenBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
+                .Take(10)
+                .ToList();
+            bool wide = activeKind == "Chaînes";
+            string eyebrow = wide ? "EN DIRECT" : "CATALOGUE";
+            foreach (var group in groups)
+            {
+                List<Channel> items = group.Take(wide ? 18 : 20).ToList();
+                if (items.Count == 0) continue;
+                string groupKey = String.Equals(group.Key, "Non classé", StringComparison.OrdinalIgnoreCase)
+                    ? AllGroups : group.Key;
+                string title = groupKey == AllGroups ? CollectionTitle(activeKind, AllGroups) : group.Key;
+                var shelf = BuildLibraryShelf(eyebrow, title,
+                    TextUtil.HumanCount(group.Count()) + (wide ? " chaînes dans cette catégorie." : " contenus dans cette catégorie."),
+                    items, wide, mode, activeKind, groupKey, group.Count());
+                if (shelf != null) root.Children.Add(shelf);
             }
         }
 
@@ -1439,12 +1488,15 @@ namespace LyaranTV
             tools.Children.Add(sorter);
             DockPanel.SetDock(tools, Dock.Right); bar.Children.Add(tools);
 
-            var tabs = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            AddCollectionKindTab(tabs, "Tout", "Tous", modeBase.Count);
-            AddCollectionKindTab(tabs, "Direct", "Chaînes", modeBase.Count(c => c.Kind == "Chaînes"));
-            AddCollectionKindTab(tabs, "Films", "Films", modeBase.Count(c => c.Kind == "Films"));
-            AddCollectionKindTab(tabs, "Séries", "Séries", modeBase.Count(c => c.Kind == "Séries"));
-            bar.Children.Add(tabs);
+            if (activeKind == "Tous")
+            {
+                var tabs = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                AddCollectionKindTab(tabs, "Tout", "Tous", modeBase.Count);
+                AddCollectionKindTab(tabs, "Direct", "Chaînes", modeBase.Count(c => c.Kind == "Chaînes"));
+                AddCollectionKindTab(tabs, "Films", "Films", modeBase.Count(c => c.Kind == "Films"));
+                AddCollectionKindTab(tabs, "Séries", "Séries", modeBase.Count(c => c.Kind == "Séries"));
+                bar.Children.Add(tabs);
+            }
             return bar;
         }
 
@@ -1472,7 +1524,22 @@ namespace LyaranTV
         {
             if (mode == "Favoris") return "Ma liste";
             if (mode == "Récents") return "Récemment regardés";
+            if (activeKind == "Chaînes") return "Chaînes en direct";
+            if (activeKind == "Films") return "Films";
+            if (activeKind == "Séries") return "Séries";
             return "Bibliothèque";
+        }
+
+        string LibrarySubtitleForMode(string mode, int count)
+        {
+            if (activeSource == null) return "Aucune playlist active";
+            string source = activeSource.Name;
+            if (mode == "Favoris") return TextUtil.HumanCount(count) + " favoris · " + source;
+            if (mode == "Récents") return TextUtil.HumanCount(count) + " contenus récents · " + source;
+            if (mode == "Bibliothèque" && activeKind == "Chaînes") return TextUtil.HumanCount(count) + " chaînes · " + source;
+            if (mode == "Bibliothèque" && activeKind == "Films") return TextUtil.HumanCount(count) + " films · " + source;
+            if (mode == "Bibliothèque" && activeKind == "Séries") return TextUtil.HumanCount(count) + " séries · " + source;
+            return source;
         }
 
         static string LibraryInitials(string name)

@@ -1,5 +1,31 @@
 # Historique des versions
 
+# LyaranTV 1.6.2
+
+Navigation par type clarifiée et deuxième série de propositions de logo.
+
+## Rail de catégories
+
+- Le rail supérieur ne garde que **Accueil**, **Chaînes**, **Films**, **Séries** et **Ma liste**. Le **Guide EPG** reste dans la barre latérale.
+- Chaque entrée ouvre une page dédiée (**Chaînes en direct**, **Films**, **Séries**, **Ma liste**) avec titre, nombre d'éléments et source active.
+- Les pages de type regroupent le contenu en rangées par catégorie du fournisseur, les plus fournies en premier.
+
+## Filtres sans doublon
+
+- La rangée `Tout / Direct / Films / Séries / Effacer les filtres` disparaît de **Chaînes**, **Films**, **Séries** et **Ma liste**. Elle reste dans la bibliothèque complète et s'efface quand une catégorie précise est ouverte.
+
+## Logos
+
+- Vingt nouvelles propositions portent le total à **quarante** variantes vectorielles, réparties entre `Docs/logo-proposals.png` (01–20) et `Docs/logo-proposals-2.png` (21–40). Commandes `--logogallery` et `--logogallery2`.
+- Le logo actuel (**n° 17 · Égaliseur**) reste inchangé jusqu'au choix explicite de l'utilisateur.
+
+## Vérifications
+
+- Compilation des 57 sources.
+- Auto-test : **35/35**.
+- Compilation de l'installateur.
+- Empreintes SHA-256 régénérées pour `LyaranTV.exe` et `setup-LyaranTV-1.6.2.exe`.
+
 # LyaranTV 1.6.1
 
 Navigation plus directe, comptes par profil et affichage des programmes repensé.

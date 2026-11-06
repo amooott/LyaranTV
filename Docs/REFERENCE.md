@@ -1,6 +1,6 @@
 # Référence LyaranTV
 
-Cette référence décrit les commandes, raccourcis, formats, fichiers de données et points d'architecture de LyaranTV 1.6.1.
+Cette référence décrit les commandes, raccourcis, formats, fichiers de données et points d'architecture de LyaranTV 1.6.2.
 
 ## Ligne de commande
 
@@ -11,7 +11,7 @@ Cette référence décrit les commandes, raccourcis, formats, fichiers de donné
 | `LyaranTV.exe --demo` | Charge la bibliothèque de démonstration intégrée. |
 | `LyaranTV.exe --example` | Charge `Examples\lyarantv-demo.m3u` et son guide fictif. |
 | `LyaranTV.exe --play <url\|fichier\|id>` | Ouvre immédiatement un flux, un fichier local ou un contenu de la bibliothèque par son identifiant. |
-| `LyaranTV.exe --page <nom>` | Ouvre une page après le chargement éventuel d'une source. |
+| `LyaranTV.exe --page <nom>` | Ouvre une page après le chargement éventuel d'une source. Les noms `Chaînes`, `Films`, `Séries` et `Ma liste` ouvrent directement la page de type correspondante. |
 | `LyaranTV.exe --theme <nom>` | Force un thème : `Sombre`, `Clair`, `Noir AMOLED`, `Automatique`. |
 | `LyaranTV.exe --detail <titre>` | Ouvre la fiche du premier contenu dont le titre contient la chaîne. |
 | `LyaranTV.exe --screenshot <fichier.png>` | Capture la fenêtre principale après 2,2 s, puis quitte. |
@@ -19,7 +19,8 @@ Cette référence décrit les commandes, raccourcis, formats, fichiers de donné
 | `LyaranTV.exe --profiles` | Force l'écran **« Qui regarde ? »** au lancement (captures et diagnostic). |
 | `LyaranTV.exe --fullscreen` | Bascule l'application en plein écran après le chargement (diagnostic). |
 | `LyaranTV.exe --selftest` | Exécute les auto-tests sans interface et écrit un journal. |
-| `LyaranTV.exe --logogallery <fichier.png>` | Génère la planche des vingt propositions de logo. |
+| `LyaranTV.exe --logogallery <fichier.png>` | Génère la planche des propositions de logo 01 à 20. |
+| `LyaranTV.exe --logogallery2 <fichier.png>` | Génère la planche des propositions de logo 21 à 40. |
 
 Les options peuvent être combinées, par exemple :
 
@@ -285,7 +286,7 @@ TVmaze, IMDb, iTunes et Wikipédia ne demandent aucune clé. ThePosterDB, MovieP
 | `Sources/UI/ChannelDetail.cs` | Aperçu intégré dans la colonne de gauche, actions et réinitialisation TMDb. |
 | `Sources/UI/AccountOnboarding.cs` | Étape obligatoire de création du compte IPTV d'un nouveau profil. |
 | `Sources/UI/ProgramUi.cs` | Cartes « à l'antenne », lignes de guide et tuiles de découverte. |
-| `Sources/UI/LogoLab.cs` | Vingt propositions de logo vectorielles et planche PNG. |
+| `Sources/UI/LogoLab.cs` | Quarante propositions de logo vectorielles et deux planches PNG. |
 | `Sources/UI/SubtitleSettings.cs` | Réglages d'apparence des sous-titres avec aperçu. |
 | `Sources/UI/PagesUpdates.cs` | Vérification des mises à jour et notes de version mises en forme. |
 | `Sources/UI/PagesGuide.cs` | Guide EPG. |

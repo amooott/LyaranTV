@@ -1157,7 +1157,6 @@ namespace LyaranTV
             categoryRailPanel.Children.Add(CategoryRailLink("Films", library && activeKind == "Films", delegate { OpenCategory("Films"); }));
             categoryRailPanel.Children.Add(CategoryRailLink("Séries", library && activeKind == "Séries", delegate { OpenCategory("Séries"); }));
             categoryRailPanel.Children.Add(CategoryRailLink("Ma liste", page == "Favoris", delegate { Nav("Favoris"); }));
-            categoryRailPanel.Children.Add(CategoryRailLink("Guide", page == "Guide EPG", delegate { Nav("Guide EPG"); }));
         }
 
         /// <summary>

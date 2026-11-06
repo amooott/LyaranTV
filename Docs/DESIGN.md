@@ -83,16 +83,16 @@ Les textes principaux conservent un contraste élevé : `#F4F4F8` sur `#0A0A12` 
 
 Le logo LyaranTV est la piste **17 · Égaliseur** : un carré arrondi violet-bleu, cinq barres verticales blanches et lavande, puis un triangle de lecture cyan. Il est dessiné vectoriellement dans `UiKit.cs` (`DrawLyaranMark`), avec une variante simplifiée à trois barres sous 30 px pour rester lisible en 16 et 20 px. Le même dessin alimente la fenêtre, l'icône `.ico` multi-résolutions (16 à 256 px) et la page À propos. Le dessin est original et ne réutilise aucun logo existant.
 
-Vingt variantes sont proposées dans `Docs/logo-proposals.png`, générées par `LogoLab.cs` et la commande `--logogallery`. Le logo actuel reste en place tant que l'utilisateur n'a pas choisi explicitement une variante.
+**Quarante variantes** sont proposées en deux planches, `Docs/logo-proposals.png` (01–20) et `Docs/logo-proposals-2.png` (21–40), générées par `LogoLab.cs` et les commandes `--logogallery` / `--logogallery2`. Le logo actuel reste en place tant que l'utilisateur n'a pas choisi explicitement une variante.
 
 ## Mise en page
 
 - Barre latérale de 236 px : navigation, playlists, profil. Les compteurs et la version ne s'y affichent plus : ils restent dans les pages et la barre d'état. Un **bouton hamburger** dessiné en trois traits, en haut à gauche, la fait glisser hors de l'écran avec une animation de largeur, de translation et d'opacité ; `Ctrl+B` produit le même effet et l'état est mémorisé.
-- **Rail de catégories** sous la barre supérieure : Accueil, Chaînes, Films, Séries, Ma liste et Guide, en libellés de 17 px. Au survol ou au focus, le texte s'agrandit légèrement et un soulignement d'accent se déploie.
+- **Rail de catégories** sous la barre supérieure : Accueil, Chaînes, Films, Séries et Ma liste, en libellés de 17 px. Le Guide EPG reste dans la barre latérale. Au survol ou au focus, le texte s'agrandit légèrement et un soulignement d'accent se déploie.
 - Barre supérieure d'environ 72 px : recherche centrale, thème, actualisation, ajout, paramètres.
 - Zone de contenu avec marges de 28–38 px et largeur de lecture confortable.
 - Barre d'état discrète : page à gauche, source active à droite.
-- Bibliothèque découverte : hero de 400 px, filtres en onglets texte (`Tout`, `Direct`, `Films`, `Séries`, `Effacer les filtres`), étagères horizontales, puis exploration par catégorie.
+- Bibliothèque découverte : hero de 400 px, filtres en onglets texte (`Tout`, `Direct`, `Films`, `Séries`, `Effacer les filtres`), étagères horizontales, puis exploration par catégorie. Les pages Chaînes, Films, Séries et Ma liste masquent cette rangée de types et affichent des étagères par catégorie du fournisseur.
 - Recherche globale : par défaut, les résultats sont séparés en sections Films, Séries, Épisodes, Chaînes, Personnes et Avis et activité ; les filtres existants permettent de réduire à un type.
 - Cartes de bibliothèque : affiches 2:3 de 236 px de large (280 × 158 px pour le direct), rayon 16 px. Le titre est nettoyé des préfixes de playlist et l'année finale n'est plus répétée ; la note reste discrète en haut à droite, sans badge de type.
 - Navigation : la page courante, ses filtres et sa position de défilement sont mémorisés avant chaque changement ; le bouton **Retour** de la barre supérieure et celui des épisodes reviennent au dernier point quitté. Depuis le lecteur, le retour vise la **page des épisodes de la série** pour un épisode, sinon la **catégorie d'origine** (type, catégorie et défilement) pour un film ou une chaîne.

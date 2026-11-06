@@ -2237,7 +2237,16 @@ namespace LyaranTV
                 timer.Start();
                 return;
             }
-            Nav(destination.Trim());
+            string trimmed = destination.Trim();
+            // Les pages de type (Chaînes, Films, Séries) sont des vues de la
+            // bibliothèque : on les ouvre directement pour les captures.
+            if (trimmed == "Chaînes" || trimmed == "Films" || trimmed == "Séries")
+            {
+                OpenCategory(trimmed);
+                return;
+            }
+            if (trimmed == "Ma liste") { Nav("Favoris"); return; }
+            Nav(trimmed);
         }
 
         internal void PlayTargetForTest(string target)

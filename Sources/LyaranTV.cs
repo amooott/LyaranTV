@@ -53,10 +53,23 @@ namespace LyaranTV
                 catch (Exception ex) { HttpUtil.AppendLog("LogoLab : " + ex); }
                 return;
             }
+            if (HasArg(args, "--logogallery2"))
+            {
+                string path = ValueAfter(args, "--logogallery2");
+                if (String.IsNullOrWhiteSpace(path))
+                    path = Path.Combine(Path.GetTempPath(), "lyarantv-logos-2.png");
+                try
+                {
+                    LogoLab.RenderSheetSecond(path);
+                    HttpUtil.AppendLog("Planche de logos (2) : " + Path.GetFullPath(path));
+                }
+                catch (Exception ex) { HttpUtil.AppendLog("LogoLab : " + ex); }
+                return;
+            }
             if (HasArg(args, "--help") || HasArg(args, "-h"))
             {
                 MessageBox.Show(
-                    AppInfo.Name + " " + AppInfo.Version + "\n\nUtilisation :\n  LyaranTV.exe                 Lancer l'application\n  LyaranTV.exe --demo          Lancer avec la démonstration\n  LyaranTV.exe --example       Charger l'exemple fictif Examples\\lyarantv-demo.m3u\n  LyaranTV.exe --play <url>    Lire un fichier ou un flux immédiatement\n  LyaranTV.exe --page <nom>    Ouvrir une page (Accueil, Bibliothèque, Guide EPG, Paramètres…)\n  LyaranTV.exe --theme <nom>   Forcer un thème (Sombre, Clair, Noir AMOLED, Automatique)\n  LyaranTV.exe --detail <titre> Ouvrir la fiche d'un contenu de la bibliothèque\n  LyaranTV.exe --screenshot <fichier.png> [--demo] [--example] [--page <nom>] [--theme <nom>]\n  LyaranTV.exe --profiles      Afficher l'écran « Qui regarde ? » (capture)\n  LyaranTV.exe --fullscreen    Basculer le lecteur en plein écran (diagnostic)\n  LyaranTV.exe --selftest      Vérifier les composants sans interface\n  LyaranTV.exe --logogallery <fichier.png>  Générer la planche des 20 logos\n\nDonnées : %APPDATA%\\LyaranTV\nSurcharge : variable LYARANTV_DATA_DIR",
+                    AppInfo.Name + " " + AppInfo.Version + "\n\nUtilisation :\n  LyaranTV.exe                 Lancer l'application\n  LyaranTV.exe --demo          Lancer avec la démonstration\n  LyaranTV.exe --example       Charger l'exemple fictif Examples\\lyarantv-demo.m3u\n  LyaranTV.exe --play <url>    Lire un fichier ou un flux immédiatement\n  LyaranTV.exe --page <nom>    Ouvrir une page (Accueil, Bibliothèque, Guide EPG, Paramètres…)\n  LyaranTV.exe --theme <nom>   Forcer un thème (Sombre, Clair, Noir AMOLED, Automatique)\n  LyaranTV.exe --detail <titre> Ouvrir la fiche d'un contenu de la bibliothèque\n  LyaranTV.exe --screenshot <fichier.png> [--demo] [--example] [--page <nom>] [--theme <nom>]\n  LyaranTV.exe --profiles      Afficher l'écran « Qui regarde ? » (capture)\n  LyaranTV.exe --fullscreen    Basculer le lecteur en plein écran (diagnostic)\n  LyaranTV.exe --selftest      Vérifier les composants sans interface\n  LyaranTV.exe --logogallery <fichier.png>  Générer la planche des 20 logos\n  LyaranTV.exe --logogallery2 <fichier.png> Générer la planche des 20 nouveaux logos\n\nDonnées : %APPDATA%\\LyaranTV\nSurcharge : variable LYARANTV_DATA_DIR",
                     "LyaranTV", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }

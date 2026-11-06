@@ -1,4 +1,4 @@
-# LyaranTV 1.6.1
+# LyaranTV 1.6.2
 
 **LyaranTV** est un lecteur IPTV pour Windows, construit avec WPF et .NET Framework 4.x. Il reprend les usages essentiels d'un lecteur IPTV moderne — sources, bibliothèque, direct, guide EPG, recherche, favoris, reprise de lecture et fiches de contenus — avec une identité visuelle originale.
 
@@ -92,9 +92,10 @@ Les affiches et backdrops TMDb remplissent le hero et les cartes ; sans image, u
 L'interface privilégie le contenu et retire les informations répétées :
 
 - **Barre latérale** : navigation, playlists, profil et langue, sans compteurs ni numéro de version. Le hamburger la fait glisser hors de l’écran, et `Ctrl+B` produit le même effet.
-- **Catégories en rail** : Accueil, Chaînes, Films, Séries, Ma liste et Guide, avec libellés à 17 px et réactions au survol, au clavier et à la manette.
+- **Catégories en rail** : Accueil, Chaînes, Films, Séries et Ma liste, avec libellés à 17 px et réactions au survol, au clavier et à la manette. Le Guide EPG reste dans la barre latérale.
+- **Pages de type** : chaque entrée du rail ouvre sa page dédiée (Chaînes en direct, Films, Séries, Ma liste) avec un titre, le nombre d'éléments et la source active ; le contenu est rangé en étagères par catégorie du fournisseur.
 - **Plein écran application** : `F11` ou le bouton de la barre supérieure masque le cadre Windows et occupe tout le moniteur ; `Échap` ou `F11` restaure la fenêtre et sa position.
-- **Filtres intégrés** : `Tout`, `Direct`, `Films`, `Séries` et `Effacer les filtres` sont des onglets texte soulignés par l'accent, sans pastille ni cadre.
+- **Filtres intégrés** : `Tout`, `Direct`, `Films`, `Séries` et `Effacer les filtres` restent des onglets texte soulignés par l'accent dans la bibliothèque complète. Ils disparaissent des pages Chaînes, Films, Séries et Ma liste, où le type est déjà porté par le rail.
 - **Titres lisibles** : les préfixes de playlist (`FR - `, `EN - `) et l'année finale sont retirés à l'affichage ; le nom d'origine reste utilisé pour la recherche et TMDb.
 - **Cartes calmes** : note discrète, pas de badge de type, méta réduite à l'année, à la saison/épisode ou à la reprise.
 - **Typographie** : toutes les petites informations sont remontées à **12,5 px minimum**.
@@ -102,10 +103,11 @@ L'interface privilégie le contenu et retire les informations répétées :
 
 ## Logo
 
-Le logo actuel reste le **n° 17 · Égaliseur** : carré arrondi violet-bleu, barres blanches et lavande, triangle de lecture cyan. Vingt variantes vectorielles sont proposées dans [`Docs/logo-proposals.png`](Docs/logo-proposals.png) ; la planche se régénère avec :
+Le logo actuel reste le **n° 17 · Égaliseur** : carré arrondi violet-bleu, barres blanches et lavande, triangle de lecture cyan. **Quarante variantes vectorielles** sont proposées en deux planches : [`Docs/logo-proposals.png`](Docs/logo-proposals.png) pour les propositions **01 à 20**, [`Docs/logo-proposals-2.png`](Docs/logo-proposals-2.png) pour les propositions **21 à 40**. Elles se régénèrent avec :
 
 ```bat
 Dist\LyaranTV.exe --logogallery "%TEMP%\logos.png"
+Dist\LyaranTV.exe --logogallery2 "%TEMP%\logos-2.png"
 ```
 
 Aucune variante ne remplace le logo sans un choix explicite.
@@ -163,7 +165,7 @@ appiptv\
 │  ├─ RELEASE-NOTES.md     notes publiées avec chaque Release
 │  └─ Screenshots\         captures de référence
 └─ Assets\
-   └─ Logos\              pistes de logo et planche des vingt propositions
+   └─ Logos\              pistes de logo et planches des quarante propositions
 ```
 
 Les dossiers `Docs\`, `Assets\`, `Installer\`, `Tools\`, `build\` et `VLC\` ne
