@@ -27,3 +27,6 @@ Installer/build/
 # Jetons et secrets locaux : jamais versionnes
 token*.txt
 *.token
+
+# Exports de configuration produits par les essais : jamais versionnes
+lyarantv-configuration-*.json
