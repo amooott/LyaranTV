@@ -2306,6 +2306,9 @@ namespace LyaranTV
                 StopFullscreenControlsTimer();
                 if (playerControlWrap != null) playerControlWrap.Visibility = Visibility.Visible;
                 if (playerTopBar != null) playerTopBar.Visibility = Visibility.Visible;
+                // Les commandes viennent d'être réaffichées sans animation : la
+                // barre de fenêtre doit suivre le même état, pas rester cachée.
+                playerChromeShown = true;
                 SyncPlayerWindowBar();
                 UpdateSubtitlePosition();
             }
@@ -2425,13 +2428,14 @@ namespace LyaranTV
         }
 
         /// <summary>
-        /// Barre de fenêtre du lecteur : toujours présente en fenêtré, visible
-        /// en plein écran seulement tant que les commandes le sont.
+        /// Barre de fenêtre du lecteur : elle ne vit que le temps des commandes.
+        /// Dès que la barre d'avancée s'efface, les trois boutons disparaissent
+        /// aussi, en fenêtré comme en plein écran.
         /// </summary>
         void SyncPlayerWindowBar()
         {
             if (playerWindowBar == null) return;
-            bool show = !fullScreen || playerChromeShown;
+            bool show = playerChromeShown;
             playerWindowBar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
             if (show) playerWindowBar.Opacity = 1;
         }

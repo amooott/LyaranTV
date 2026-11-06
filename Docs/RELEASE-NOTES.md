@@ -1,17 +1,15 @@
-# LyaranTV 1.6.4
+# LyaranTV 1.6.5
 
-Une barre de fenêtre accompagne désormais la lecture.
+Les boutons de fenêtre suivent la barre d'avancée, ils ne restent plus à l'écran.
 
-## Barre de fenêtre du lecteur
+## Lecteur
 
-Trois boutons posés dans le coin supérieur droit de l'image : **réduire**, **agrandir / restaurer**, **fermer**.
-
-- **En fenêtré** : la barre est toujours affichée, même quand les commandes du lecteur s'effacent après quelques secondes d'inactivité. On garde ainsi la main sur la fenêtre pendant la lecture.
-- **En plein écran** : elle apparaît avec les commandes au passage de la souris, puis disparaît avec elles.
-- **En plein écran, le bouton du milieu** quitte le plein écran : sans cadre, agrandir n'aurait pas de sens. Son icône devient celle du retour en fenêtre.
-- **Fermer** termine l'application comme le bouton de la barre de titre.
-- **Discrétion** : fond sombre translucide, pastille arrondie, icônes blanches, survol éclairci et rouge pour la fermeture.
-- **Le titre du lecteur** réserve la place à droite pour ne jamais passer sous les boutons.
+- **Plus de pastille permanente** : réduire, agrandir/restaurer et fermer n'apparaissent que pendant que les commandes du lecteur sont affichées, en fenêtré comme en plein écran. La règle de la 1.6.4 (« toujours visible en fenêtré ») est remplacée.
+- **Disparition avec la barre d'avancée** : après 3,5 s sans mouvement sur l'image, le minuteur escamote les commandes et les trois boutons en même temps.
+- **Retour au survol** : un simple mouvement de souris dans la vidéo les ramène en fondu avec le reste des commandes.
+- **Pendant une pause** : les commandes restent affichées, donc les boutons aussi — on garde de quoi fermer la fenêtre sans quitter la lecture.
+- **Aucun clignotement à l'ouverture** : la barre naît masquée et n'apparaît qu'avec le premier affichage des commandes.
+- **Sortie de plein écran** : l'état des boutons est recalé sur celui des commandes réaffichées, sans décalage.
 
 ## Vérifications
 

@@ -449,6 +449,7 @@ namespace LyaranTV
                 Background = Brush(Color.FromArgb(150, 8, 8, 14)),
                 BorderBrush = Brush(Color.FromArgb(62, 255, 255, 255)), BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(10), Padding = new Thickness(3, 2, 3, 2),
+                Visibility = Visibility.Collapsed,
                 HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(0, 12, 16, 0)
             };
