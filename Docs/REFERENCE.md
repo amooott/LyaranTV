@@ -1,6 +1,6 @@
 # Référence LyaranTV
 
-Cette référence décrit les commandes, raccourcis, formats, fichiers de données et points d'architecture de LyaranTV 1.6.2.
+Cette référence décrit les commandes, raccourcis, formats, fichiers de données et points d'architecture de LyaranTV 1.6.3.
 
 ## Ligne de commande
 
@@ -21,6 +21,8 @@ Cette référence décrit les commandes, raccourcis, formats, fichiers de donné
 | `LyaranTV.exe --selftest` | Exécute les auto-tests sans interface et écrit un journal. |
 | `LyaranTV.exe --logogallery <fichier.png>` | Génère la planche des propositions de logo 01 à 20. |
 | `LyaranTV.exe --logogallery2 <fichier.png>` | Génère la planche des propositions de logo 21 à 40. |
+| `LyaranTV.exe --logofinal <fichier.png>` | Génère la planche de contrôle du logo final aux tailles 16 à 256 px. |
+| `LyaranTV.exe --makeicon <fichier.ico>` | Régénère l'icône multi-résolutions à partir du logo vectoriel. |
 
 Les options peuvent être combinées, par exemple :
 
@@ -287,6 +289,7 @@ TVmaze, IMDb, iTunes et Wikipédia ne demandent aucune clé. ThePosterDB, MovieP
 | `Sources/UI/AccountOnboarding.cs` | Étape obligatoire de création du compte IPTV d'un nouveau profil. |
 | `Sources/UI/ProgramUi.cs` | Cartes « à l'antenne », lignes de guide et tuiles de découverte. |
 | `Sources/UI/LogoLab.cs` | Quarante propositions de logo vectorielles et deux planches PNG. |
+| `Sources/UI/AppIcon.cs` | Génération de l'icône `.ico` multi-résolutions et planche du logo final. |
 | `Sources/UI/SubtitleSettings.cs` | Réglages d'apparence des sous-titres avec aperçu. |
 | `Sources/UI/PagesUpdates.cs` | Vérification des mises à jour et notes de version mises en forme. |
 | `Sources/UI/PagesGuide.cs` | Guide EPG. |

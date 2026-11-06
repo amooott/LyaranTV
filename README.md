@@ -103,11 +103,13 @@ L'interface privilégie le contenu et retire les informations répétées :
 
 ## Logo
 
-Le logo actuel reste le **n° 17 · Égaliseur** : carré arrondi violet-bleu, barres blanches et lavande, triangle de lecture cyan. **Quarante variantes vectorielles** sont proposées en deux planches : [`Docs/logo-proposals.png`](Docs/logo-proposals.png) pour les propositions **01 à 20**, [`Docs/logo-proposals-2.png`](Docs/logo-proposals-2.png) pour les propositions **21 à 40**. Elles se régénèrent avec :
+Le logo actuel est la **proposition n° 24 · Voile**, retenue sans le triangle de lecture : deux voiles superposés, blanc et cyan, sur le carré arrondi violet-bleu historique. La planche de contrôle est [`Docs/logo-final.png`](Docs/logo-final.png). **Quarante variantes vectorielles** restent disponibles en deux planches : [`Docs/logo-proposals.png`](Docs/logo-proposals.png) pour les propositions **01 à 20**, [`Docs/logo-proposals-2.png`](Docs/logo-proposals-2.png) pour les propositions **21 à 40**. Elles se régénèrent avec :
 
 ```bat
 Dist\LyaranTV.exe --logogallery "%TEMP%\logos.png"
 Dist\LyaranTV.exe --logogallery2 "%TEMP%\logos-2.png"
+Dist\LyaranTV.exe --logofinal "%TEMP%\logo-final.png"
+Dist\LyaranTV.exe --makeicon Sources\LyaranTV.ico
 ```
 
 Aucune variante ne remplace le logo sans un choix explicite.

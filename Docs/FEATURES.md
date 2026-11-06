@@ -24,7 +24,7 @@ Statut : **P0 terminé**, **P1 terminé**, **P2 partiel / non réalisable native
 | Champs de saisie | ✅ | Texte visible dans tous les thèmes, focus accent, placeholder. |
 | Réglages essentiels | ✅ | Volume, reprise, thème, accent, lecteur externe, démarrage. |
 | Corrections de bugs | ✅ | Voir [`BUGS.md`](BUGS.md). |
-| Identité LyaranTV | ✅ | Nom, namespace, exécutable, icône, logo, manifeste, données. |
+| Identité LyaranTV | ✅ | Nom, namespace, exécutable, icône, logo « Voile » n° 24 sans triangle, manifeste, données. |
 
 ## P1 — Confort et personnalisation
 

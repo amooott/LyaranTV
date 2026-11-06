@@ -20,11 +20,11 @@ Vingt pistes originales, toutes en **512 × 512 px RGBA**. La planche de compara
 | 14 | Pixel | [`lyaran-logo-14.png`](lyaran-logo-14.png) |
 | 15 | Ouverture | [`lyaran-logo-15.png`](lyaran-logo-15.png) |
 | 16 | Boussole | [`lyaran-logo-16.png`](lyaran-logo-16.png) |
-| 17 | **Égaliseur — choisi** | [`lyaran-logo-17.png`](lyaran-logo-17.png) |
+| 17 | Égaliseur (archive) | [`lyaran-logo-17.png`](lyaran-logo-17.png) |
 | 18 | Pli | [`lyaran-logo-18.png`](lyaran-logo-18.png) |
 | 19 | Boucle | [`lyaran-logo-19.png`](lyaran-logo-19.png) |
 | 20 | LY | [`lyaran-logo-20.png`](lyaran-logo-20.png) |
 
 Les esquisses vectorielles qui ont servi à ces pistes sont rangées dans [`propositions/`](propositions/), avec leur planche d'aperçu.
 
-La piste **17 · Égaliseur** est retenue. Elle est intégrée au dessin vectoriel de l'application, à la fenêtre, à l'icône `.ico` multi-résolutions et à la page À propos. Les autres pistes restent disponibles dans ce dossier comme archives.
+La piste **17 · Égaliseur** reste ici comme archive. Le logo actuel est la **proposition n° 24 · Voile, sans triangle de lecture**, issue de la galerie `LogoLab` et dessinée vectoriellement dans `UiKit.cs`. Elle est intégrée à la fenêtre, à l'icône `.ico` multi-résolutions et à la page À propos ; sa planche de contrôle est `Docs/logo-final.png`.

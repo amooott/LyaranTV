@@ -10,9 +10,9 @@ namespace LyaranTV
 {
     /// <summary>
     /// Quarante propositions de logo, toutes dessinées en vectoriel et inspirées
-    /// du signe actuel : un égaliseur et un triangle de lecture dans un carré
-    /// arrondi violet. Elles sont présentées en deux séries de vingt. Aucune
-    /// proposition ne remplace le logo tant que l'utilisateur n'a pas choisi.
+    /// du carré arrondi violet de la marque. Elles sont présentées en deux
+    /// séries de vingt. La proposition n° 24 « Voile » a été retenue, sans le
+    /// triangle de lecture ; les autres restent consultables comme archives.
     /// </summary>
     internal static class LogoLab
     {
@@ -26,7 +26,7 @@ namespace LyaranTV
 
         public static readonly Proposal[] Proposals = new[]
         {
-            new Proposal { Name = "Égaliseur", Note = "Le signe actuel, référence." },
+            new Proposal { Name = "Égaliseur", Note = "Ancien signe, conservé en archive." },
             new Proposal { Name = "Lyre", Note = "Lyaran évoque une lyre." },
             new Proposal { Name = "Monogramme L", Note = "Initiale et lecture." },
             new Proposal { Name = "Anneau", Note = "Cercle ouvert, lecture." },
@@ -51,7 +51,7 @@ namespace LyaranTV
             new Proposal { Name = "Lame", Note = "Play taillé dans la lumière." },
             new Proposal { Name = "Éclipse", Note = "Croissant et lecture." },
             new Proposal { Name = "Nexus", Note = "Nœuds reliés au play." },
-            new Proposal { Name = "Voile", Note = "Voiles superposés." },
+            new Proposal { Name = "Voile", Note = "Voiles superposés · retenu sans triangle." },
             new Proposal { Name = "Sillage", Note = "Comète et mouvement." },
             new Proposal { Name = "Écluse", Note = "Arcs imbriqués." },
             new Proposal { Name = "Prisme clair", Note = "Triangle et faisceau." },
@@ -412,10 +412,11 @@ namespace LyaranTV
         static void DrawVeil(DrawingContext dc)
         {
             var sail = Geometry.Parse("M 19,49 C 19,29 29,16 47,13 C 45,32 36,44 19,49 Z");
-            dc.DrawGeometry(new SolidColorBrush(Color.FromArgb(62, 255, 255, 255)), RoundPen(White, 1.7), sail);
             var inner = Geometry.Parse("M 24,46 C 25,33 32,24 43,20 C 41,33 35,41 24,46 Z");
-            dc.DrawGeometry(new SolidColorBrush(Color.FromArgb(45, 34, 211, 238)), RoundPen(Lavender, 1.2), inner);
-            Play(dc, 28, 26, 11, 14, CyanBrush());
+            dc.PushTransform(new ScaleTransform(1.2, 1.2, 32, 32));
+            dc.DrawGeometry(new SolidColorBrush(Color.FromArgb(62, 255, 255, 255)), RoundPen(White, 2.4), sail);
+            dc.DrawGeometry(new SolidColorBrush(Color.FromArgb(64, 34, 211, 238)), RoundPen(Lavender, 1.8), inner);
+            dc.Pop();
         }
 
         static void DrawSillage(DrawingContext dc)
@@ -645,14 +646,14 @@ namespace LyaranTV
         public static void RenderSheet(string path)
         {
             RenderSheet(path, 0, BatchSize, "LyaranTV · 20 propositions de logo",
-                "Inspirées du signe actuel · aucune ne remplace le logo avant votre choix");
+                "Galerie de propositions · la piste retenue (n° 24) figure sur la seconde planche");
         }
 
         /// <summary>Rend la deuxième planche 5 × 4 avec les vingt nouvelles propositions.</summary>
         public static void RenderSheetSecond(string path)
         {
             RenderSheet(path, BatchSize, BatchSize, "LyaranTV · 20 nouvelles propositions de logo",
-                "Deuxième série · formes sculptées et lumières douces · aucun logo n'est remplacé sans votre choix");
+                "Deuxième série · le n° 24 « Voile » a été retenu sans triangle de lecture");
         }
 
         static void RenderSheet(string path, int start, int count, string heading, string subheading)

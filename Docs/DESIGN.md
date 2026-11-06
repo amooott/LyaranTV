@@ -81,7 +81,7 @@ Les textes principaux conservent un contraste élevé : `#F4F4F8` sur `#0A0A12` 
 
 ## Logo et icône
 
-Le logo LyaranTV est la piste **17 · Égaliseur** : un carré arrondi violet-bleu, cinq barres verticales blanches et lavande, puis un triangle de lecture cyan. Il est dessiné vectoriellement dans `UiKit.cs` (`DrawLyaranMark`), avec une variante simplifiée à trois barres sous 30 px pour rester lisible en 16 et 20 px. Le même dessin alimente la fenêtre, l'icône `.ico` multi-résolutions (16 à 256 px) et la page À propos. Le dessin est original et ne réutilise aucun logo existant.
+Le logo LyaranTV est la piste **24 · Voile, sans triangle de lecture** : deux voiles superposés, l'un blanc, l'autre cyan, sur un carré arrondi violet-bleu. Il est dessiné vectoriellement dans `UiKit.cs` (`DrawLyaranMark`), avec une version compacte à voiles pleins sous 30 px pour rester lisible en 16 et 20 px. Le même dessin alimente la fenêtre, l'icône `.ico` multi-résolutions (16 à 256 px, régénérée par `--makeicon`) et la page À propos. La planche de contrôle se génère avec `--logofinal`. Le dessin est original et ne réutilise aucun logo existant.
 
 **Quarante variantes** sont proposées en deux planches, `Docs/logo-proposals.png` (01–20) et `Docs/logo-proposals-2.png` (21–40), générées par `LogoLab.cs` et les commandes `--logogallery` / `--logogallery2`. Le logo actuel reste en place tant que l'utilisateur n'a pas choisi explicitement une variante.
 

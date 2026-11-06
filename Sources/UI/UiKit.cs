@@ -1117,10 +1117,11 @@ namespace LyaranTV
         [System.Runtime.InteropServices.DllImport("dwmapi.dll", PreserveSig = true)]
         static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int valueSize);
 
-        static void DrawLyaranMark(DrawingContext dc, double size, bool appIcon)
+        internal static void DrawLyaranMark(DrawingContext dc, double size, bool appIcon)
         {
-            // Logo « Égaliseur » : cinq barres verticales et un triangle de lecture.
-            // Le dessin reste vectoriel pour être net à toutes les tailles.
+            // Logo « Voile » (proposition n° 24, sans triangle de lecture) :
+            // deux voiles superposés, dessinés vectoriellement pour rester nets
+            // à toutes les tailles. Le fond reprend le violet-bleu historique.
             double s = size / 64.0;
             dc.PushTransform(new ScaleTransform(s, s));
             var bounds = new Rect(3.5, 3.5, 57, 57);
@@ -1136,33 +1137,29 @@ namespace LyaranTV
             glow.GradientStops.Add(new GradientStop(Color.FromArgb(0, 62, 78, 166), 1));
             dc.DrawRoundedRectangle(glow, null, bounds, 12.8, 12.8);
 
-            var white = new Pen(Brushes.White, 2.7);
-            white.StartLineCap = PenLineCap.Round; white.EndLineCap = PenLineCap.Round;
-            var play = new SolidColorBrush(Color.FromRgb(34, 211, 238));
-
+            var outer = Geometry.Parse("M 19,49 C 19,29 29,16 47,13 C 45,32 36,44 19,49 Z");
+            var inner = Geometry.Parse("M 24,46 C 25,33 32,24 43,20 C 41,33 35,41 24,46 Z");
+            // Les voiles sont légèrement agrandis autour du centre pour garder
+            // une présence comparable à l'ancien égaliseur, sans triangle.
+            dc.PushTransform(new ScaleTransform(1.2, 1.2, 32, 32));
             if (size < 30)
             {
-                // Version simplifiée pour les icônes 16–24 px : trois barres
-                // épaisses et un triangle plus large restent lisibles.
-                var compact = new Pen(Brushes.White, 4.2);
-                compact.StartLineCap = PenLineCap.Round; compact.EndLineCap = PenLineCap.Round;
-                dc.DrawLine(compact, new Point(19.5, 26), new Point(19.5, 38));
-                dc.DrawLine(compact, new Point(27, 17.5), new Point(27, 46.5));
-                dc.DrawLine(compact, new Point(34.5, 26), new Point(34.5, 38));
-                dc.DrawGeometry(play, null, Geometry.Parse("M 40,23.5 L 56,32 L 40,40.5 Z"));
+                // Version compacte pour les icônes 16–24 px : deux voiles pleins
+                // restent lisibles là où les traits fins disparaîtraient.
+                dc.DrawGeometry(new SolidColorBrush(Color.FromArgb(240, 244, 244, 248)), null, outer);
+                dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(34, 211, 238)), null, inner);
             }
             else
             {
-                var lavender = new Pen(new SolidColorBrush(Color.FromRgb(196, 181, 253)), 2.7);
-                lavender.StartLineCap = PenLineCap.Round; lavender.EndLineCap = PenLineCap.Round;
+                var outerPen = new Pen(Brushes.White, 2.4);
+                outerPen.StartLineCap = PenLineCap.Round; outerPen.EndLineCap = PenLineCap.Round;
+                dc.DrawGeometry(new SolidColorBrush(Color.FromArgb(54, 255, 255, 255)), outerPen, outer);
 
-                dc.DrawLine(white, new Point(18.5, 25.5), new Point(18.5, 38.5));
-                dc.DrawLine(lavender, new Point(23.25, 21.25), new Point(23.25, 42.75));
-                dc.DrawLine(white, new Point(28, 17.25), new Point(28, 46.75));
-                dc.DrawLine(lavender, new Point(32.75, 21.25), new Point(32.75, 42.75));
-                dc.DrawLine(white, new Point(37.5, 25.5), new Point(37.5, 38.5));
-                dc.DrawGeometry(play, null, Geometry.Parse("M 40,23.1 L 55.4,32 L 40,40.9 Z"));
+                var innerPen = new Pen(new SolidColorBrush(Color.FromRgb(196, 181, 253)), 1.8);
+                innerPen.StartLineCap = PenLineCap.Round; innerPen.EndLineCap = PenLineCap.Round;
+                dc.DrawGeometry(new SolidColorBrush(Color.FromArgb(64, 34, 211, 238)), innerPen, inner);
             }
+            dc.Pop();
 
             if (appIcon)
             {
