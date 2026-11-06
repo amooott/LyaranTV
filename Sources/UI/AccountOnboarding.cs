@@ -237,7 +237,7 @@ namespace LyaranTV
                 if (e.Key == Key.Escape) { dialog.DialogResult = false; e.Handled = true; }
             };
 
-            dialog.ShowDialog();
+            GlassRun(dialog, delegate { return dialog.ShowDialog(); });
             return created;
         }
 

@@ -1,15 +1,14 @@
-# LyaranTV 1.6.5
+# LyaranTV 1.6.6
 
-Les boutons de fenêtre suivent la barre d'avancée, ils ne restent plus à l'écran.
+Les boîtes de dialogue se posent maintenant sur un fond en verre dépoli.
 
-## Lecteur
+## Verre dépoli
 
-- **Plus de pastille permanente** : réduire, agrandir/restaurer et fermer n'apparaissent que pendant que les commandes du lecteur sont affichées, en fenêtré comme en plein écran. La règle de la 1.6.4 (« toujours visible en fenêtré ») est remplacée.
-- **Disparition avec la barre d'avancée** : après 3,5 s sans mouvement sur l'image, le minuteur escamote les commandes et les trois boutons en même temps.
-- **Retour au survol** : un simple mouvement de souris dans la vidéo les ramène en fondu avec le reste des commandes.
-- **Pendant une pause** : les commandes restent affichées, donc les boutons aussi — on garde de quoi fermer la fenêtre sans quitter la lecture.
-- **Aucun clignotement à l'ouverture** : la barre naît masquée et n'apparaît qu'avec le premier affichage des commandes.
-- **Sortie de plein écran** : l'état des boutons est recalé sur celui des commandes réaffichées, sans décalage.
+- **Un voile derrière chaque dialogue** : ajout de playlist, correction TMDb, réglages, sous-titres, mises à jour, profils. La fenêtre principale apparaît floutée et assombrie, la carte reste nette.
+- **Comment** : WPF ne sait pas flouter ce qui se trouve derrière une fenêtre. Un instantané de l'interface est pris à l'ouverture, fortement flouté puis recouvert d'un voile sombre — le résultat est celui d'une vitre dépolie, sans dépendance graphique.
+- **Un seul instantané** : il est pris une fois, avant l'ouverture. Aucun coût pendant la saisie, aucune animation ajoutée.
+- **Repli sûr** : si la capture échoue (pilote graphique, fenêtre réduite), le dialogue s'ouvre normalement, sans voile.
+- **Tiroir des chaînes du lecteur inchangé** : la vidéo n'est pas capturable par WPF, un flou n'y donnerait qu'un aplat noir. Le panneau garde son fond opaque.
 
 ## Vérifications
 

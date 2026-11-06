@@ -285,7 +285,7 @@ namespace LyaranTV
 
             window.Content = frame;
             frame.Child = root;
-            window.ShowDialog();
+            GlassRun(window, delegate { return window.ShowDialog(); });
         }
 
         /// <summary>
@@ -469,7 +469,7 @@ namespace LyaranTV
             stack.Children.Add(actions);
 
             window.Content = stack;
-            window.ShowDialog();
+            GlassRun(window, delegate { return window.ShowDialog(); });
         }
 
         // ------------------------------------------------------------ à propos
@@ -519,7 +519,7 @@ namespace LyaranTV
             stack.Children.Add(actions);
 
             window.Content = new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            window.ShowDialog();
+            GlassRun(window, delegate { return window.ShowDialog(); });
         }
 
         UIElement SectionLine(string label, string value)

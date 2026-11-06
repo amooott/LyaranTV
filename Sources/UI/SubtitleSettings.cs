@@ -237,7 +237,7 @@ namespace LyaranTV
             }, true));
             stack.Children.Add(actions);
 
-            window.ShowDialog();
+            GlassRun(window, delegate { return window.ShowDialog(); });
         }
 
         /// <summary>Ligne « couleur » : pastilles rapides et valeur hexadécimale libre.</summary>

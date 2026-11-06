@@ -174,7 +174,7 @@ namespace LyaranTV
             {
                 if (e.Key == Key.Escape) { e.Handled = true; dialog.Close(); }
             };
-            dialog.ShowDialog();
+            GlassRun(dialog, delegate { return dialog.ShowDialog(); });
         }
 
         static void AddSubtitleLanguage(ComboBox box, string label, string code)

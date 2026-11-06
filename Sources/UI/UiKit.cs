@@ -1095,7 +1095,7 @@ namespace LyaranTV
             }
             var primary = Button(primaryLabel, delegate { dialog.DialogResult = true; }, true); primary.Margin = new Thickness(0); actions.Children.Add(primary);
             root.Children.Add(actions);
-            return dialog.ShowDialog();
+            return GlassRun(dialog, delegate { return dialog.ShowDialog(); });
         }
 
         void ApplyDarkTitleBar()

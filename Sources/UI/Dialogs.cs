@@ -622,8 +622,69 @@ namespace LyaranTV
                 dialog.DialogResult = true;
             };
 
-            bool? answer = dialog.ShowDialog();
+            bool? answer = GlassRun(dialog, delegate { return dialog.ShowDialog(); });
             return answer == true ? result : null;
+        }
+
+        /// <summary>
+        /// Exécute une boîte de dialogue par-dessus un fond en verre dépoli.
+        /// L'appelant garde son code inchangé : seule la valeur de retour passe.
+        /// </summary>
+        T GlassRun<T>(Window dialog, Func<T> show)
+        {
+            Window backdrop = ShowGlassBackdrop(dialog);
+            try { return show(); }
+            finally
+            {
+                if (backdrop != null) { try { backdrop.Close(); } catch { } }
+            }
+        }
+
+        /// <summary>
+        /// Voile de verre dépoli derrière une boîte de dialogue. WPF ne sait pas
+        /// flouter ce qui se trouve derrière une fenêtre : on prend un instantané
+        /// de la fenêtre principale, on le floute fortement et on l'assombrit,
+        /// puis la carte du dialogue se pose nette par-dessus. L'instantané est
+        /// pris une seule fois, avant l'ouverture : aucun coût pendant la saisie.
+        /// </summary>
+        Window ShowGlassBackdrop(Window dialog)
+        {
+            try
+            {
+                Window owner = (dialog != null ? dialog.Owner : null) ?? this;
+                FrameworkElement surface = owner == this ? (FrameworkElement)rootGrid : owner.Content as FrameworkElement;
+                if (surface == null || !owner.IsVisible) return null;
+                double width = owner.ActualWidth, height = owner.ActualHeight;
+                if (width < 160 || height < 160) return null;
+
+                var shot = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                    (int)width, (int)height, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                shot.Render(surface);
+                shot.Freeze();
+
+                var image = new Image
+                {
+                    Source = shot, Stretch = Stretch.UniformToFill, Opacity = 0.92,
+                    Effect = new System.Windows.Media.Effects.BlurEffect { Radius = 22, KernelType = System.Windows.Media.Effects.KernelType.Gaussian }
+                };
+                RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.LowQuality);
+                var veil = new Border { Background = Brush(WithAlpha(Back, 198)) };
+                var root = new Grid();
+                root.Children.Add(image);
+                root.Children.Add(veil);
+
+                var backdrop = new Window
+                {
+                    WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, AllowsTransparency = true,
+                    Background = Brushes.Transparent, ShowInTaskbar = false, ShowActivated = false,
+                    Focusable = false, WindowStartupLocation = WindowStartupLocation.Manual,
+                    Owner = owner, Width = width, Height = height, Left = owner.Left, Top = owner.Top,
+                    Content = root
+                };
+                backdrop.Show();
+                return backdrop;
+            }
+            catch { return null; }
         }
 
         TextBlock FieldLabel(string text)
@@ -807,7 +868,7 @@ namespace LyaranTV
             // La recherche démarre seule : le titre est déjà rempli, l'utilisateur
             // n'a qu'à choisir la bonne fiche au lieu de deviner le bouton.
             dialog.Loaded += delegate { searchBox.Focus(); searchBox.SelectAll(); runSearch(); };
-            bool? answer = dialog.ShowDialog();
+            bool? answer = GlassRun(dialog, delegate { return dialog.ShowDialog(); });
             if (answer == true)
             {
                 ShowToast("Correspondance TMDb enregistrée pour « " + channel.Name + " ».", false, true);

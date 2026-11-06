@@ -349,7 +349,7 @@ namespace LyaranTV
             frame.Child = layout;
             dialog.Content = frame;
             dialog.KeyDown += delegate(object sender, KeyEventArgs e) { if (e.Key == Key.Escape) dialog.Close(); };
-            dialog.ShowDialog();
+            GlassRun(dialog, delegate { return dialog.ShowDialog(); });
         }
 
         void AddShortcut(StackPanel rows, string keys, string action)

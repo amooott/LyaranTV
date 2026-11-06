@@ -1425,7 +1425,7 @@ namespace LyaranTV
                 }
                 else frame.Opacity = 1;
             };
-            return dialog.ShowDialog() == true ? result : null;
+            return GlassRun(dialog, delegate { return dialog.ShowDialog(); }) == true ? result : null;
         }
 
         string PromptPin(string title, string message)
@@ -1477,7 +1477,7 @@ namespace LyaranTV
                 else if (e.Key == Key.Escape) { dialog.DialogResult = false; e.Handled = true; }
             };
             dialog.Loaded += delegate { pinBox.Focus(); };
-            return dialog.ShowDialog() == true ? pinBox.Password : null;
+            return GlassRun(dialog, delegate { return dialog.ShowDialog(); }) == true ? pinBox.Password : null;
         }
 
         void ExportPortableJson()

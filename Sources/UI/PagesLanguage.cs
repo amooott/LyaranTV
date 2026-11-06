@@ -139,7 +139,7 @@ namespace LyaranTV
             root.Children.Add(close);
 
             window.Content = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            window.ShowDialog();
+            GlassRun(window, delegate { return window.ShowDialog(); });
         }
 
         /// <summary>Applique la langue immédiatement, sans redémarrer.</summary>
