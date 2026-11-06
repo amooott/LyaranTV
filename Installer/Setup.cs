@@ -33,7 +33,7 @@ namespace LyaranTV.Setup
     internal static class SetupProgram
     {
         public const string ProductName = "LyaranTV";
-        public const string Version = "1.6.3";
+        public const string Version = "1.6.4";
         public const string Publisher = "Amooott";
         public const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\LyaranTV";
 

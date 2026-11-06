@@ -134,6 +134,12 @@ namespace LyaranTV
         Grid playerScrubber;
         Border scrubTrack, scrubFill, scrubBuffer, scrubThumb, scrubTipBox;
         DockPanel playerTopBar;
+        // Barre de fenêtre du lecteur : réduire, agrandir/restaurer, fermer.
+        // Elle vit dans la surface vidéo, indépendamment des contrôles qui
+        // s'effacent automatiquement. En fenêtré elle reste visible ; en plein
+        // écran elle n'apparaît qu'au survol de son coin supérieur droit.
+        Border playerWindowBar;
+        Button playerWindowMinimizeButton, playerWindowMaximizeButton, playerWindowCloseButton;
         double scrubDuration;
         double scrubValue;
         bool scrubbing;
@@ -806,10 +812,20 @@ namespace LyaranTV
 
         void UpdateCaptionButtons()
         {
-            if (maximizeCaptionButton == null) return;
             bool maximized = WindowState == WindowState.Maximized;
-            maximizeCaptionButton.Content = Icon(maximized ? Glyphs.ChromeRestore : Glyphs.ChromeMaximize, 10, Brush(Muted));
-            maximizeCaptionButton.ToolTip = maximized ? "Restaurer" : "Agrandir";
+            if (maximizeCaptionButton != null)
+            {
+                maximizeCaptionButton.Content = Icon(maximized ? Glyphs.ChromeRestore : Glyphs.ChromeMaximize, 10, Brush(Muted));
+                maximizeCaptionButton.ToolTip = maximized ? "Restaurer" : "Agrandir";
+            }
+            if (playerWindowMaximizeButton != null)
+            {
+                // En plein écran la fenêtre n'a plus de cadre : agrandir n'aurait
+                // pas de sens, le bouton sert donc à revenir en fenêtre.
+                playerWindowMaximizeButton.Content = Icon(
+                    fullScreen ? Glyphs.BackToWindow : (maximized ? Glyphs.ChromeRestore : Glyphs.ChromeMaximize), 10, Brushes.White);
+                playerWindowMaximizeButton.ToolTip = fullScreen ? "Quitter le plein écran" : (maximized ? "Restaurer" : "Agrandir");
+            }
         }
 
         /// <summary>
@@ -2274,6 +2290,7 @@ namespace LyaranTV
         {
             ApplyPlayerChrome();
             UpdateFullscreenButtons();
+            UpdateCaptionButtons();
             if (mainScroll != null)
             {
                 // En plein écran, aucun défilement : la vidéo remplit la fenêtre.
@@ -2289,6 +2306,7 @@ namespace LyaranTV
                 StopFullscreenControlsTimer();
                 if (playerControlWrap != null) playerControlWrap.Visibility = Visibility.Visible;
                 if (playerTopBar != null) playerTopBar.Visibility = Visibility.Visible;
+                SyncPlayerWindowBar();
                 UpdateSubtitlePosition();
             }
             // En plein écran, le lecteur remplit la surface (pas de bandeau noir).
@@ -2401,7 +2419,37 @@ namespace LyaranTV
                 playerControlWrap.Padding = fullScreen ? new Thickness(30, 64, 30, 18) : new Thickness(22, 58, 22, 14);
             }
             if (playerTopBar != null)
-                playerTopBar.Margin = fullScreen ? new Thickness(26, 18, 26, 0) : new Thickness(18, 14, 18, 0);
+                // Le titre laisse la place aux trois boutons de fenêtre posés
+                // dans le coin supérieur droit de l'image.
+                playerTopBar.Margin = fullScreen ? new Thickness(26, 18, 142, 0) : new Thickness(18, 14, 142, 0);
+        }
+
+        /// <summary>
+        /// Barre de fenêtre du lecteur : toujours présente en fenêtré, visible
+        /// en plein écran seulement tant que les commandes le sont.
+        /// </summary>
+        void SyncPlayerWindowBar()
+        {
+            if (playerWindowBar == null) return;
+            bool show = !fullScreen || playerChromeShown;
+            playerWindowBar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            if (show) playerWindowBar.Opacity = 1;
+        }
+
+        void ShowPlayerWindowBar()
+        {
+            if (playerWindowBar == null) return;
+            if (playerWindowBar.Visibility == Visibility.Visible)
+            {
+                playerWindowBar.Opacity = 1;
+                return;
+            }
+            playerWindowBar.Visibility = Visibility.Visible;
+            if (UiMotion.Reduced) { playerWindowBar.Opacity = 1; return; }
+            playerWindowBar.Opacity = 0;
+            playerWindowBar.BeginAnimation(UIElement.OpacityProperty,
+                new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(160))
+                { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
         }
 
         void ShowFullscreenControls()
@@ -2440,6 +2488,7 @@ namespace LyaranTV
                     }
                 }
             }
+            ShowPlayerWindowBar();
             UpdateSubtitlePosition();
             StartFullscreenControlsTimer();
         }
@@ -2456,6 +2505,7 @@ namespace LyaranTV
                 if (playerChromeShown) return;
                 if (playerControlWrap != null) playerControlWrap.Visibility = Visibility.Collapsed;
                 if (playerTopBar != null) playerTopBar.Visibility = Visibility.Collapsed;
+                SyncPlayerWindowBar();
                 UpdateSubtitlePosition();
             };
             if (UiMotion.Reduced)

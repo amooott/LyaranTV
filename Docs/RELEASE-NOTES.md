@@ -1,22 +1,20 @@
-# LyaranTV 1.6.3
+# LyaranTV 1.6.4
 
-Nouveau logo « Voile », sans triangle de lecture.
+Une barre de fenêtre accompagne désormais la lecture.
 
-## Logo final
+## Barre de fenêtre du lecteur
 
-- La **proposition n° 24 · Voile** est retenue, **sans le triangle de lecture** : deux voiles superposés, l'un blanc, l'autre cyan, sur le carré arrondi violet-bleu historique.
-- Le dessin remplace l'ancien égaliseur partout : barre supérieure, fenêtre, générique de lancement, page À propos, écran de profil et icône de l'application.
-- Une version compacte à voiles pleins est utilisée sous 30 px pour rester lisible en 16 et 20 px.
-- La planche de contrôle est disponible dans [`Docs/logo-final.png`](logo-final.png). Les quarante propositions restent consultables dans [`Docs/logo-proposals.png`](logo-proposals.png) et [`Docs/logo-proposals-2.png`](logo-proposals-2.png).
+Trois boutons posés dans le coin supérieur droit de l'image : **réduire**, **agrandir / restaurer**, **fermer**.
 
-## Outils de marque
-
-- `--logofinal <fichier.png>` génère la planche du logo final aux tailles réelles de 16 à 256 px.
-- `--makeicon <fichier.ico>` régénère l'icône multi-résolutions à partir du même dessin vectoriel. L'icône livrée contient neuf tailles, de 16 à 256 px.
+- **En fenêtré** : la barre est toujours affichée, même quand les commandes du lecteur s'effacent après quelques secondes d'inactivité. On garde ainsi la main sur la fenêtre pendant la lecture.
+- **En plein écran** : elle apparaît avec les commandes au passage de la souris, puis disparaît avec elles.
+- **En plein écran, le bouton du milieu** quitte le plein écran : sans cadre, agrandir n'aurait pas de sens. Son icône devient celle du retour en fenêtre.
+- **Fermer** termine l'application comme le bouton de la barre de titre.
+- **Discrétion** : fond sombre translucide, pastille arrondie, icônes blanches, survol éclairci et rouge pour la fermeture.
+- **Le titre du lecteur** réserve la place à droite pour ne jamais passer sous les boutons.
 
 ## Vérifications
 
-- Compilation des 58 sources.
-- Auto-test : **35/35**.
+- Compilation des 52 sources.
+- Auto-test : **34/34**.
 - Compilation de l'installateur.
-- Empreintes SHA-256 régénérées pour `LyaranTV.exe` et `setup-LyaranTV-1.6.3.exe`.

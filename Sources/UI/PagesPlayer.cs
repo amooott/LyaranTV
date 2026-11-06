@@ -431,6 +431,33 @@ namespace LyaranTV
             System.Windows.Shell.WindowChrome.SetIsHitTestVisibleInChrome(playerChannelsButton, true);
             System.Windows.Shell.WindowChrome.SetIsHitTestVisibleInChrome(playerLiveButton, true);
 
+            // Barre de fenêtre du lecteur : réduire, agrandir/restaurer, fermer.
+            // Elle vit dans la surface vidéo, indépendamment des contrôles qui
+            // s'effacent : en fenêtré elle reste toujours visible, en plein
+            // écran elle apparaît et disparaît avec les commandes au survol.
+            var windowStrip = new StackPanel { Orientation = Orientation.Horizontal };
+            windowStrip.Children.Add(PlayerWindowButton(Glyphs.ChromeMinimize, "Réduire",
+                delegate { WindowState = WindowState.Minimized; }, false));
+            playerWindowMaximizeButton = PlayerWindowButton(Glyphs.ChromeMaximize, "Agrandir",
+                delegate { if (fullScreen) ExitFullScreen(); else ToggleMaximizeWindow(); }, false);
+            windowStrip.Children.Add(playerWindowMaximizeButton);
+            windowStrip.Children.Add(PlayerWindowButton(Glyphs.ChromeClose, "Fermer l'application",
+                delegate { Close(); }, true));
+            playerWindowBar = new Border
+            {
+                Child = windowStrip,
+                Background = Brush(Color.FromArgb(150, 8, 8, 14)),
+                BorderBrush = Brush(Color.FromArgb(62, 255, 255, 255)), BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(10), Padding = new Thickness(3, 2, 3, 2),
+                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 12, 16, 0)
+            };
+            videoGrid.Children.Add(playerWindowBar);
+            System.Windows.Controls.Panel.SetZIndex(playerWindowBar, 44);
+            // Le coin supérieur de la vidéo sert aussi de zone de déplacement de
+            // la fenêtre : sans cela les trois boutons resteraient sans clic.
+            System.Windows.Shell.WindowChrome.SetIsHitTestVisibleInChrome(playerWindowBar, true);
+
             // Bouton central : rappel visuel lecture/pause.
             playerCenterButton = new Button
             {
@@ -768,6 +795,26 @@ namespace LyaranTV
                 parts.Insert(0, season);
             }
             return String.Join("  ·  ", parts.ToArray());
+        }
+
+        Button PlayerWindowButton(string glyph, string tooltip, Action click, bool closeButton)
+        {
+            var icon = Icon(glyph, 10, Brushes.White);
+            var button = new Button
+            {
+                Content = icon, Width = 34, Height = 26, Padding = new Thickness(0),
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand, FocusVisualStyle = null, IsTabStop = false,
+                Template = RoundedButtonTemplate(7), ToolTip = tooltip, SnapsToDevicePixels = true,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(1, 0, 0, 0)
+            };
+            var hover = closeButton ? Brush(Danger) : Brush(Color.FromArgb(96, 255, 255, 255));
+            button.MouseEnter += delegate { button.Background = hover; };
+            button.MouseLeave += delegate { button.Background = Brushes.Transparent; };
+            button.Click += delegate { if (click != null) click(); };
+            return button;
         }
 
         Button SkipButton(double seconds, bool forward)
