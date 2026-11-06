@@ -101,7 +101,7 @@ namespace LyaranTV
                 Background = Brushes.Transparent, BorderBrush = Brush(WithAlpha(Accent, 54)),
                 BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14),
                 Cursor = Cursors.Hand, ClipToBounds = true,
-                Effect = new DropShadowEffect { BlurRadius = 22, ShadowDepth = 8, Opacity = 0.24, Color = Colors.Black }
+                Effect = CardShadow()
             };
             AddHover(card, Brush(WithAlpha(Panel, 248)), Brush(WithAlpha(Raised, 250)),
                 Brush(WithAlpha(Accent, 54)), Brush(WithAlpha(Accent, 150)));
@@ -312,7 +312,7 @@ namespace LyaranTV
                 Background = Brushes.Transparent, BorderBrush = Brush(WithAlpha(BorderColor, 170)),
                 BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(16),
                 Cursor = Cursors.Hand, ClipToBounds = true,
-                Effect = new DropShadowEffect { BlurRadius = 22, ShadowDepth = 8, Opacity = 0.2, Color = Colors.Black }
+                Effect = CardShadow()
             };
             AddHover(tile, Brush(WithAlpha(Panel, 246)), Brush(WithAlpha(Raised, 250)),
                 Brush(WithAlpha(BorderColor, 170)), Brush(WithAlpha(Accent, 140)));

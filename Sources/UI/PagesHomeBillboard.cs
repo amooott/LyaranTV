@@ -114,7 +114,7 @@ namespace LyaranTV
                 HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 78, 18), BorderBrush = Brush(Color.FromArgb(22, 255, 255, 255)),
                 BorderThickness = new Thickness(1), Visibility = Visibility.Collapsed,
-                Effect = new DropShadowEffect { BlurRadius = 38, ShadowDepth = 14, Opacity = 0.55, Color = Colors.Black },
+                Effect = ModalShadow(),
                 Child = new Grid()
             };
             homeHeroGrid.Children.Add(homeHeroPosterFrame);
@@ -172,7 +172,7 @@ namespace LyaranTV
             homeHeroTitle.LineHeight = 46;
             homeHeroTitle.MaxWidth = 720;
             homeHeroTitle.Margin = new Thickness(0, 0, 0, 10);
-            homeHeroTitle.Effect = new DropShadowEffect { BlurRadius = 22, ShadowDepth = 3, Opacity = 0.35, Color = Colors.Black };
+            homeHeroTitle.Effect = CardShadow();
             content.Children.Add(homeHeroTitle);
 
             homeHeroMeta = Text("", 12, Brush(Color.FromArgb(225, 255, 255, 255)), true);
@@ -478,7 +478,7 @@ namespace LyaranTV
                 Background = light ? Brushes.White : Brush(Color.FromArgb(92, 22, 24, 32)),
                 BorderBrush = light ? Brushes.White : Brush(Color.FromArgb(120, 255, 255, 255)),
                 BorderThickness = new Thickness(1), Cursor = Cursors.Hand, FocusVisualStyle = null,
-                Template = RoundedButtonTemplate(8), Effect = new DropShadowEffect { BlurRadius = 18, ShadowDepth = 4, Opacity = 0.25, Color = Colors.Black }
+                Template = RoundedButtonTemplate(8), Effect = CardShadow()
             };
             if (click != null) button.Click += delegate { click(); };
             return button;
@@ -645,7 +645,7 @@ namespace LyaranTV
             card.MouseEnter += delegate
             {
                 card.BorderBrush = Brush(Accent);
-                card.Effect = new DropShadowEffect { BlurRadius = 20, ShadowDepth = 6, Opacity = 0.35, Color = Colors.Black };
+                card.Effect = CardShadow();
                 if (!UiMotion.Reduced) lift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-3, TimeSpan.FromMilliseconds(130)));
                 else lift.Y = -3;
             };

@@ -499,7 +499,7 @@ namespace LyaranTV
                 CornerRadius = new CornerRadius(9), Padding = new Thickness(12, 9, 14, 9),
                 HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(0, 68, 18, 0), Visibility = Visibility.Collapsed, IsHitTestVisible = false,
-                Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 16, ShadowDepth = 4, Opacity = 0.4, Color = Colors.Black }
+                Effect = CardShadow()
             };
             videoGrid.Children.Add(statsHud);
             System.Windows.Controls.Panel.SetZIndex(statsHud, 35);
@@ -759,7 +759,7 @@ namespace LyaranTV
                 Width = 320, Height = 180, CornerRadius = new CornerRadius(10), ClipToBounds = true,
                 Background = Brush(Raised), BorderBrush = Brush(Color.FromArgb(70, 255, 255, 255)), BorderThickness = new Thickness(1),
                 Margin = new Thickness(0, 0, 0, 16), Visibility = Visibility.Collapsed,
-                Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 28, ShadowDepth = 8, Opacity = 0.5, Color = Colors.Black }
+                Effect = ModalShadow()
             };
             stack.Children.Add(nextEpisodeArt);
             playerOverlayText = Text("Connexion au serveur", 15, Brushes.White, true);
@@ -916,7 +916,7 @@ namespace LyaranTV
                 Width = 15, Height = 15, CornerRadius = new CornerRadius(8), Background = Brush(Colors.White),
                 HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center,
                 Visibility = Visibility.Collapsed, IsHitTestVisible = false,
-                Effect = new DropShadowEffect { BlurRadius = 10, ShadowDepth = 0, Opacity = 0.55, Color = Colors.Black }
+                Effect = CardShadow()
             };
             root.Children.Add(scrubThumb);
             root.Children.Add(BuildScrubTip());

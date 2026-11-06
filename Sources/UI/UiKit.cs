@@ -95,11 +95,56 @@ namespace LyaranTV
         public const string ChromeClose = "\uE8BB";
     }
 
+    /// <summary>
+    /// Échelle typographique de l'application : quatre paliers pour le texte
+    /// courant. Les très grands titres d'accueil (26 px et plus) gardent leur
+    /// valeur propre, ce sont des affichages et non du texte.
+    /// </summary>
+    internal static class UiType
+    {
+        public const double Meta = 12.5;
+        public const double Body = 15;
+        public const double Title = 19;
+        public const double Heading = 23;
+
+        public static double Snap(double size)
+        {
+            if (double.IsNaN(size) || size <= 0) return Meta;
+            if (size < 13.75) return Meta;
+            if (size < 16.5) return Body;
+            if (size < 20.5) return Title;
+            if (size < 25) return Heading;
+            return size;
+        }
+    }
+
     public sealed partial class MainWindow
     {
         static readonly Color DefaultAccent = Color.FromRgb(139, 92, 246);
 
         static SolidColorBrush Brush(Color c) { return new SolidColorBrush(c); }
+
+        /// <summary>
+        /// Deux profondeurs seulement : la carte posée sur une page et la boîte
+        /// posée sur l'application. Toutes les ombres noires de l'interface
+        /// passent par l'une de ces deux fonctions, pour que deux éléments de
+        /// même niveau aient la même élévation.
+        /// </summary>
+        static System.Windows.Media.Effects.DropShadowEffect CardShadow()
+        {
+            return new System.Windows.Media.Effects.DropShadowEffect
+            {
+                BlurRadius = 20, ShadowDepth = 6, Opacity = 0.34, Color = Colors.Black
+            };
+        }
+
+        static System.Windows.Media.Effects.DropShadowEffect ModalShadow()
+        {
+            return new System.Windows.Media.Effects.DropShadowEffect
+            {
+                BlurRadius = 34, ShadowDepth = 12, Opacity = 0.5, Color = Colors.Black
+            };
+        }
         static Color WithAlpha(Color c, byte alpha) { return Color.FromArgb(alpha, c.R, c.G, c.B); }
         static bool TryParseHexColor(string value, out Color color)
         {
@@ -145,10 +190,11 @@ namespace LyaranTV
 
         TextBlock Text(string value, double size, Brush color, bool bold)
         {
-            // Plancher de lisibilité : les anciennes métadonnées à 9,5 px
-            // restaient illisibles sur un écran dense. Aucune information ne
-            // descend désormais sous 12,5 px.
-            if (size < 12.5) size = 12.5;
+            // Une seule échelle : la taille demandée est ramenée au palier le
+            // plus proche. Les 9,5 / 10,5 / 11,5 d'origine et les valeurs
+            // intermédiaires (13, 14,5, 15,5) brouillaient la hiérarchie ; les
+            // métadonnées restent au palier bas, donc lisibles.
+            size = UiType.Snap(size);
             return new TextBlock
             {
                 // Traduction au moment de la création : les écrans reconstruits
@@ -1020,7 +1066,7 @@ namespace LyaranTV
                 {
                     CornerRadius = new CornerRadius(12), Padding = new Thickness(14, 11, 16, 11), MaxWidth = 430,
                     HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
-                    Margin = new Thickness(0, 0, 24, 48), Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 18, ShadowDepth = 4, Opacity = 0.35, Color = Colors.Black }
+                    Margin = new Thickness(0, 0, 24, 48), Effect = CardShadow()
                 };
                 var panel = new StackPanel { Orientation = Orientation.Horizontal };
                 toastIcon = Icon(Glyphs.Info, 16, Brush(Accent)); toastIcon.Margin = new Thickness(0, 0, 9, 0);

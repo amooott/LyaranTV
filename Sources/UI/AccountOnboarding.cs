@@ -41,7 +41,7 @@ namespace LyaranTV
                 BorderBrush = Brush(WithAlpha(Accent, 120)), BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(24), ClipToBounds = true,
                 Opacity = 0, RenderTransformOrigin = new Point(0.5, 0.5),
-                Effect = new DropShadowEffect { BlurRadius = 42, ShadowDepth = 14, Opacity = 0.55, Color = Colors.Black }
+                Effect = ModalShadow()
             };
             var frameScale = new ScaleTransform(0.97, 0.97);
             frame.RenderTransform = frameScale;

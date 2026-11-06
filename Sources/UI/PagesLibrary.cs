@@ -474,7 +474,7 @@ namespace LyaranTV
                 HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 12, 62, 0), BorderBrush = Brush(Color.FromArgb(22, 255, 255, 255)),
                 BorderThickness = new Thickness(1), Visibility = Visibility.Collapsed,
-                Effect = new DropShadowEffect { BlurRadius = 32, ShadowDepth = 12, Opacity = 0.5, Color = Colors.Black },
+                Effect = ModalShadow(),
                 Child = new Grid()
             };
             visual.Children.Add(libraryHeroPosterFrame);
@@ -1023,7 +1023,7 @@ namespace LyaranTV
                 card.BorderBrush = Brush(tint); card.Background = Brush(Raised); System.Windows.Controls.Panel.SetZIndex(card, 4);
                 if (UiMotion.Reduced) lift.Y = -3;
                 else lift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-3, TimeSpan.FromMilliseconds(130)) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
-                card.Effect = new DropShadowEffect { BlurRadius = 20, ShadowDepth = 6, Opacity = 0.3, Color = Colors.Black };
+                card.Effect = CardShadow();
             };
             Action reset = delegate
             {
@@ -1095,7 +1095,7 @@ namespace LyaranTV
             {
                 Width = 48, Height = 48, CornerRadius = new CornerRadius(24), Background = Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-                Child = playIcon, Effect = new DropShadowEffect { BlurRadius = 18, ShadowDepth = 4, Opacity = 0.35, Color = Colors.Black }
+                Child = playIcon, Effect = CardShadow()
             };
             art.Children.Add(hoverLayer);
 
@@ -1165,7 +1165,7 @@ namespace LyaranTV
                 if (UiMotion.Reduced) lift.Y = -4;
                 else lift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-4, TimeSpan.FromMilliseconds(140)) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
                 UiMotion.Animate(hoverLayer, UIElement.OpacityProperty, 1, 150);
-                card.Effect = new DropShadowEffect { BlurRadius = 22, ShadowDepth = 7, Opacity = 0.32, Color = Colors.Black };
+                card.Effect = CardShadow();
             };
             Action reset = delegate
             {

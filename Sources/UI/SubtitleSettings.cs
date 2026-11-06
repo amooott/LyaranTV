@@ -52,7 +52,7 @@ namespace LyaranTV
             {
                 Margin = new Thickness(2), Background = Brush(Panel), BorderBrush = Brush(BorderColor),
                 BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(20), Padding = new Thickness(24, 20, 24, 20),
-                Effect = new DropShadowEffect { BlurRadius = 30, ShadowDepth = 9, Opacity = 0.36, Color = Colors.Black }
+                Effect = ModalShadow()
             };
             window.Content = frame;
             window.MouseLeftButtonDown += delegate { try { window.DragMove(); } catch { } };

@@ -365,7 +365,7 @@ namespace LyaranTV
                 Background = Brush(Panel), BorderBrush = Brush(WithAlpha(Accent, 90)), BorderThickness = new Thickness(1),
                 Padding = new Thickness(24, 20, 24, 20), HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 34, ShadowDepth = 10, Opacity = 0.5, Color = Colors.Black }
+                Effect = ModalShadow()
             };
             var stack = new StackPanel();
             card.Child = stack;

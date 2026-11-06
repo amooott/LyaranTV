@@ -296,7 +296,7 @@ namespace LyaranTV
                 HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
                 Opacity = 0, IsHitTestVisible = false,
                 Child = Icon(Glyphs.Play, 16, Brush(TextOnAccentColor())),
-                Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 16, ShadowDepth = 3, Opacity = 0.4, Color = Colors.Black }
+                Effect = CardShadow()
             };
             art.Children.Add(play);
 
