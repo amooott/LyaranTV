@@ -20,6 +20,9 @@ namespace LyaranTV
     {
         internal const string AllGroups = "Toutes les catégories";
         internal const double SeekStepSeconds = 5;
+        // Toutes les sources de tous les profils ; `sources` n'expose que celles
+        // du profil actif pour que deux profils ne mélangent jamais leurs comptes.
+        readonly List<PlaylistSource> allSources = new List<PlaylistSource>();
         readonly List<PlaylistSource> sources = new List<PlaylistSource>();
         readonly List<Channel> channels = new List<Channel>();
         readonly List<EpgProgram> loadedEpg = new List<EpgProgram>();
@@ -88,8 +91,11 @@ namespace LyaranTV
         Grid rootGrid;
         DockPanel shell;
         Grid toastHost;
-        Border chromeTop, chromeSidebar, chromeStatus;
-        StackPanel sidebar;
+        Border chromeTop, chromeSidebar, chromeStatus, chromeCategories;
+        Grid sidebarHost;
+        StackPanel sidebar, categoryRailPanel;
+        Button menuButton;
+        bool sidebarHidden;
         ScrollViewer mainScroll;
         TextBox searchBox;
         Button refreshButton, chromeFullscreenButton;
@@ -158,6 +164,19 @@ namespace LyaranTV
 
         DateTime epgDate = DateTime.Today;
         string epgQuery = "";
+
+        // Tous les boutons, y compris ceux créés à la main dans les pages,
+        // reçoivent le même micro-mouvement au survol et au clic.
+        static MainWindow()
+        {
+            EventManager.RegisterClassHandler(typeof(Button), FrameworkElement.LoadedEvent,
+                new RoutedEventHandler(OnButtonLoadedForMotion), true);
+        }
+
+        static void OnButtonLoadedForMotion(object sender, RoutedEventArgs e)
+        {
+            UiMotion.AttachButton(sender as Button);
+        }
 
         public MainWindow()
         {
@@ -267,6 +286,8 @@ namespace LyaranTV
         {
             settings = SettingsStore.Load() ?? new AppSettings();
             settings.Normalize();
+            // Les clés d'affiches sont lues avant toute requête réseau.
+            ArtworkResolver.Configure(settings);
             // La langue est posée avant la construction de l'interface : tous
             // les libellés créés ensuite passent par la table de traduction.
             I18n.Set(settings.Language);
@@ -279,7 +300,16 @@ namespace LyaranTV
                 ProfileStore.Save(profiles);
             }
             ProfileScope.Current = activeProfile.Name;
-            sources.Clear(); sources.AddRange(SourceStore.Load());
+            // Chaque compte appartient à un profil. Les sources créées avant
+            // cette version n'ont pas de propriétaire : elles reviennent au
+            // profil actif, sans être dupliquées chez les autres.
+            allSources.Clear();
+            allSources.AddRange(SourceStore.Load());
+            foreach (var item in allSources)
+                if (String.IsNullOrWhiteSpace(item.Profile)) item.Profile = activeProfile.Name;
+            sources.Clear();
+            sources.AddRange(allSources.Where(s => BelongsToProfile(s, activeProfile.Name)));
+            sidebarHidden = settings.SidebarHidden;
             LoadProfileState();
             hiddenChannels.Clear(); foreach (string value in StateStore.ReadSet("hidden-channels.txt")) hiddenChannels.Add(value);
             hiddenGroups.Clear(); foreach (string value in StateStore.ReadSet("hidden-groups.txt")) hiddenGroups.Add(value);
@@ -343,6 +373,7 @@ namespace LyaranTV
             settings.Maximized = WindowState == WindowState.Maximized;
             settings.ActiveProfile = activeProfile == null ? "Principal" : activeProfile.Name;
             SettingsStore.Save(settings);
+            ArtworkResolver.Configure(settings);
         }
 
         void SaveState()
@@ -350,7 +381,7 @@ namespace LyaranTV
             try
             {
                 SaveSettings();
-                SourceStore.Save(sources);
+                SourceStore.Save(allSources);
                 StateStore.WriteSet("favorites.txt", favorites);
                 StateStore.WriteSet("hidden-channels.txt", hiddenChannels);
                 StateStore.WriteSet("hidden-groups.txt", hiddenGroups);
@@ -364,7 +395,20 @@ namespace LyaranTV
 
         void SaveSources()
         {
-            try { SourceStore.Save(sources); } catch (Exception ex) { HttpUtil.AppendLog("SaveSources: " + ex); }
+            try { SourceStore.Save(allSources); } catch (Exception ex) { HttpUtil.AppendLog("SaveSources: " + ex); }
+        }
+
+        static bool BelongsToProfile(PlaylistSource source, string profile)
+        {
+            if (source == null) return false;
+            return String.Equals(source.Profile ?? "", profile ?? "", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Recharge la liste visible des comptes du profil actif.</summary>
+        void ReloadProfileSources()
+        {
+            sources.Clear();
+            sources.AddRange(allSources.Where(s => BelongsToProfile(s, activeProfile == null ? "" : activeProfile.Name)));
         }
 
         void BuildShell()
@@ -480,8 +524,18 @@ namespace LyaranTV
             topBorder.Child = top;
             DockPanel.SetDock(topBorder, Dock.Top); shell.Children.Add(topBorder); chromeTop = topBorder;
 
+            // Barre de catégories façon Netflix PC : grands libellés intégrés
+            // à l'application, réactifs au survol et à la manette.
+            chromeCategories = BuildCategoryRail();
+            DockPanel.SetDock(chromeCategories, Dock.Top);
+            shell.Children.Add(chromeCategories);
+
             var brand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0), Cursor = Cursors.Hand };
             topBrandPanel = brand;
+            // Menu hamburger : trois traits, toujours en haut à gauche hors
+            // lecteur. Il remplace l'ancien bouton « noms seuls ».
+            menuButton = BuildMenuButton();
+            brand.Children.Add(menuButton);
             backButton = IconButton(Glyphs.Back, "Revenir à la page précédente", NavBack, false);
             backButton.Width = 32; backButton.Height = 32;
             backButton.Margin = new Thickness(0, 0, 10, 0);
@@ -551,11 +605,6 @@ namespace LyaranTV
             SetPlaceholder(searchBox, hint);
 
             var actions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0) };
-            // Réduit la barre latérale aux icônes : plus d'espace pour les affiches.
-            var compactButton = IconButton(Glyphs.List, "Mode cinéma · logos seuls · Ctrl+B", ToggleSidebarCompact, false);
-            compactButton.Background = Brushes.Transparent;
-            compactButton.BorderBrush = Brushes.Transparent;
-            actions.Children.Add(compactButton);
             // Plein écran de l'application entière, disponible sur toutes les pages.
             chromeFullscreenButton = IconButton(Glyphs.FullScreen, "Plein écran de l'application · F11", ToggleFullScreen, false);
             chromeFullscreenButton.Background = Brushes.Transparent;
@@ -615,10 +664,12 @@ namespace LyaranTV
                 Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 10, ShadowDepth = 0, Opacity = 0.55, Color = Accent }
             };
             navIndicatorLayer.Children.Add(navIndicator);
-            var sidebarHost = new Grid();
+            var sidebarHost = new Grid { ClipToBounds = true };
+            this.sidebarHost = sidebarHost;
             sidebarHost.Children.Add(sidebarScroll);
             sidebarHost.Children.Add(navIndicatorLayer);
             sidebarBorder.Child = sidebarHost;
+            sidebarBorder.ClipToBounds = true;
             sidebarScroll.ScrollChanged += delegate { PlaceNavIndicator(false); };
             DockPanel.SetDock(sidebarBorder, Dock.Left); body.Children.Add(sidebarBorder); chromeSidebar = sidebarBorder;
 
@@ -789,7 +840,9 @@ namespace LyaranTV
         void RebuildSidebar()
         {
             if (sidebar == null) return;
-            sidebarCompact = settings.CompactSidebar;
+            // L'ancien mode « icônes seules » est remplacé par le hamburger :
+            // la colonne affiche toujours les noms des fonctionnalités.
+            sidebarCompact = false;
             sidebar.Children.Clear();
             var nav = new StackPanel { Margin = new Thickness(0, 10, 0, 4) };
             sidebar.Children.Add(nav);
@@ -854,6 +907,7 @@ namespace LyaranTV
             I18n.Apply(sidebar);
             ApplySidebarChrome();
             PlaceNavIndicator(true);
+            RebuildCategoryRail();
         }
 
         /// <summary>
@@ -937,37 +991,242 @@ namespace LyaranTV
         /// </summary>
         void ApplySidebarChrome()
         {
-            sidebarCompact = settings.CompactSidebar;
-            double width = sidebarCompact ? 76 : 236;
-            if (chromeSidebar != null) chromeSidebar.Width = width;
-            if (topBrandColumn != null) topBrandColumn.Width = new GridLength(width);
-            if (topBrandText != null) topBrandText.Visibility = sidebarCompact ? Visibility.Collapsed : Visibility.Visible;
-            // Mode cinéma : la colonne ne fait plus que 76 px. Le bouton retour
-            // et la marque doivent tenir ensemble, sinon le logo était rogné au
-            // bord de la barre.
-            if (topBrandPanel != null) topBrandPanel.Margin = new Thickness(sidebarCompact ? 6 : 12, 0, 0, 0);
+            sidebarCompact = false;
+            if (chromeSidebar != null)
+            {
+                chromeSidebar.BeginAnimation(FrameworkElement.WidthProperty, null);
+                chromeSidebar.Width = sidebarHidden ? 0 : 236;
+                chromeSidebar.Visibility = sidebarHidden ? Visibility.Collapsed : Visibility.Visible;
+            }
+            if (topBrandColumn != null) topBrandColumn.Width = new GridLength(236);
+            if (topBrandText != null) topBrandText.Visibility = Visibility.Visible;
+            if (topBrandPanel != null) topBrandPanel.Margin = new Thickness(12, 0, 0, 0);
             if (topBrandMark != null)
             {
-                topBrandMark.Width = sidebarCompact ? 28 : 43;
-                topBrandMark.Height = sidebarCompact ? 26 : 38;
-                topBrandMark.Margin = new Thickness(0, 0, sidebarCompact ? 2 : 9, 0);
+                topBrandMark.Width = 43;
+                topBrandMark.Height = 38;
+                topBrandMark.Margin = new Thickness(0, 0, 9, 0);
             }
             if (backButton != null)
             {
-                backButton.Width = sidebarCompact ? 26 : 32;
-                backButton.Height = sidebarCompact ? 26 : 32;
-                backButton.Margin = new Thickness(0, 0, sidebarCompact ? 4 : 10, 0);
+                backButton.Width = 32;
+                backButton.Height = 32;
+                backButton.Margin = new Thickness(0, 0, 10, 0);
+            }
+            UpdateMenuButton();
+        }
+
+        /// <summary>
+        /// Bouton hamburger dessiné : trois traits qui s'écartent au survol et
+        /// se resserrent quand la colonne est masquée.
+        /// </summary>
+        Button BuildMenuButton()
+        {
+            var lines = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            var top = new Border { Height = 2, CornerRadius = new CornerRadius(1), Margin = new Thickness(0, 1.5, 0, 1.5), HorizontalAlignment = HorizontalAlignment.Left };
+            var middle = new Border { Height = 2, CornerRadius = new CornerRadius(1), Margin = new Thickness(0, 1.5, 0, 1.5), HorizontalAlignment = HorizontalAlignment.Left };
+            var bottom = new Border { Height = 2, CornerRadius = new CornerRadius(1), Margin = new Thickness(0, 1.5, 0, 1.5), HorizontalAlignment = HorizontalAlignment.Left };
+            lines.Children.Add(top); lines.Children.Add(middle); lines.Children.Add(bottom);
+            var button = new Button
+            {
+                Content = lines, Width = 40, Height = 36, Padding = new Thickness(0), Margin = new Thickness(0, 0, 10, 0),
+                Background = Brushes.Transparent, BorderBrush = Brushes.Transparent, BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(10),
+                ToolTip = "Afficher ou masquer le menu · Ctrl+B",
+                HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
+                Tag = new object[] { top, middle, bottom }
+            };
+            button.SetValue(System.Windows.Automation.AutomationProperties.NameProperty, "Menu");
+            button.Click += delegate { ToggleSidebar(); };
+            button.MouseEnter += delegate { SetMenuLines(top, middle, bottom, true); };
+            button.MouseLeave += delegate { SetMenuLines(top, middle, bottom, false); };
+            SetMenuLines(top, middle, bottom, false);
+            return button;
+        }
+
+        void SetMenuLines(Border top, Border middle, Border bottom, bool hover)
+        {
+            Brush fill = Brush(TextPrimary);
+            top.Background = fill; bottom.Background = fill;
+            middle.Background = hover ? AccentGradientBrush() : fill;
+            double wide = sidebarHidden ? 13 : 18;
+            top.Width = wide; bottom.Width = wide;
+            middle.Width = hover ? 18 : (sidebarHidden ? 9 : 13);
+        }
+
+        void UpdateMenuButton()
+        {
+            if (menuButton == null) return;
+            var lines = menuButton.Tag as object[];
+            if (lines == null || lines.Length < 3) return;
+            SetMenuLines(lines[0] as Border, lines[1] as Border, lines[2] as Border, false);
+        }
+
+        /// <summary>
+        /// Ouvre ou referme la colonne des fonctionnalités. La largeur, le
+        /// glissement et l'opacité sont animés ensemble : la colonne semble
+        /// sortir du bouton hamburger.
+        /// </summary>
+        void ToggleSidebar()
+        {
+            sidebarHidden = !sidebarHidden;
+            settings.SidebarHidden = sidebarHidden;
+            SettingsStore.Save(settings);
+            AnimateSidebar();
+            UpdateMenuButton();
+            ShowToast(sidebarHidden ? "Menu masqué · Ctrl+B pour le rouvrir." : "Menu affiché.", false, true);
+        }
+
+        void AnimateSidebar()
+        {
+            if (chromeSidebar == null) return;
+            double target = sidebarHidden ? 0 : 236;
+            if (UiMotion.Reduced)
+            {
+                chromeSidebar.BeginAnimation(FrameworkElement.WidthProperty, null);
+                chromeSidebar.Width = target;
+                chromeSidebar.Visibility = sidebarHidden ? Visibility.Collapsed : Visibility.Visible;
+                return;
+            }
+            chromeSidebar.Visibility = Visibility.Visible;
+            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+            var width = new DoubleAnimation(target, TimeSpan.FromMilliseconds(sidebarHidden ? 260 : 320)) { EasingFunction = ease };
+            width.Completed += delegate
+            {
+                if (sidebarHidden) chromeSidebar.Visibility = Visibility.Collapsed;
+            };
+            chromeSidebar.BeginAnimation(FrameworkElement.WidthProperty, width);
+            if (sidebarHost != null)
+            {
+                var slide = sidebarHost.RenderTransform as TranslateTransform;
+                if (slide == null)
+                {
+                    slide = new TranslateTransform();
+                    sidebarHost.RenderTransform = slide;
+                }
+                double from = sidebarHidden ? 0 : -26;
+                double to = sidebarHidden ? -26 : 0;
+                slide.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(from, to, TimeSpan.FromMilliseconds(sidebarHidden ? 220 : 320))
+                {
+                    EasingFunction = ease
+                });
+                sidebarHost.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(sidebarHidden ? 0.25 : 1, TimeSpan.FromMilliseconds(sidebarHidden ? 200 : 300))
+                {
+                    EasingFunction = ease
+                });
             }
         }
 
-        void ToggleSidebarCompact()
+        // ------------------------------------------------------------------
+        // Barre de catégories intégrée (Accueil · Chaînes · Films · Séries…)
+        // ------------------------------------------------------------------
+
+        Border BuildCategoryRail()
         {
-            settings.CompactSidebar = !settings.CompactSidebar;
-            sidebarCompact = settings.CompactSidebar;
-            SettingsStore.Save(settings);
-            RebuildSidebar();
-            ApplySidebarChrome();
-            ShowToast(sidebarCompact ? "Mode cinéma · seuls les logos restent." : "Menu complet.", false, true);
+            var border = new Border
+            {
+                Height = 60,
+                Background = new LinearGradientBrush(new GradientStopCollection
+                {
+                    new GradientStop(WithAlpha(Panel, 236), 0),
+                    new GradientStop(WithAlpha(Back, 210), 1)
+                }, new Point(0, 0), new Point(0, 1)),
+                BorderBrush = Brush(WithAlpha(BorderColor, 150)),
+                BorderThickness = new Thickness(0, 0, 0, 1)
+            };
+            categoryRailPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(28, 0, 20, 0)
+            };
+            border.Child = categoryRailPanel;
+            WindowChrome.SetIsHitTestVisibleInChrome(border, true);
+            RebuildCategoryRail();
+            return border;
+        }
+
+        void RebuildCategoryRail()
+        {
+            if (categoryRailPanel == null) return;
+            categoryRailPanel.Children.Clear();
+            bool home = page == "Accueil";
+            bool library = page == "Bibliothèque";
+            categoryRailPanel.Children.Add(CategoryRailLink("Accueil", home, delegate { Nav("Accueil"); }));
+            categoryRailPanel.Children.Add(CategoryRailLink("Chaînes", library && activeKind == "Chaînes", delegate { OpenCategory("Chaînes"); }));
+            categoryRailPanel.Children.Add(CategoryRailLink("Films", library && activeKind == "Films", delegate { OpenCategory("Films"); }));
+            categoryRailPanel.Children.Add(CategoryRailLink("Séries", library && activeKind == "Séries", delegate { OpenCategory("Séries"); }));
+            categoryRailPanel.Children.Add(CategoryRailLink("Ma liste", page == "Favoris", delegate { Nav("Favoris"); }));
+            categoryRailPanel.Children.Add(CategoryRailLink("Guide", page == "Guide EPG", delegate { Nav("Guide EPG"); }));
+        }
+
+        /// <summary>
+        /// Grand libellé de catégorie, comme la navigation du site Netflix sur
+        /// ordinateur : texte large, éclaircissement au survol, soulignement
+        /// d'accent animé et anneau de focus pour la manette.
+        /// </summary>
+        Button CategoryRailLink(string label, bool active, Action click)
+        {
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            var text = Text(label, 17, active ? Brush(TextPrimary) : Brush(Muted), active);
+            text.TextWrapping = TextWrapping.NoWrap;
+            text.RenderTransformOrigin = new Point(0.5, 0.5);
+            var scale = new ScaleTransform(1, 1);
+            text.RenderTransform = scale;
+            stack.Children.Add(text);
+            var underline = new Border
+            {
+                Height = 3, CornerRadius = new CornerRadius(2), Margin = new Thickness(0, 6, 0, 0),
+                Background = active ? AccentGradientBrush() : Brush(WithAlpha(Accent, 170)),
+                RenderTransformOrigin = new Point(0, 0.5),
+                Opacity = active ? 1 : 0
+            };
+            var underlineScale = new ScaleTransform(active ? 1 : 0.2, 1);
+            underline.RenderTransform = underlineScale;
+            stack.Children.Add(underline);
+            var button = new Button
+            {
+                Content = stack, Height = 54, Padding = new Thickness(16, 0, 16, 0), Margin = new Thickness(0, 0, 2, 0),
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brush(TextPrimary),
+                Cursor = Cursors.Hand, FocusVisualStyle = null, Template = RoundedButtonTemplate(9, false),
+                HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
+                ToolTip = label
+            };
+            button.SetValue(System.Windows.Automation.AutomationProperties.NameProperty, label);
+            Action<bool> state = delegate(bool over)
+            {
+                if (active) return;
+                text.Foreground = over ? Brush(TextPrimary) : Brush(Muted);
+                underline.Opacity = over ? 1 : 0;
+                var duration = TimeSpan.FromMilliseconds(over ? 160 : 120);
+                var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+                underlineScale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(over ? 1 : 0.2, duration) { EasingFunction = ease });
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(over ? 1.045 : 1, duration) { EasingFunction = ease });
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(over ? 1.045 : 1, duration) { EasingFunction = ease });
+            };
+            if (!active)
+            {
+                button.MouseEnter += delegate { state(true); };
+                button.MouseLeave += delegate { state(false); };
+                button.GotKeyboardFocus += delegate { state(true); };
+                button.LostKeyboardFocus += delegate { state(false); };
+            }
+            else
+            {
+                underline.Opacity = 1;
+                underlineScale.BeginAnimation(ScaleTransform.ScaleXProperty,
+                    new DoubleAnimation(0.2, 1, TimeSpan.FromMilliseconds(260)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+            }
+            if (click != null) button.Click += delegate { click(); };
+            return button;
+        }
+
+        /// <summary>Ouvre la bibliothèque directement sur un type de contenu.</summary>
+        void OpenCategory(string kind)
+        {
+            activeKind = kind;
+            activeGroup = AllGroups;
+            ShowLibrary("Bibliothèque");
         }
 
         Button NavItem(string glyph, string label, string destination, int count)
@@ -1499,9 +1758,17 @@ namespace LyaranTV
             settings.ActiveProfile = profile.Name;
             parentalUnlocked = false;
             LoadProfileState();
+            // Les comptes du profil précédent disparaissent de la colonne et de
+            // la bibliothèque : chaque personne retrouve uniquement les siens.
+            ReloadProfileSources();
+            activeSource = sources.FirstOrDefault(s => String.Equals(s.Name, settings.LastSourceName, StringComparison.OrdinalIgnoreCase))
+                ?? sources.FirstOrDefault();
+            InvalidateChannelIndex();
+            channels.Clear(); loadedEpg.Clear(); RebuildEpgIndex();
             SaveSettings();
             RebuildSidebar(); UpdateStatusBar();
-            if (channels.Count > 0) ShowLibrary("Bibliothèque"); else ShowHome();
+            if (activeSource != null) Activate(activeSource);
+            else ShowHome();
             ShowToast("Profil « " + profile.Name + " » activé.", false, true);
         }
 
@@ -1840,7 +2107,7 @@ namespace LyaranTV
             }
             ShowFullscreenControls();
             if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { if (searchBox != null) { searchBox.Focus(); searchBox.SelectAll(); } e.Handled = true; return; }
-            if (e.Key == Key.B && Keyboard.Modifiers == ModifierKeys.Control) { ToggleSidebarCompact(); e.Handled = true; return; }
+            if (e.Key == Key.B && Keyboard.Modifiers == ModifierKeys.Control) { ToggleSidebar(); e.Handled = true; return; }
             if (e.Key == Key.R && Keyboard.Modifiers == ModifierKeys.Control) { RefreshActiveSource(); e.Handled = true; return; }
             if (e.Key == Key.N && Keyboard.Modifiers == ModifierKeys.Control) { AddPlaylist(); e.Handled = true; return; }
             if (typing) return;
@@ -2085,7 +2352,8 @@ namespace LyaranTV
             bool playing = page == "Lecture";
             bool hide = playing || fullScreen;
             if (chromeTop != null) chromeTop.Visibility = hide ? Visibility.Collapsed : Visibility.Visible;
-            if (chromeSidebar != null) chromeSidebar.Visibility = hide ? Visibility.Collapsed : Visibility.Visible;
+            if (chromeCategories != null) chromeCategories.Visibility = hide ? Visibility.Collapsed : Visibility.Visible;
+            if (chromeSidebar != null) chromeSidebar.Visibility = hide ? Visibility.Collapsed : (sidebarHidden ? Visibility.Collapsed : Visibility.Visible);
             if (chromeStatus != null) chromeStatus.Visibility = hide ? Visibility.Collapsed : Visibility.Visible;
             // Le lecteur occupe le haut de la fenêtre : la zone de déplacement de
             // WindowChrome avalait les clics sur ses boutons (retour, chaînes,
@@ -2835,6 +3103,8 @@ namespace LyaranTV
         {
             var model = ShowSourceDialog(null);
             if (model == null) return;
+            model.Profile = activeProfile == null ? "" : activeProfile.Name;
+            allSources.Add(model);
             sources.Add(model);
             SaveSources(); RebuildSidebar();
             Activate(model);
@@ -2844,8 +3114,8 @@ namespace LyaranTV
         {
             var dialog = new OpenFileDialog { Filter = "Playlists M3U (*.m3u;*.m3u8)|*.m3u;*.m3u8|Tous les fichiers (*.*)|*.*" };
             if (dialog.ShowDialog(this) != true) return;
-            var source = new PlaylistSource { Name = Path.GetFileNameWithoutExtension(dialog.FileName), Type = "M3U/M3U8", FilePath = dialog.FileName };
-            sources.Add(source); SaveSources(); RebuildSidebar(); Activate(source);
+            var source = new PlaylistSource { Name = Path.GetFileNameWithoutExtension(dialog.FileName), Type = "M3U/M3U8", FilePath = dialog.FileName, Profile = activeProfile == null ? "" : activeProfile.Name };
+            allSources.Add(source); sources.Add(source); SaveSources(); RebuildSidebar(); Activate(source);
         }
 
         void EditSource(PlaylistSource source)
@@ -2889,6 +3159,7 @@ namespace LyaranTV
                 settings.LastChannelId = "";
 
             sources.Remove(source);
+            allSources.Remove(source);
             LibraryCache.Delete(source);
             if (activeSource == source)
             {
@@ -3023,7 +3294,7 @@ namespace LyaranTV
             LibraryCache.ClearAll();
             settings = new AppSettings();
             themeName = settings.Theme; accentHex = settings.Accent;
-            sources.Clear(); InvalidateChannelIndex(); channels.Clear(); loadedEpg.Clear(); favorites.Clear(); hiddenChannels.Clear(); hiddenGroups.Clear();
+            sources.Clear(); allSources.Clear(); InvalidateChannelIndex(); channels.Clear(); loadedEpg.Clear(); favorites.Clear(); hiddenChannels.Clear(); hiddenGroups.Clear();
             recentIds.Clear(); positions.Clear(); durations.Clear(); episodeHistory.Clear(); activeSource = null; currentPlaying = null;
             navHistory.Clear();
             RebuildEpgIndex();

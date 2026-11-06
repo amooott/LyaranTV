@@ -81,7 +81,7 @@ namespace LyaranTV
             });
             homeHeroGrid.Children.Add(fallbackBackdrop);
 
-            homeHeroImage = new AsyncImage { Stretch = Stretch.UniformToFill, Opacity = 0, IsHitTestVisible = false };
+            homeHeroImage = new AsyncImage { Stretch = Stretch.UniformToFill, Opacity = 0, IsHitTestVisible = false, HighQuality = true };
             homeHeroGrid.Children.Add(homeHeroImage);
             // Voile sombre sur la photo : même une affiche claire reste cinéma.
             homeHeroGrid.Children.Add(new Border { Background = Brush(Color.FromArgb(96, 4, 5, 8)), IsHitTestVisible = false });
@@ -91,7 +91,10 @@ namespace LyaranTV
                 FontSize = 118, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Opacity = 0.075,
                 HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 56, 30), MaxWidth = 480, TextAlignment = TextAlignment.Right,
-                TextWrapping = TextWrapping.Wrap, LineHeight = 108, IsHitTestVisible = false
+                TextWrapping = TextWrapping.Wrap, LineHeight = 108, IsHitTestVisible = false,
+                // Le nom géant ajouté par le programme créait une brillance
+                // artificielle sur la bannière : il reste désormais masqué.
+                Visibility = Visibility.Collapsed
             };
             homeHeroGrid.Children.Add(homeHeroGlyph);
 
@@ -109,7 +112,7 @@ namespace LyaranTV
             {
                 Width = 232, Height = 348, CornerRadius = new CornerRadius(13), ClipToBounds = true,
                 HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 78, 18), BorderBrush = Brush(Color.FromArgb(78, 255, 255, 255)),
+                Margin = new Thickness(0, 0, 78, 18), BorderBrush = Brush(Color.FromArgb(22, 255, 255, 255)),
                 BorderThickness = new Thickness(1), Visibility = Visibility.Collapsed,
                 Effect = new DropShadowEffect { BlurRadius = 38, ShadowDepth = 14, Opacity = 0.55, Color = Colors.Black },
                 Child = new Grid()
@@ -235,8 +238,8 @@ namespace LyaranTV
                 homeHeroKicker.Text = "LYARANTV";
                 homeHeroMeta.Text = "IPTV, films, séries et guide TV réunis";
                 homeHeroDescription.Text = "Ajoutez une playlist M3U, une connexion Xtream ou un portail MAC pour retrouver vos chaînes, vos films et vos séries dans une interface pensée pour le grand écran.";
-                homeHeroGlyph.Text = "LYARAN";
-                homeHeroGlyph.Opacity = 0.05;
+                homeHeroGlyph.Text = "";
+                homeHeroGlyph.Visibility = Visibility.Collapsed;
                 homeHeroActions.Children.Add(BillboardButton(Glyphs.Add, "Ajouter une playlist", AddPlaylist, true));
                 homeHeroActions.Children.Add(BillboardButton(Glyphs.Play, "Découvrir la démo", LoadDemo, false));
             }
@@ -321,7 +324,7 @@ namespace LyaranTV
             homeHeroPosterFrame.Visibility = content && (!hasImage || posterOnly) ? Visibility.Visible : Visibility.Collapsed;
             homeHeroLogo.Url = hasImage ? null : channel.Logo;
             homeHeroLogo.Visibility = hasImage || content || String.IsNullOrWhiteSpace(channel.Logo) ? Visibility.Collapsed : Visibility.Visible;
-            homeHeroGlyph.Visibility = String.IsNullOrWhiteSpace(channel.Name) ? Visibility.Collapsed : Visibility.Visible;
+            homeHeroGlyph.Visibility = Visibility.Collapsed;
 
             if (hasImage)
             {

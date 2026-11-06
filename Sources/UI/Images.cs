@@ -41,6 +41,11 @@ namespace LyaranTV
         const int MaxWorkers = 8;
         const int MaxMemory = 220;
         const int DecodeWidth = 420;
+        // Bannières : une seule image large à la fois, décodée finement pour
+        // ne plus jamais étirer une vignette 420 px sur toute la fenêtre.
+        const int LargeDecodeWidth = 1600;
+        static readonly Dictionary<string, BitmapSource> LargeMemory = new Dictionary<string, BitmapSource>(StringComparer.OrdinalIgnoreCase);
+        static readonly LinkedList<string> LargeOrder = new LinkedList<string>();
         // Les affiches sont aussi conservées sur le disque : l'accueil s'affiche
         // immédiatement aux lancements suivants, même si le fournisseur d'images
         // est lent ou momentanément indisponible.
@@ -62,8 +67,7 @@ namespace LyaranTV
         }
 
         public static void GetAsync(string url, Action<ImageSource> callback)
-        {
-            if (String.IsNullOrWhiteSpace(url)) { if (callback != null) callback(null); return; }
+        {            if (String.IsNullOrWhiteSpace(url)) { if (callback != null) callback(null); return; }
             ImageSource cached = Get(url);
             if (cached != null) { if (callback != null) callback(cached); return; }
             lock (Gate)
@@ -105,6 +109,62 @@ namespace LyaranTV
             GetAsync(url, null);
         }
 
+        /// <summary>
+        /// Version haute définition pour les bannières : décodage 1600 px et
+        /// cache séparé, limité à quelques visuels pour ne pas gonfler la mémoire.
+        /// </summary>
+        public static void GetLargeAsync(string url, Action<ImageSource> callback)
+        {
+            if (String.IsNullOrWhiteSpace(url)) { if (callback != null) callback(null); return; }
+            lock (Gate)
+            {
+                BitmapSource cached;
+                if (LargeMemory.TryGetValue(url, out cached))
+                {
+                    LargeOrder.Remove(url);
+                    LargeOrder.AddFirst(url);
+                    if (callback != null) callback(cached);
+                    return;
+                }
+            }
+            string captured = url;
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                BitmapSource image = null;
+                try { image = Load(captured, LargeDecodeWidth); }
+                catch (Exception ex)
+                {
+                    if (imageErrorsLogged < 8)
+                    {
+                        imageErrorsLogged++;
+                        try { HttpUtil.AppendLog("Bannière non chargée · " + captured + " · " + ex.GetBaseException().Message); } catch { }
+                    }
+                }
+                lock (Gate)
+                {
+                    if (image != null)
+                    {
+                        LargeMemory[captured] = image;
+                        LargeOrder.Remove(captured);
+                        LargeOrder.AddFirst(captured);
+                        while (LargeMemory.Count > 10 && LargeOrder.Last != null)
+                        {
+                            LargeMemory.Remove(LargeOrder.Last.Value);
+                            LargeOrder.RemoveLast();
+                        }
+                    }
+                }
+                var dispatcher = Application.Current == null ? null : Application.Current.Dispatcher;
+                if (dispatcher != null)
+                {
+                    dispatcher.BeginInvoke(new Action(delegate
+                    {
+                        try { if (callback != null) callback(image); } catch { }
+                    }));
+                }
+            });
+        }
+
         static void Worker(object state)
         {
             while (true)
@@ -121,7 +181,7 @@ namespace LyaranTV
                 BitmapSource image = Get(request.Url) as BitmapSource;
                 if (image == null)
                 {
-                    try { image = Load(request.Url); }
+                    try { image = Load(request.Url, DecodeWidth); }
                     catch (Exception imageError)
                     {
                         if (imageErrorsLogged < 8)
@@ -228,7 +288,7 @@ namespace LyaranTV
             }
         }
 
-        static BitmapSource Load(string url)
+        static BitmapSource Load(string url, int decodeWidth)
         {
             if (HostBlocked(url))
             {
@@ -279,7 +339,7 @@ namespace LyaranTV
             }
             try
             {
-                BitmapSource decoded = Decode(bytes);
+                BitmapSource decoded = DecodeAt(bytes, decodeWidth);
                 ReportHostResult(url, true);
                 return decoded;
             }
@@ -393,11 +453,16 @@ namespace LyaranTV
 
         internal static BitmapSource Decode(byte[] bytes)
         {
+            return DecodeAt(bytes, DecodeWidth);
+        }
+
+        internal static BitmapSource DecodeAt(byte[] bytes, int width)
+        {
             if (bytes == null || bytes.Length == 0) return null;
             var bitmap = new BitmapImage();
             bitmap.BeginInit();
             bitmap.CacheOption = BitmapCacheOption.OnLoad;
-            bitmap.DecodePixelWidth = DecodeWidth;
+            bitmap.DecodePixelWidth = width;
             bitmap.StreamSource = new MemoryStream(bytes);
             bitmap.EndInit();
             bitmap.Freeze();
@@ -474,6 +539,7 @@ namespace LyaranTV
     {
         public static readonly DependencyProperty UrlProperty = DependencyProperty.Register("Url", typeof(string), typeof(AsyncImage), new PropertyMetadata(null, OnUrlChanged));
         public static readonly DependencyProperty FadeInProperty = DependencyProperty.Register("FadeIn", typeof(bool), typeof(AsyncImage), new PropertyMetadata(false));
+        public static readonly DependencyProperty HighQualityProperty = DependencyProperty.Register("HighQuality", typeof(bool), typeof(AsyncImage), new PropertyMetadata(false));
 
         public string Url
         {
@@ -490,6 +556,16 @@ namespace LyaranTV
 
         /// <summary>Déclenché sur le fil d'interface quand l'image n'a pas pu être chargée.</summary>
         public event Action<string> Failed;
+
+        /// <summary>
+        /// Décode l'image en haute définition : réservé aux bannières plein
+        /// cadre, où une vignette 420 px paraîtrait floue.
+        /// </summary>
+        public bool HighQuality
+        {
+            get { return (bool)GetValue(HighQualityProperty); }
+            set { SetValue(HighQualityProperty, value); }
+        }
 
         /// <summary>
         /// Teinte dominante de l'image, calculée à l'arrivée du visuel : une fiche
@@ -521,6 +597,21 @@ namespace LyaranTV
             string url = e.NewValue as string;
             if (String.IsNullOrWhiteSpace(url)) return;
             image.EnsureShimmer();
+            if (image.HighQuality)
+            {
+                ImageCache.GetLargeAsync(url, delegate(ImageSource source)
+                {
+                    if (!String.Equals(image.Url, url, StringComparison.OrdinalIgnoreCase)) return;
+                    if (source == null)
+                    {
+                        image.RemoveShimmer();
+                        if (image.Failed != null) image.Failed(url);
+                        return;
+                    }
+                    image.ApplyImage(source);
+                });
+                return;
+            }
             ImageSource cached = ImageCache.Get(url);
             if (cached != null) { image.ApplyImage(cached); return; }
             ImageCache.GetAsync(url, delegate(ImageSource source)

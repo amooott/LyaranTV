@@ -554,6 +554,10 @@ namespace LyaranTV
             if (String.IsNullOrWhiteSpace(settings.TmdbApiKey) && !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("LYARANTV_TMDB_KEY")))
                 stack.Children.Add(Text("Une clé est fournie par la variable d’environnement LYARANTV_TMDB_KEY.", 10, Brush(Success), false));
 
+            // Sources d'affiches complémentaires : la liste explique clairement
+            // lesquelles demandent une clé et lesquelles restent sans compte.
+            stack.Children.Add(BuildArtworkSourcesCard());
+
             // Sous-titres en ligne : la clé n'est utilisée que sur demande explicite
             // depuis le lecteur (bouton « Chercher sur OpenSubtitles »).
             var subtitleKeyRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
@@ -623,10 +627,101 @@ namespace LyaranTV
             cacheActions.Children.Add(Button(Glyphs.Refresh, "Actualiser les métadonnées", delegate { StartTmdbEnrichment(); ShowToast("Recherche TMDb lancée en arrière-plan.", false, false); }, false));
             stack.Children.Add(cacheActions);
 
-            var attribution = Text(TmdbClient.Attribution + " Affiches et synopsis de secours : TVmaze, IMDb et Wikipédia (" + TextUtil.Count(ArtworkStore.Count, "fiche") + " en cache). Les métadonnées restent facultatives : sans réseau, chaque contenu garde une vignette dessinée à partir de son titre.", 9.8, Brush(Muted), false);
+            var attribution = Text(TmdbClient.Attribution + " " + ArtworkResolver.Attribution + " (" + TextUtil.Count(ArtworkStore.Count, "fiche") + " en cache). Les métadonnées restent facultatives : sans réseau, chaque contenu garde une vignette dessinée à partir de son titre.", 9.8, Brush(Muted), false);
             attribution.Margin = new Thickness(0, 10, 0, 0);
             stack.Children.Add(attribution);
             return stack;
+        }
+
+        /// <summary>
+        /// Carte « Sources d'affiches » : catalogue lisible, état de chaque
+        /// source et champs de clés pour OMDb, Fanart.tv et TheTVDB.
+        /// </summary>
+        StackPanel BuildArtworkSourcesCard()
+        {
+            var stack = new StackPanel();
+            stack.Children.Add(Text("Sources d'affiches", 14, Brush(TextPrimary), true));
+            var intro = Text("LyaranTV combine plusieurs sources. TMDb, OMDb, Fanart.tv et TheTVDB demandent une clé personnelle ; TVmaze, IMDb, iTunes et Wikipédia fonctionnent sans compte. ThePosterDB, MoviePosterDB, IMP Awards et Cinematerial restent des sources de recherche manuelle.", 10.5, Brush(Muted), false);
+            intro.TextWrapping = TextWrapping.Wrap;
+            intro.Margin = new Thickness(0, 5, 0, 10);
+            stack.Children.Add(intro);
+
+            foreach (var source in ArtworkResolver.Catalog)
+            {
+                var row = new Grid { Margin = new Thickness(0, 0, 0, 7) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var left = new StackPanel();
+                var titleRow = new StackPanel { Orientation = Orientation.Horizontal };
+                titleRow.Children.Add(Text(source.Name, 11.5, Brush(TextPrimary), true));
+                var badge = new Border
+                {
+                    CornerRadius = new CornerRadius(6), Padding = new Thickness(7, 2, 7, 2), Margin = new Thickness(8, 0, 0, 0),
+                    Background = source.RequiresKey ? Brush(WithAlpha(Accent, 36)) : Brush(WithAlpha(Success, 26)),
+                    BorderBrush = source.RequiresKey ? Brush(WithAlpha(Accent, 90)) : Brush(WithAlpha(Success, 70)),
+                    BorderThickness = new Thickness(1),
+                    Child = Text(source.RequiresKey ? "clé requise" : "sans clé", 9.5,
+                        source.RequiresKey ? Brush(Accent) : Brush(Success), true)
+                };
+                titleRow.Children.Add(badge);
+                left.Children.Add(titleRow);
+                var note = Text(source.Note, 10, Brush(Muted), false);
+                note.TextWrapping = TextWrapping.Wrap;
+                note.Margin = new Thickness(0, 2, 0, 0);
+                left.Children.Add(note);
+                Grid.SetColumn(left, 0);
+                row.Children.Add(left);
+
+                bool ready = !source.RequiresKey || ArtworkResolver.HasKey(source.Setting);
+                var state = Text(ready ? (source.RequiresKey ? "Prête" : "Active") : "À configurer", 10,
+                    ready ? Brush(Success) : Brush(WithAlpha(Muted, 220)), true);
+                state.VerticalAlignment = VerticalAlignment.Center;
+                state.Margin = new Thickness(12, 0, 0, 0);
+                Grid.SetColumn(state, 1);
+                row.Children.Add(state);
+                stack.Children.Add(row);
+            }
+
+            stack.Children.Add(new Border { Height = 1, Background = Brush(WithAlpha(BorderColor, 150)), Margin = new Thickness(0, 6, 0, 12) });
+            stack.Children.Add(ArtworkKeyEditor("omdb", "Clé API OMDb", "Gratuite sur omdbapi.com. Complète les affiches et les notes IMDb quand les sources publiques ne trouvent rien.", settings.OmdbApiKey, "LYARANTV_OMDB_KEY"));
+            stack.Children.Add(ArtworkKeyEditor("fanart", "Clé API Fanart.tv", "Gratuite sur fanart.tv. Fournit des affiches et arrière-plans haute définition.", settings.FanartApiKey, "LYARANTV_FANART_KEY"));
+            stack.Children.Add(ArtworkKeyEditor("tvdb", "Clé API TheTVDB", "Gratuite sur thetvdb.com. Utile pour les séries anciennes ou peu référencées.", settings.TvdbApiKey, "LYARANTV_TVDB_KEY"));
+            return stack;
+        }
+
+        UIElement ArtworkKeyEditor(string setting, string label, string hint, string current, string environment)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+            var box = StyledPasswordBox();
+            box.Width = 300;
+            box.Password = current ?? "";
+            box.Margin = new Thickness(0, 0, 7, 0);
+            box.ToolTip = "Stockée localement dans vos réglages, jamais incluse dans LyaranTV.";
+            row.Children.Add(box);
+            row.Children.Add(Button(Glyphs.Save, "Enregistrer", delegate
+            {
+                string value = (box.Password ?? "").Trim();
+                if (setting == "omdb") settings.OmdbApiKey = value;
+                else if (setting == "fanart") settings.FanartApiKey = value;
+                else if (setting == "tvdb") settings.TvdbApiKey = value;
+                SaveSettings();
+                ArtworkResolver.Configure(settings);
+                ShowSettings();
+                Notice(value.Length == 0
+                    ? label + " effacée. La source reste désactivée."
+                    : label + " enregistrée. Les prochaines affiches pourront l'utiliser.");
+            }, false));
+            var editor = SettingsRow(label, hint + " Variable possible : " + environment + ".", row);
+            if (String.IsNullOrWhiteSpace(current) && !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(environment)))
+            {
+                var note = Text("Une clé est fournie par la variable d’environnement " + environment + ".", 10, Brush(Success), false);
+                note.Margin = new Thickness(0, 0, 0, 8);
+                var wrapper = new StackPanel();
+                wrapper.Children.Add(editor);
+                wrapper.Children.Add(note);
+                return wrapper;
+            }
+            return editor;
         }
 
         StackPanel BuildLanguageModeSettings()
@@ -945,10 +1040,19 @@ namespace LyaranTV
                 ShowError("Un profil porte déjà ce nom.");
                 return;
             }
+            // Étape obligatoire : chaque nouveau profil possède son propre compte.
+            var account = ShowAccountOnboarding(created);
+            if (account == null)
+            {
+                Notice("Création annulée : un compte IPTV est requis pour un nouveau profil.");
+                return;
+            }
+            allSources.Add(account);
+            SaveSources();
             profiles.Add(created);
             ProfileStore.Save(profiles);
             ShowSettings();
-            Notice("Profil « " + created.Name + " » ajouté.");
+            Notice("Profil « " + created.Name + " » ajouté avec son compte IPTV.");
         }
 
         void EditProfile(UserProfile profile)
@@ -973,6 +1077,10 @@ namespace LyaranTV
             if (!String.Equals(oldName, profile.Name, StringComparison.Ordinal))
             {
                 StateStore.RenameProfile(oldName, profile.Name);
+                // Les comptes suivent le profil renommé, sans changer de propriétaire.
+                foreach (var source in allSources)
+                    if (BelongsToProfile(source, oldName)) source.Profile = profile.Name;
+                SaveSources();
                 if (profile == activeProfile) { ProfileScope.Current = profile.Name; settings.ActiveProfile = profile.Name; }
             }
             ProfileStore.Save(profiles);
@@ -989,6 +1097,10 @@ namespace LyaranTV
             if (!AskConfirmation("Supprimer le profil", "Supprimer le profil « " + profile.Name + " » ? Ses favoris, son historique et ses positions de reprise seront supprimés.", "Supprimer")) return;
             bool wasActive = profile == activeProfile;
             profiles.Remove(profile);
+            // Les comptes IPTV du profil supprimé ne doivent pas rester
+            // accessibles aux autres profils.
+            allSources.RemoveAll(s => BelongsToProfile(s, profile.Name));
+            SaveSources();
             StateStore.DeleteProfile(profile.Name);
             if (wasActive)
             {
@@ -1378,7 +1490,7 @@ namespace LyaranTV
             if (dialog.ShowDialog(this) != true) return;
             try
             {
-                var data = StateStore.BuildPortable(settings, sources, favorites, recentIds, positions, profiles, hiddenChannels, hiddenGroups);
+                var data = StateStore.BuildPortable(settings, allSources, favorites, recentIds, positions, profiles, hiddenChannels, hiddenGroups);
                 StateStore.WritePortable(dialog.FileName, data);
                 ShowToast("Configuration exportée. Les mots de passe et codes PIN ne sont pas inclus.", false, true);
             }
@@ -1420,18 +1532,21 @@ namespace LyaranTV
                 settings.ActiveProfile = activeProfile.Name;
                 ProfileScope.Current = activeProfile.Name;
 
-                sources.Clear();
+                allSources.Clear();
                 foreach (var item in data.Sources)
                 {
                     var source = new PlaylistSource
                     {
                         Name = item.Name, Type = item.Type, Url = item.Url, Username = item.Username,
-                        FilePath = item.FilePath, EpgUrl = item.EpgUrl, DeviceType = item.DeviceType, IsDemo = item.IsDemo
+                        FilePath = item.FilePath, EpgUrl = item.EpgUrl, DeviceType = item.DeviceType, IsDemo = item.IsDemo,
+                        Profile = String.IsNullOrWhiteSpace(item.Profile) ? activeProfile.Name : item.Profile
                     };
                     var old = oldSources.FirstOrDefault(s => String.Equals(s.Name, source.Name, StringComparison.OrdinalIgnoreCase));
                     if (old != null) { source.Password = old.Password; source.MacAddress = old.MacAddress; }
-                    sources.Add(source);
+                    allSources.Add(source);
                 }
+                sources.Clear();
+                sources.AddRange(allSources.Where(s => BelongsToProfile(s, activeProfile.Name)));
                 favorites.Clear(); foreach (string value in data.Favorites) favorites.Add(value);
                 recentIds.Clear(); recentIds.AddRange(data.Recent);
                 positions.Clear(); foreach (var pair in data.Positions) positions[pair.Key] = pair.Value;
@@ -1439,7 +1554,7 @@ namespace LyaranTV
                 hiddenGroups.Clear(); foreach (string value in data.HiddenGroups) hiddenGroups.Add(value);
 
                 ProfileStore.Save(profiles);
-                SourceStore.Save(sources);
+                SourceStore.Save(allSources);
                 SaveState();
                 SaveSettings();
                 ReloadEverything();

@@ -27,6 +27,9 @@ namespace LyaranTV
         [DataMember] public int LastCount { get; set; }
         [DataMember] public string LastLoaded { get; set; }
         [DataMember] public bool IsDemo { get; set; }
+        // Profil propriétaire du compte. Chaque profil garde ses propres
+        // sources : rien n'est partagé entre deux personnes.
+        [DataMember] public string Profile { get; set; }
 
         public string Location { get { return !String.IsNullOrWhiteSpace(FilePath) ? FilePath : Url; } }
         public string DisplayType
@@ -119,8 +122,11 @@ namespace LyaranTV
         [DataMember] public string Ambience = "Équilibrée";
         // Teinte légèrement les surfaces avec l'accent au lieu d'un gris neutre.
         [DataMember] public bool TintedBackground = false;
-        // Barre latérale réduite aux icônes : plus de place pour les affiches.
+        // Ancien mode « barre latérale réduite » : conservé pour lire les
+        // réglages existants, mais remplacé par le menu hamburger.
         [DataMember] public bool CompactSidebar = false;
+        // Colonne des fonctionnalités masquée par le bouton hamburger.
+        [DataMember] public bool SidebarHidden = false;
         // Navigation pensée pour une manette ou une télécommande : focus spatial
         // et clavier virtuel dans la recherche.
         [DataMember] public bool TvNavigation = false;
@@ -170,6 +176,12 @@ namespace LyaranTV
         [DataMember] public bool TmdbEnabled = true;
         [DataMember] public string TmdbApiKey = "";
         [DataMember] public string OpenSubtitlesKey = "";
+        // Sources d'affiches complémentaires. Toutes sont facultatives : sans
+        // clé, LyaranTV continue avec les sources publiques (TVmaze, IMDb,
+        // iTunes, Wikipédia).
+        [DataMember] public string OmdbApiKey = "";
+        [DataMember] public string FanartApiKey = "";
+        [DataMember] public string TvdbApiKey = "";
         [DataMember] public string TmdbLanguage = "fr-FR";
         [DataMember] public int TmdbCacheLimit = 300;
         [DataMember] public string ActiveProfile = "Principal";
@@ -374,6 +386,7 @@ namespace LyaranTV
         [DataMember] public string EpgUrl = "";
         [DataMember] public string DeviceType = "";
         [DataMember] public bool IsDemo = false;
+        [DataMember] public string Profile = "";
     }
 
     [DataContract]
@@ -640,7 +653,7 @@ namespace LyaranTV
                 Password = null, PasswordProtected = CredentialVault.Protect(p.Password),
                 MacAddress = null, MacAddressProtected = CredentialVault.Protect(p.MacAddress),
                 DeviceType = p.DeviceType, FilePath = p.FilePath, EpgUrl = p.EpgUrl,
-                LastCount = p.LastCount, LastLoaded = p.LastLoaded, IsDemo = p.IsDemo
+                LastCount = p.LastCount, LastLoaded = p.LastLoaded, IsDemo = p.IsDemo, Profile = p.Profile
             }).ToList();
         }
 
@@ -1121,11 +1134,15 @@ namespace LyaranTV
             };
             data.Settings.TmdbApiKey = "";
             data.Settings.OpenSubtitlesKey = "";
+            data.Settings.OmdbApiKey = "";
+            data.Settings.FanartApiKey = "";
+            data.Settings.TvdbApiKey = "";
             data.Settings.ParentalPinProtected = "";
             data.Sources = (sources ?? new List<PlaylistSource>()).Select(s => new PortableSource
             {
                 Name = s.Name ?? "", Type = s.Type ?? "", Url = s.Url ?? "", Username = s.Username ?? "",
-                FilePath = s.FilePath ?? "", EpgUrl = s.EpgUrl ?? "", DeviceType = s.DeviceType ?? "", IsDemo = s.IsDemo
+                FilePath = s.FilePath ?? "", EpgUrl = s.EpgUrl ?? "", DeviceType = s.DeviceType ?? "", IsDemo = s.IsDemo,
+                Profile = s.Profile ?? ""
             }).ToList();
             data.Profiles = (profiles ?? new List<UserProfile>()).Select(p => new UserProfile
             {

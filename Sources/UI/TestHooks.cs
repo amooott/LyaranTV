@@ -97,7 +97,8 @@ namespace LyaranTV
                 ShowToast("Fichier d'exemple introuvable.", true, false);
                 return;
             }
-            var source = new PlaylistSource { Name = "Exemple LyaranTV", Type = "M3U/M3U8", FilePath = path };
+            var source = new PlaylistSource { Name = "Exemple LyaranTV", Type = "M3U/M3U8", FilePath = path, Profile = activeProfile == null ? "" : activeProfile.Name };
+            allSources.Add(source);
             sources.Add(source);
             SaveSources();
             RebuildSidebar();

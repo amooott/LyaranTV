@@ -39,6 +39,10 @@ namespace LyaranTV
         [DataMember] public double Rating;
         [DataMember] public string Source = "";
         [DataMember] public string Updated = "";
+        // Identifiants gardés pour les sources qui en dépendent (Fanart.tv,
+        // TheTVDB) sans imposer une seconde recherche par titre.
+        [DataMember] public string ImdbId = "";
+        [DataMember] public string TvdbId = "";
         [DataMember] public List<ArtworkEpisode> Episodes = new List<ArtworkEpisode>();
 
         public bool HasPoster { get { return !String.IsNullOrWhiteSpace(Poster); } }
@@ -169,9 +173,77 @@ namespace LyaranTV
     /// synopsis) et iTunes (films). Les requêtes sont mises en file, limitées en
     /// cadence et mises en cache sur disque, comme TMDb.
     /// </summary>
+    /// <summary>
+    /// Description d'une source d'affiches, affichée dans les réglages pour
+    /// expliquer clairement quelles sources demandent une clé API.
+    /// </summary>
+    internal sealed class ArtworkSourceInfo
+    {
+        public string Name;
+        public string Setting;
+        public string Site;
+        public string Note;
+        public bool RequiresKey;
+    }
+
     internal static class ArtworkResolver
     {
-        public const string Attribution = "Affiches et synopsis complémentaires : TVmaze, IMDb et Wikipédia.";
+        public const string Attribution = "Affiches et synopsis complémentaires : TMDb, TVmaze, IMDb, iTunes, OMDb, Fanart.tv, TheTVDB et Wikipédia.";
+
+        /// <summary>
+        /// Catalogue des sources utilisées ou proposées. Les quatre premières
+        /// demandent une clé personnelle ; les suivantes fonctionnent sans clé.
+        /// ThePosterDB, MoviePosterDB, IMP Awards et Cinematerial restent des
+        /// sources de recherche manuelle : aucune clé, mais aucun scraping
+        /// fragile n'est effectué.
+        /// </summary>
+        public static readonly ArtworkSourceInfo[] Catalog = new[]
+        {
+            new ArtworkSourceInfo { Name = "TMDb", Setting = "tmdb", Site = "https://www.themoviedb.org/settings/api", Note = "Clé API v3 gratuite.", RequiresKey = true },
+            new ArtworkSourceInfo { Name = "OMDb", Setting = "omdb", Site = "https://www.omdbapi.com/apikey.aspx", Note = "Clé gratuite (1 000 requêtes/jour).", RequiresKey = true },
+            new ArtworkSourceInfo { Name = "Fanart.tv", Setting = "fanart", Site = "https://fanart.tv/get-an-api-key/", Note = "Clé personnelle gratuite.", RequiresKey = true },
+            new ArtworkSourceInfo { Name = "TheTVDB", Setting = "tvdb", Site = "https://thetvdb.com/api-information", Note = "Clé API v4 gratuite.", RequiresKey = true },
+            new ArtworkSourceInfo { Name = "TVmaze", Setting = "", Site = "https://www.tvmaze.com/api", Note = "Sans clé · séries et épisodes.", RequiresKey = false },
+            new ArtworkSourceInfo { Name = "IMDb", Setting = "", Site = "https://www.imdb.com/", Note = "Sans clé · suggestions et affiches.", RequiresKey = false },
+            new ArtworkSourceInfo { Name = "iTunes", Setting = "", Site = "https://itunes.apple.com/", Note = "Sans clé · affiches de films.", RequiresKey = false },
+            new ArtworkSourceInfo { Name = "Wikipédia", Setting = "", Site = "https://fr.wikipedia.org/", Note = "Sans clé · synopsis d'appoint.", RequiresKey = false },
+            new ArtworkSourceInfo { Name = "ThePosterDB", Setting = "", Site = "https://theposterdb.com/", Note = "Sans clé · recherche manuelle.", RequiresKey = false },
+            new ArtworkSourceInfo { Name = "MoviePosterDB", Setting = "", Site = "https://www.movieposterdb.com/", Note = "Sans clé · recherche manuelle.", RequiresKey = false },
+            new ArtworkSourceInfo { Name = "IMP Awards", Setting = "", Site = "https://www.impawards.com/", Note = "Sans clé · recherche manuelle.", RequiresKey = false },
+            new ArtworkSourceInfo { Name = "Cinematerial", Setting = "", Site = "https://cinematerial.com/", Note = "Sans clé · recherche manuelle.", RequiresKey = false }
+        };
+
+        static string omdbKey = "";
+        static string fanartKey = "";
+        static string tvdbKey = "";
+
+        /// <summary>Applique les clés saisies dans les réglages, ou celles des variables d'environnement.</summary>
+        public static void Configure(AppSettings settings)
+        {
+            CurrentSettings = settings;
+            omdbKey = FirstKey(settings == null ? null : settings.OmdbApiKey, "LYARANTV_OMDB_KEY");
+            fanartKey = FirstKey(settings == null ? null : settings.FanartApiKey, "LYARANTV_FANART_KEY");
+            tvdbKey = FirstKey(settings == null ? null : settings.TvdbApiKey, "LYARANTV_TVDB_KEY");
+        }
+
+        static string FirstKey(string value, string environment)
+        {
+            string key = (value ?? "").Trim();
+            if (key.Length == 0) key = (Environment.GetEnvironmentVariable(environment) ?? "").Trim();
+            return key;
+        }
+
+        public static bool HasKey(string setting)
+        {
+            if (String.Equals(setting, "tmdb", StringComparison.OrdinalIgnoreCase)) return TmdbClient.IsConfigured(CurrentSettings);
+            if (String.Equals(setting, "omdb", StringComparison.OrdinalIgnoreCase)) return omdbKey.Length > 0;
+            if (String.Equals(setting, "fanart", StringComparison.OrdinalIgnoreCase)) return fanartKey.Length > 0;
+            if (String.Equals(setting, "tvdb", StringComparison.OrdinalIgnoreCase)) return tvdbKey.Length > 0;
+            return true;
+        }
+
+        // Réglages courants, uniquement pour l'état affiché dans les réglages.
+        internal static AppSettings CurrentSettings;
 
         sealed class Job
         {
@@ -305,20 +377,189 @@ namespace LyaranTV
             {
                 // TVmaze ne couvre pas tout et n'a pas toujours d'affiche :
                 // l'image IMDb complète la fiche.
-                var imdb = FetchImdb(title, true, year);
-                if (imdb != null)
-                {
-                    if (record == null) record = imdb;
-                    else
-                    {
-                        if (String.IsNullOrWhiteSpace(record.Poster)) record.Poster = imdb.Poster;
-                        if (String.IsNullOrWhiteSpace(record.Year)) record.Year = imdb.Year;
-                        record.Source = "TVmaze/IMDb";
-                    }
-                }
-                if (record != null && String.IsNullOrWhiteSpace(record.Overview)) record.Overview = FetchWikipedia(title, true);
+                record = Merge(record, FetchImdb(title, true, year));
             }
+            // Sources facultatives : elles ne prennent le relais que si les
+            // sources publiques n'ont pas fourni d'affiche.
+            if (record == null || !record.HasPoster) record = Merge(record, FetchOmdb(title, true, year));
+            if (record == null || !record.HasPoster) record = Merge(record, FetchTvdb(title, true, year));
+            if (record == null || !record.HasPoster)
+                record = Merge(record, FetchFanart(record == null ? "" : record.ImdbId, record == null ? "" : record.TvdbId, true));
+            if (record != null && String.IsNullOrWhiteSpace(record.Overview)) record.Overview = FetchWikipedia(title, true);
             return record;
+        }
+
+        /// <summary>Fusionne deux fiches sans écraser ce qui est déjà trouvé.</summary>
+        static ArtworkRecord Merge(ArtworkRecord record, ArtworkRecord extra)
+        {
+            if (extra == null) return record;
+            if (record == null) return extra;
+            if (String.IsNullOrWhiteSpace(record.Poster)) record.Poster = extra.Poster;
+            if (String.IsNullOrWhiteSpace(record.Overview)) record.Overview = extra.Overview;
+            if (String.IsNullOrWhiteSpace(record.Genres)) record.Genres = extra.Genres;
+            if (String.IsNullOrWhiteSpace(record.Year)) record.Year = extra.Year;
+            if (record.Rating <= 0) record.Rating = extra.Rating;
+            if (String.IsNullOrWhiteSpace(record.ImdbId)) record.ImdbId = extra.ImdbId;
+            if (String.IsNullOrWhiteSpace(record.TvdbId)) record.TvdbId = extra.TvdbId;
+            if (String.IsNullOrWhiteSpace(record.Source)) record.Source = extra.Source;
+            else if (!String.IsNullOrWhiteSpace(extra.Source)
+                && record.Source.IndexOf(extra.Source, StringComparison.OrdinalIgnoreCase) < 0)
+                record.Source += "/" + extra.Source;
+            if ((record.Episodes == null || record.Episodes.Count == 0) && extra.Episodes != null && extra.Episodes.Count > 0)
+                record.Episodes = extra.Episodes;
+            return record;
+        }
+
+        // ------------------------------------------------------------------- OMDb
+
+        static ArtworkRecord FetchOmdb(string title, bool series, string year)
+        {
+            if (omdbKey.Length == 0) return null;
+            string url = "https://www.omdbapi.com/?apikey=" + Uri.EscapeDataString(omdbKey)
+                + "&t=" + Uri.EscapeDataString(title) + "&type=" + (series ? "series" : "movie") + "&plot=short";
+            if (!String.IsNullOrWhiteSpace(year)) url += "&y=" + Uri.EscapeDataString(year);
+            Dictionary<string, object> root;
+            try { root = Json(HttpUtil.GetString(url, 12000, "LyaranTV/2.0")); }
+            catch { return null; }
+            if (root == null || !String.Equals(Val(root, "Response"), "True", StringComparison.OrdinalIgnoreCase)) return null;
+            string poster = Val(root, "Poster");
+            if (String.Equals(poster, "N/A", StringComparison.OrdinalIgnoreCase)) poster = "";
+            string overview = Val(root, "Plot");
+            if (String.Equals(overview, "N/A", StringComparison.OrdinalIgnoreCase)) overview = "";
+            string genres = Val(root, "Genre");
+            if (String.Equals(genres, "N/A", StringComparison.OrdinalIgnoreCase)) genres = "";
+            var record = new ArtworkRecord
+            {
+                Title = Val(root, "Title"),
+                Source = "OMDb",
+                Poster = poster,
+                Overview = overview,
+                Genres = genres,
+                Year = FirstYear(Val(root, "Year")),
+                ImdbId = Val(root, "imdbID")
+            };
+            double rating;
+            if (Double.TryParse(Val(root, "imdbRating"), NumberStyles.Float, CultureInfo.InvariantCulture, out rating)) record.Rating = rating;
+            return record.HasPoster || record.Overview.Length > 0 ? record : null;
+        }
+
+        // ----------------------------------------------------------------- TheTVDB
+
+        static string tvdbToken = "";
+        static DateTime tvdbTokenAt = DateTime.MinValue;
+
+        static string TvdbToken()
+        {
+            if (tvdbKey.Length == 0) return "";
+            if (!String.IsNullOrWhiteSpace(tvdbToken) && (DateTime.UtcNow - tvdbTokenAt).TotalHours < 20) return tvdbToken;
+            try
+            {
+                string body = "{\"apikey\":\"" + tvdbKey.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"}";
+                string text = HttpUtil.ApiRequest("https://api4.thetvdb.com/v4/login", "POST", body, 12000, "LyaranTV/2.0", null);
+                var root = Json(text);
+                var data = Child(root, "data");
+                tvdbToken = data == null ? "" : Val(data, "token");
+                tvdbTokenAt = DateTime.UtcNow;
+            }
+            catch { tvdbToken = ""; }
+            return tvdbToken;
+        }
+
+        static ArtworkRecord FetchTvdb(string title, bool series, string year)
+        {
+            string token = TvdbToken();
+            if (token.Length == 0) return null;
+            string url = "https://api4.thetvdb.com/v4/search?query=" + Uri.EscapeDataString(title)
+                + "&type=" + (series ? "series" : "movie");
+            Dictionary<string, object> root;
+            try
+            {
+                var headers = new Dictionary<string, string>();
+                headers["Authorization"] = "Bearer " + token;
+                root = Json(HttpUtil.ApiRequest(url, "GET", null, 12000, "LyaranTV/2.0", headers));
+            }
+            catch { return null; }
+            if (root == null) return null;
+            Dictionary<string, object> best = null;
+            int bestScore = 0;
+            foreach (object entry in Arr(root, "data"))
+            {
+                var item = entry as Dictionary<string, object>;
+                if (item == null) continue;
+                string name = Val(item, "name");
+                if (!LooksSame(title, name)) continue;
+                int score = Similarity(title, name) * 10;
+                string foundYear = FirstYear(Val(item, "year"));
+                if (year.Length > 0 && foundYear.Length > 0 && year == foundYear) score += 30;
+                if (score > bestScore) { bestScore = score; best = item; }
+            }
+            if (best == null) return null;
+            string poster = Val(best, "image_url");
+            if (String.IsNullOrWhiteSpace(poster)) return null;
+            return new ArtworkRecord
+            {
+                Title = Val(best, "name"),
+                Source = "TheTVDB",
+                Poster = poster,
+                Year = FirstYear(Val(best, "year")),
+                TvdbId = Val(best, "tvdb_id").Length > 0 ? Val(best, "tvdb_id") : Val(best, "objectID")
+            };
+        }
+
+        // ----------------------------------------------------------------- Fanart.tv
+
+        static ArtworkRecord FetchFanart(string imdbId, string tvdbId, bool series)
+        {
+            if (fanartKey.Length == 0) return null;
+            string url;
+            if (series)
+            {
+                if (String.IsNullOrWhiteSpace(tvdbId)) return null;
+                url = "https://webservice.fanart.tv/v3/tv/" + Uri.EscapeDataString(tvdbId);
+            }
+            else
+            {
+                if (String.IsNullOrWhiteSpace(imdbId)) return null;
+                url = "https://webservice.fanart.tv/v3/movies/" + Uri.EscapeDataString(imdbId);
+            }
+            url += "?api_key=" + Uri.EscapeDataString(fanartKey);
+            Dictionary<string, object> root;
+            try { root = Json(HttpUtil.GetString(url, 12000, "LyaranTV/2.0")); }
+            catch { return null; }
+            if (root == null) return null;
+            string[] keys = series
+                ? new[] { "tvposter", "showbackground" }
+                : new[] { "movieposter", "moviebackground" };
+            foreach (string key in keys)
+            {
+                string poster = PickFanartImage(Arr(root, key));
+                if (String.IsNullOrWhiteSpace(poster)) continue;
+                return new ArtworkRecord
+                {
+                    Title = "",
+                    Source = "Fanart.tv",
+                    Poster = poster,
+                    TvdbId = tvdbId ?? ""
+                };
+            }
+            return null;
+        }
+
+        static string PickFanartImage(System.Collections.IEnumerable entries)
+        {
+            string fallback = "";
+            foreach (object entry in entries)
+            {
+                var item = entry as Dictionary<string, object>;
+                if (item == null) continue;
+                string url = Val(item, "url");
+                if (String.IsNullOrWhiteSpace(url)) continue;
+                string language = Val(item, "lang");
+                if (String.Equals(language, "fr", StringComparison.OrdinalIgnoreCase)) return url;
+                if (String.IsNullOrWhiteSpace(fallback)
+                    || String.Equals(language, "en", StringComparison.OrdinalIgnoreCase)) fallback = url;
+            }
+            return fallback;
         }
 
         static ArtworkRecord FetchTvmaze(string title)
@@ -382,18 +623,12 @@ namespace LyaranTV
             {
                 // Le catalogue iTunes complète IMDb : il référence des films
                 // absents des suggestions et fournit une affiche de bonne taille.
-                var itunes = FetchItunes(title, year);
-                if (itunes != null)
-                {
-                    if (record == null) record = itunes;
-                    else if (String.IsNullOrWhiteSpace(record.Poster))
-                    {
-                        record.Poster = itunes.Poster;
-                        if (String.IsNullOrWhiteSpace(record.Year)) record.Year = itunes.Year;
-                        record.Source += "/iTunes";
-                    }
-                }
+                record = Merge(record, FetchItunes(title, year));
             }
+            if (record == null || !record.HasPoster) record = Merge(record, FetchOmdb(title, false, year));
+            if (record == null || !record.HasPoster) record = Merge(record, FetchTvdb(title, false, year));
+            if (record == null || !record.HasPoster)
+                record = Merge(record, FetchFanart(record == null ? "" : record.ImdbId, record == null ? "" : record.TvdbId, false));
             if (record == null) return null;
             if (String.IsNullOrWhiteSpace(record.Overview)) record.Overview = FetchWikipedia(title, false);
             return record;

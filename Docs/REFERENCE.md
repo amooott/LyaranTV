@@ -1,6 +1,6 @@
 # Référence LyaranTV
 
-Cette référence décrit les commandes, raccourcis, formats, fichiers de données et points d'architecture de LyaranTV 1.6.0.
+Cette référence décrit les commandes, raccourcis, formats, fichiers de données et points d'architecture de LyaranTV 1.6.1.
 
 ## Ligne de commande
 
@@ -19,6 +19,7 @@ Cette référence décrit les commandes, raccourcis, formats, fichiers de donné
 | `LyaranTV.exe --profiles` | Force l'écran **« Qui regarde ? »** au lancement (captures et diagnostic). |
 | `LyaranTV.exe --fullscreen` | Bascule l'application en plein écran après le chargement (diagnostic). |
 | `LyaranTV.exe --selftest` | Exécute les auto-tests sans interface et écrit un journal. |
+| `LyaranTV.exe --logogallery <fichier.png>` | Génère la planche des vingt propositions de logo. |
 
 Les options peuvent être combinées, par exemple :
 
@@ -46,7 +47,7 @@ Au lancement normal, LyaranTV affiche un générique d'environ 1,8 s, puis l'éc
 | `Ctrl+R` | Actualiser la source active. |
 | `Ctrl+N` | Ajouter une playlist. |
 | `Ctrl+D` | Ajouter ou retirer le contenu en cours des favoris. |
-| `Ctrl+B` | Réduire la barre latérale aux icônes ou la rétablir. |
+| `Ctrl+B` | Escamoter ou ramener la barre latérale (même action que le hamburger). |
 | `F11` | Basculer toute l'application en plein écran (fenêtre sans bordure sur le moniteur courant). |
 | `Échap` | Quitter le plein écran ou la recherche ; dans la lecture, quitter le lecteur et revenir à l'interface ; dans les épisodes, à la page précédente. |
 | `Page préc.` / `Page suiv.` | Faire défiler la page active. |
@@ -201,7 +202,7 @@ Répertoire par défaut : `%APPDATA%\LyaranTV`. Surcharge : variable `LYARANTV_D
 | `hidden-groups.txt` | Catégories masquées. |
 | `tmdb-cache.json` | Métadonnées TMDb en cache (pas les images). |
 | `tmdb-matches.<profil>.json` | Correspondances TMDb confirmées manuellement, séparées par profil et source. |
-| `artwork-cache.json` | Affiches et synopsis de secours (TVmaze, IMDb, Wikipédia). |
+| `artwork-cache.json` | Affiches et synopsis de secours (TVmaze, IMDb, iTunes, OMDb, Fanart.tv, TheTVDB, Wikipédia). |
 | `covers\` | Cache disque des affiches et vignettes (`.img`, purge automatique). |
 | `sous-titres\` | Sous-titres téléchargés depuis OpenSubtitles. |
 | `error.log` | Journal local des erreurs. |
@@ -219,7 +220,7 @@ Réglages dans **Paramètres → Apparence**, enregistrés dans `settings.json` 
 | Seconde teinte | `AccentSecondary` | Couleur du dégradé des boutons, halos et accents secondaires. |
 | Ambiance | `Ambience` | `Discrète`, `Équilibrée`, `Vive` — intensité des halos de fond. |
 | Surfaces teintées | `TintedBackground` | `true` / `false` — teinte légère des panneaux par l'accent. |
-| Barre latérale compacte | `CompactSidebar` | `true` / `false` — colonne de 76 px réduite aux icônes. |
+| Barre latérale escamotée | `SidebarHidden` | `true` / `false` — la colonne glisse hors de l'écran et l'état est mémorisé. |
 | Écran des profils | `HideProfilePicker` | `false` par défaut : l'écran « Qui regarde ? » s'affiche. `true` ouvre directement le dernier profil. |
 | Navigation salon | `TvNavigation` | `true` / `false` — focus spatial, manette et clavier virtuel. |
 
@@ -229,7 +230,7 @@ Les valeurs inconnues sont normalisées au chargement : une ambiance invalide re
 
 - **Sauvegarde complète** `.lyaran` : archive ZIP de tous les fichiers du répertoire de données, identifiants chiffrés inclus.
 - **Restauration** : vérifie la présence de `settings.json` ou `playlists.json` avant de copier.
-- **Export JSON portable** : contient les playlists (sans mots de passe ni MAC), favoris, historique, positions, profils (sans PIN), masquages et réglages (sans clé TMDb ni PIN parental).
+- **Export JSON portable** : contient les playlists (sans mots de passe ni MAC), favoris, historique, positions, profils (sans PIN), masquages et réglages (sans clé TMDb, OpenSubtitles, OMDb, Fanart.tv ou TheTVDB, ni PIN parental).
 - **Import JSON portable** : refuse les fichiers dont le marqueur `"lyarantv-portable"` ou la version sont absents.
 - **Export M3U** : exporte la playlist active.
 
@@ -246,6 +247,18 @@ Attribution affichée dans l'application :
 
 > Ce produit utilise l'API TMDb mais n'est ni approuvé ni certifié par TMDb.
 
+## Sources d'affiches complémentaires
+
+En plus de TMDb, LyaranTV peut interroger trois services avec une clé personnelle. L'ordre de résolution est : clé saisie dans **Paramètres → Métadonnées et sous-titres → Sources d'affiches**, puis variable d'environnement.
+
+| Source | Champ | Variable |
+|---|---|---|
+| OMDb | `OmdbApiKey` | `LYARANTV_OMDB_KEY` |
+| Fanart.tv | `FanartApiKey` | `LYARANTV_FANART_KEY` |
+| TheTVDB | `TvdbApiKey` | `LYARANTV_TVDB_KEY` |
+
+TVmaze, IMDb, iTunes et Wikipédia ne demandent aucune clé. ThePosterDB, MoviePosterDB, IMP Awards et Cinematerial sont listés comme sources de recherche manuelle, sans requête automatisée. Ces clés sont omises des exports portables et ne sont jamais écrites dans les journaux.
+
 ## Architecture
 
 | Fichier | Responsabilité |
@@ -258,6 +271,7 @@ Attribution affichée dans l'application :
 | `Sources/Core/PlaylistLoader.cs` | M3U, Xtream, XMLTV et démonstration. |
 | `Sources/Core/StalkerClient.cs` | Portails MAC / Stalker. |
 | `Sources/Core/Tmdb.cs` | Nettoyage des titres, client TMDb, cache, enrichissement. |
+| `Sources/Core/Artwork.cs` | Sources d'affiches de secours : TVmaze, IMDb, iTunes, OMDb, Fanart.tv, TheTVDB, Wikipédia. |
 | `Sources/Core/Subtitles.cs` | Analyse SRT/WebVTT, sidecars, encodages. |
 | `Sources/Core/MediaTracks.cs` | Modèles de pistes, détection du conteneur, libellés de langue/codec, normalisation des cues. |
 | `Sources/Core/Mp4Tracks.cs` | Lecture ISO BMFF : pistes audio/sous-titres, extraction `tx3g`/`text`/`wvtt`. |
@@ -268,7 +282,10 @@ Attribution affichée dans l'application :
 | `Sources/UI/PagesLibrary.cs` | Bibliothèque découverte : hero rotatif, étagères, filtres, cartes et vue « Tout parcourir ». |
 | `Sources/UI/PagesPlayer.cs` | Lecteur, reprise, sous-titres, épisodes, lecture locale. |
 | `Sources/UI/PagesSeries.cs` | Page de série : hero, saisons, cartes d'épisodes et rangée sous le lecteur. |
-| `Sources/UI/ChannelDetail.cs` | Fiche de contenu pleine page, actions et réinitialisation TMDb. |
+| `Sources/UI/ChannelDetail.cs` | Aperçu intégré dans la colonne de gauche, actions et réinitialisation TMDb. |
+| `Sources/UI/AccountOnboarding.cs` | Étape obligatoire de création du compte IPTV d'un nouveau profil. |
+| `Sources/UI/ProgramUi.cs` | Cartes « à l'antenne », lignes de guide et tuiles de découverte. |
+| `Sources/UI/LogoLab.cs` | Vingt propositions de logo vectorielles et planche PNG. |
 | `Sources/UI/SubtitleSettings.cs` | Réglages d'apparence des sous-titres avec aperçu. |
 | `Sources/UI/PagesUpdates.cs` | Vérification des mises à jour et notes de version mises en forme. |
 | `Sources/UI/PagesGuide.cs` | Guide EPG. |

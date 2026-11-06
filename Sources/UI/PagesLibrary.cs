@@ -21,6 +21,7 @@ namespace LyaranTV
         int libraryHeroIndex;
         DateTime libraryHeroHoldUntil = DateTime.MinValue;
         AsyncImage libraryHeroImage, libraryHeroLogo;
+        Border libraryHeroPosterFrame;
         TextBlock libraryHeroGlyph, libraryHeroKicker, libraryHeroTitle, libraryHeroMeta, libraryHeroDescription;
         StackPanel libraryHeroContent, libraryHeroActions, libraryHeroDots;
         Channel libraryHeroChannel;
@@ -405,14 +406,17 @@ namespace LyaranTV
                 Margin = new Thickness(0, 0, 120, 30)
             });
 
-            libraryHeroImage = new AsyncImage { Stretch = Stretch.UniformToFill, Opacity = 0 };
+            libraryHeroImage = new AsyncImage { Stretch = Stretch.UniformToFill, Opacity = 0, HighQuality = true };
             visual.Children.Add(libraryHeroImage);
             // Signature discrète de l'application, toujours présente derrière l'affiche.
             visual.Children.Add(new Image
             {
                 Source = CreateLogoMark(), Width = 290, Height = 260, Stretch = Stretch.Uniform, Opacity = 0.07,
                 HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 46, 10), IsHitTestVisible = false
+                Margin = new Thickness(0, 0, 46, 10), IsHitTestVisible = false,
+                // Plus de logo fantôme : la bannière reste une vraie image,
+                // sans brillance ajoutée par le programme.
+                Visibility = Visibility.Collapsed
             });
 
             visual.Children.Add(new Border
@@ -439,7 +443,8 @@ namespace LyaranTV
                 FontSize = 46, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, Opacity = 0.1,
                 HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 48, 18), TextAlignment = TextAlignment.Right,
-                TextWrapping = TextWrapping.Wrap, MaxWidth = 350, LineHeight = 49
+                TextWrapping = TextWrapping.Wrap, MaxWidth = 350, LineHeight = 49,
+                Visibility = Visibility.Collapsed
             };
             visual.Children.Add(libraryHeroGlyph);
 
@@ -451,6 +456,19 @@ namespace LyaranTV
                 Margin = new Thickness(0, 80, 38, 0)
             };
             visual.Children.Add(libraryHeroLogo);
+
+            // Sans aucun visuel large, l'affiche portrait prend sa place à
+            // droite : la bannière reste remplie et lisible.
+            libraryHeroPosterFrame = new Border
+            {
+                Width = 196, Height = 294, CornerRadius = new CornerRadius(12), ClipToBounds = true,
+                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 12, 62, 0), BorderBrush = Brush(Color.FromArgb(22, 255, 255, 255)),
+                BorderThickness = new Thickness(1), Visibility = Visibility.Collapsed,
+                Effect = new DropShadowEffect { BlurRadius = 32, ShadowDepth = 12, Opacity = 0.5, Color = Colors.Black },
+                Child = new Grid()
+            };
+            visual.Children.Add(libraryHeroPosterFrame);
 
             libraryHeroContent = new StackPanel
             {
@@ -651,8 +669,12 @@ namespace LyaranTV
             }
             libraryHeroLogo.Url = hasImage ? null : channel.Logo;
             libraryHeroLogo.Visibility = !hasImage && !String.IsNullOrWhiteSpace(channel.Logo) ? Visibility.Visible : Visibility.Collapsed;
-            libraryHeroGlyph.Text = TextUtil.Ellipsis(TextUtil.DisplayTitle(channel.Name).ToUpperInvariant(), 34);
-            libraryHeroGlyph.Visibility = hasImage ? Visibility.Collapsed : Visibility.Visible;
+            bool posterContent = channel.Kind == "Films" || channel.Kind == "Séries"
+                || channel.Kind == "Épisodes" || !String.IsNullOrWhiteSpace(channel.Season);
+            libraryHeroPosterFrame.Child = posterContent && !hasImage ? CoverArt(channel, 196, 294, false) : new Grid();
+            libraryHeroPosterFrame.Visibility = posterContent && !hasImage ? Visibility.Visible : Visibility.Collapsed;
+            libraryHeroGlyph.Text = "";
+            libraryHeroGlyph.Visibility = Visibility.Collapsed;
 
             libraryHeroActions.Children.Clear();
             double saved = GetSavedPosition(channel);

@@ -274,13 +274,21 @@ namespace LyaranTV
             text.TextWrapping = TextWrapping.NoWrap;
             text.TextAlignment = TextAlignment.Center;
             text.HorizontalAlignment = HorizontalAlignment.Center;
+            text.RenderTransformOrigin = new Point(0.5, 0.5);
+            var textScale = new ScaleTransform(1, 1);
+            text.RenderTransform = textScale;
             stack.Children.Add(text);
-            stack.Children.Add(new Border
+            var underline = new Border
             {
                 Height = 2, CornerRadius = new CornerRadius(1), Margin = new Thickness(0, 7, 0, 0),
-                Background = active ? Brush(Accent) : Brushes.Transparent,
-                HorizontalAlignment = HorizontalAlignment.Stretch
-            });
+                Background = active ? Brush(Accent) : Brush(WithAlpha(Accent, 170)),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                RenderTransformOrigin = new Point(0.5, 0.5),
+                Opacity = active ? 1 : 0
+            };
+            var underlineScale = new ScaleTransform(active ? 1 : 0.25, 1);
+            underline.RenderTransform = underlineScale;
+            stack.Children.Add(underline);
             var button = new Button
             {
                 Content = stack, Height = 42, Padding = new Thickness(15, 0, 15, 0), Margin = new Thickness(0),
@@ -291,10 +299,26 @@ namespace LyaranTV
             if (!String.IsNullOrWhiteSpace(tooltip)) button.ToolTip = tooltip;
             if (!active)
             {
-                button.MouseEnter += delegate { text.Foreground = Brush(TextPrimary); };
-                button.MouseLeave += delegate { text.Foreground = Brush(Muted); };
-                button.GotKeyboardFocus += delegate { text.Foreground = Brush(TextPrimary); };
-                button.LostKeyboardFocus += delegate { text.Foreground = Brush(Muted); };
+                Action<bool> state = delegate(bool over)
+                {
+                    text.Foreground = over ? Brush(TextPrimary) : Brush(Muted);
+                    underline.Opacity = over ? 1 : 0;
+                    UiMotion.AnimateScale(textScale, over ? 1.05 : 1.0, over ? 140 : 170);
+                    var duration = TimeSpan.FromMilliseconds(over ? 150 : 130);
+                    var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+                    underlineScale.BeginAnimation(ScaleTransform.ScaleXProperty,
+                        new DoubleAnimation(over ? 1 : 0.25, duration) { EasingFunction = ease });
+                };
+                button.MouseEnter += delegate { state(true); };
+                button.MouseLeave += delegate { state(false); };
+                button.GotKeyboardFocus += delegate { state(true); };
+                button.LostKeyboardFocus += delegate { state(false); };
+            }
+            else
+            {
+                underlineScale.BeginAnimation(ScaleTransform.ScaleXProperty,
+                    new DoubleAnimation(0.25, 1, TimeSpan.FromMilliseconds(260))
+                    { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
             }
             if (click != null) button.Click += delegate { click(); };
             return button;
@@ -377,17 +401,9 @@ namespace LyaranTV
             var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
             disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.46, "Chrome"));
             template.Triggers.Add(disabled);
-            if (pressable)
-            {
-                // Réponse tactile à la Netflix : le bouton s'approche très
-                // légèrement sous le curseur et s'enfonce au clic.
-                var lift = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
-                lift.Setters.Add(new Setter(UIElement.RenderTransformProperty, new ScaleTransform(1.025, 1.025)));
-                template.Triggers.Add(lift);
-                var sink = new Trigger { Property = System.Windows.Controls.Button.IsPressedProperty, Value = true };
-                sink.Setters.Add(new Setter(UIElement.RenderTransformProperty, new ScaleTransform(0.975, 0.975)));
-                template.Triggers.Add(sink);
-            }
+            // Le mouvement est animé par UiMotion.AttachButton : un simple
+            // setter de RenderTransform remplacerait le ScaleTransform et
+            // rendrait le retour brutal au lieu d'un léger ressort.
             return template;
         }
 
@@ -966,6 +982,9 @@ namespace LyaranTV
         {
             card.MouseEnter += delegate { card.Background = hoverBackground; card.BorderBrush = hoverBorder; };
             card.MouseLeave += delegate { card.Background = normalBackground; card.BorderBrush = normalBorder; };
+            // Les cartes respirent au survol, sans dépasser leur cadre : le
+            // mouvement reste discret, comme une affiche effleurée.
+            UiMotion.AttachCard(card, 1.012);
         }
 
         static T FindAncestor<T>(DependencyObject current) where T : DependencyObject
@@ -1282,6 +1301,60 @@ namespace LyaranTV
             element.BeginAnimation(property, null);
             if (Reduced || milliseconds <= 0) { element.SetValue(property, to); return; }
             element.BeginAnimation(property, new DoubleAnimation(to, TimeSpan.FromMilliseconds(milliseconds)) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
+        }
+
+        static readonly DependencyProperty ButtonMotionProperty = DependencyProperty.RegisterAttached(
+            "ButtonMotion", typeof(bool), typeof(UiMotion), new PropertyMetadata(false));
+
+        /// <summary>
+        /// Ajoute un micro-mouvement à un bouton : il s'approche doucement au
+        /// survol et s'enfonce brièvement au clic. Appelé automatiquement pour
+        /// tous les boutons de la fenêtre.
+        /// </summary>
+        public static void AttachButton(System.Windows.Controls.Button button)
+        {
+            if (button == null) return;
+            if ((bool)button.GetValue(ButtonMotionProperty)) return;
+            button.SetValue(ButtonMotionProperty, true);
+            var scale = button.RenderTransform as ScaleTransform;
+            if (scale == null)
+            {
+                if (button.RenderTransform != null) return;
+                scale = new ScaleTransform(1, 1);
+                button.RenderTransform = scale;
+            }
+            button.RenderTransformOrigin = new Point(0.5, 0.5);
+            button.MouseEnter += delegate { AnimateScale(scale, 1.028, 150); };
+            button.MouseLeave += delegate { AnimateScale(scale, 1.0, 180); };
+            button.PreviewMouseLeftButtonDown += delegate { AnimateScale(scale, 0.972, 70); };
+            button.PreviewMouseLeftButtonUp += delegate { AnimateScale(scale, 1.028, 120); };
+        }
+
+        /// <summary>Agrandissement très léger d'une carte au survol.</summary>
+        public static void AttachCard(FrameworkElement card, double amount)
+        {
+            if (card == null) return;
+            var scale = card.RenderTransform as ScaleTransform;
+            if (scale == null)
+            {
+                if (card.RenderTransform != null) return;
+                scale = new ScaleTransform(1, 1);
+                card.RenderTransform = scale;
+            }
+            card.RenderTransformOrigin = new Point(0.5, 0.5);
+            card.MouseEnter += delegate { AnimateScale(scale, amount, 160); };
+            card.MouseLeave += delegate { AnimateScale(scale, 1.0, 190); };
+        }
+
+        public static void AnimateScale(ScaleTransform scale, double to, int milliseconds)
+        {
+            if (scale == null) return;
+            if (Reduced || milliseconds <= 0) { scale.ScaleX = to; scale.ScaleY = to; return; }
+            var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty,
+                new DoubleAnimation(to, TimeSpan.FromMilliseconds(milliseconds)) { EasingFunction = ease });
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty,
+                new DoubleAnimation(to, TimeSpan.FromMilliseconds(milliseconds)) { EasingFunction = ease });
         }
     }
 

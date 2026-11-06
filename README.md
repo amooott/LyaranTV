@@ -1,4 +1,4 @@
-# LyaranTV 1.6.0
+# LyaranTV 1.6.1
 
 **LyaranTV** est un lecteur IPTV pour Windows, construit avec WPF et .NET Framework 4.x. Il reprend les usages essentiels d'un lecteur IPTV moderne — sources, bibliothèque, direct, guide EPG, recherche, favoris, reprise de lecture et fiches de contenus — avec une identité visuelle originale.
 
@@ -22,10 +22,10 @@
 - **Bouton Retour du lecteur** : il quitte la lecture et retrouve l’interface, avec la page, les filtres et la position de défilement d’origine. Le retour au dernier point de saut reste disponible avec `Retour arrière` et dans le menu contextuel du lecteur.
 - Guide EPG XMLTV avec navigation par jour et programmes en cours.
 - Favoris, historique, positions de reprise, profils séparés et contrôle parental. Supprimer une playlist efface aussi son historique, ses reprises et ses épisodes en cours dans tous les profils, sans toucher aux autres playlists.
-- **Fiches en superposition** : la fiche d’un contenu s’ouvre désormais dans une grande carte modale (jusqu’à 1 120 px) au-dessus de la page, avec image d’ambiance, affiche, synopsis, métadonnées, programme EPG et actions. Le fond reste visible, `Échap` ou un clic à l’extérieur referme la fiche sans perdre la page. Titre original, casting, réalisation, durée, pays, classification et bande-annonce via **TMDb** lorsque vous fournissez votre propre clé. Les séries disposent d'un en-tête cinématographique et de cartes d'épisodes interactives.
+- **Aperçu intégré à gauche** : la fiche d’un film ou d’une série glisse dans la colonne des fonctionnalités, sous le rail de catégories, plutôt que de recouvrir la page. En-tête collant, fond presque transparent, image d’ambiance, affiche, synopsis, métadonnées, programme EPG et actions ; `Échap`, la croix ou un clic à l’extérieur referment le panneau sans perdre la page. Titre original, casting, réalisation, durée, pays, classification et bande-annonce via **TMDb** lorsque vous fournissez votre propre clé. Les séries disposent d'un en-tête cinématographique et de cartes d'épisodes interactives.
 - **Mode langue** facultatif : un code (FR, EN, AR, ES…) ne laisse visibles que les catégories qui le contiennent. Le choix reste actif en changeant de page et après un redémarrage.
 - Affiches, vignettes et logos chargés **en ligne**, avec un cache disque borné (`%APPDATA%\LyaranTV\covers`) et un cache mémoire : aucun visuel n'est fourni avec le programme.
-- **Navigation salon** : manette Xbox (XInput), télécommande multimédia et **clavier virtuel AZERTY** dans la recherche, avec focus spatial, raccourcis et aide contextuelle. La barre latérale peut passer en **icônes seules** (76 px) avec `Ctrl+B`, et `F11` met toute l’application en plein écran.
+- **Navigation salon** : manette Xbox (XInput), télécommande multimédia et **clavier virtuel AZERTY** dans la recherche, avec focus spatial, raccourcis et aide contextuelle. Un **bouton hamburger** en haut à gauche fait glisser la barre latérale hors de l’écran (ou la ramène) avec une animation fluide ; `Ctrl+B` fait de même, et `F11` met toute l’application en plein écran.
 - **Recherche mémorisée** : les dernières recherches validées apparaissent en pastilles cliquables, avec un bouton **Effacer l’historique**.
 - Barres de défilement personnalisées, champs de saisie lisibles dans tous les thèmes, animations discrètes et option de réduction des mouvements.
 - Sauvegarde complète `.lyaran`, export/import JSON portable et export M3U.
@@ -58,7 +58,7 @@ Au lancement, LyaranTV prend le temps d’un générique : le logo apparaît, le
 
 - **« Qui regarde ? »** présente chaque profil dans une carte de 148 px, avec sa photo ou son avatar prédéfini, sa couleur, sa mention « DERNIER PROFIL » pour le dernier utilisé, son badge **ENFANT** ou son cadenas.
 - **Clavier, souris ou manette** : les flèches déplacent le focus, `Entrée` ou `A` entre dans le profil, le survol agrandit l’avatar et allume un anneau coloré. Un profil protégé demande son code PIN ; un code incorrect fait trembler la carte et affiche un message, sans quitter l’écran.
-- **Ajouter un profil** est accessible directement depuis l’écran d’ouverture, avec la même vérification parentale que dans les réglages.
+- **Ajouter un profil** est accessible directement depuis l’écran d’ouverture, avec la même vérification parentale que dans les réglages. La création demande désormais **un compte IPTV** (M3U, Xtream, portail MAC ou fichier local) dans une étape animée ; annuler cette étape annule le profil. Chaque profil ne voit que ses propres comptes, sans mélange de catalogues.
 - **Transition** : l’avatar choisi zoome brièvement, le voile se dissout, l’accueil apparaît en fondu et un toast « Bienvenue, … » confirme l’entrée.
 - **Réglage** : *Paramètres → Démarrage → Afficher « Qui regarde ? » au démarrage*. Désactivé, LyaranTV ouvre directement le dernier profil. L’option *Réduire les animations* raccourcit le générique et supprime les mouvements.
 
@@ -72,7 +72,7 @@ La manette Xbox est détectée automatiquement via XInput, sans pilote suppléme
 - **Gâchettes LB / RB** : chaîne précédente / suivante en lecture. **Stick droit** : tiroir des chaînes.
 - **Télécommande** : `BrowserBack` revient, `BrowserHome` ouvre l’accueil, `BrowserRefresh` actualise la source, `MediaPlayPause` lit ou met en pause, `MediaNextTrack` / `MediaPreviousTrack` changent de chaîne.
 - **Clavier virtuel AZERTY** : ouvert par `Y` dans la recherche, il écrit dans le champ actif, avec aperçu, retour arrière et validation. La souris reprend la main dès qu’elle bouge.
-- **Barre latérale compacte** : `Ctrl+B` ou le bouton de la barre supérieure réduit la colonne à 76 px et ne garde que les icônes, avec infobulles.
+- **Barre latérale escamotable** : le hamburger en haut à gauche, ou `Ctrl+B`, la fait glisser hors de l’écran ; elle réapparaît au même endroit, dans l’état mémorisé.
 
 ## Bibliothèque en mode découverte
 
@@ -91,13 +91,24 @@ Les affiches et backdrops TMDb remplissent le hero et les cartes ; sans image, u
 
 L'interface privilégie le contenu et retire les informations répétées :
 
-- **Barre latérale** : navigation, playlists, profil et langue, sans compteurs ni numéro de version. Elle peut être réduite aux icônes (76 px) avec `Ctrl+B`.
+- **Barre latérale** : navigation, playlists, profil et langue, sans compteurs ni numéro de version. Le hamburger la fait glisser hors de l’écran, et `Ctrl+B` produit le même effet.
+- **Catégories en rail** : Accueil, Chaînes, Films, Séries, Ma liste et Guide, avec libellés à 17 px et réactions au survol, au clavier et à la manette.
 - **Plein écran application** : `F11` ou le bouton de la barre supérieure masque le cadre Windows et occupe tout le moniteur ; `Échap` ou `F11` restaure la fenêtre et sa position.
 - **Filtres intégrés** : `Tout`, `Direct`, `Films`, `Séries` et `Effacer les filtres` sont des onglets texte soulignés par l'accent, sans pastille ni cadre.
 - **Titres lisibles** : les préfixes de playlist (`FR - `, `EN - `) et l'année finale sont retirés à l'affichage ; le nom d'origine reste utilisé pour la recherche et TMDb.
 - **Cartes calmes** : note discrète, pas de badge de type, méta réduite à l'année, à la saison/épisode ou à la reprise.
 - **Typographie** : toutes les petites informations sont remontées à **12,5 px minimum**.
 - **Barre d'état** : page à gauche, source active à droite.
+
+## Logo
+
+Le logo actuel reste le **n° 17 · Égaliseur** : carré arrondi violet-bleu, barres blanches et lavande, triangle de lecture cyan. Vingt variantes vectorielles sont proposées dans [`Docs/logo-proposals.png`](Docs/logo-proposals.png) ; la planche se régénère avec :
+
+```bat
+Dist\LyaranTV.exe --logogallery "%TEMP%\logos.png"
+```
+
+Aucune variante ne remplace le logo sans un choix explicite.
 
 ## Compilation
 
@@ -152,7 +163,7 @@ appiptv\
 │  ├─ RELEASE-NOTES.md     notes publiées avec chaque Release
 │  └─ Screenshots\         captures de référence
 └─ Assets\
-   └─ Logos\              pistes de logo (17 retenue) et esquisses SVG
+   └─ Logos\              pistes de logo et planche des vingt propositions
 ```
 
 Les dossiers `Docs\`, `Assets\`, `Installer\`, `Tools\`, `build\` et `VLC\` ne
@@ -207,9 +218,17 @@ Les images distantes sont lues à la demande depuis TMDb ou depuis les URL `tvg-
 TMDb reste la source principale des affiches et des synopsis. Quand il n'y a pas de clé ou pas de correspondance, LyaranTV complète automatiquement les fiches, sans compte ni clé :
 
 - **Séries et épisodes** : [TVmaze](https://www.tvmaze.com/api) (affiche, synopsis, saisons, captures d'épisodes), puis IMDb pour l'affiche.
-- **Films** : API de suggestion d'IMDb pour l'affiche, Wikipédia pour le synopsis.
+- **Films** : API de suggestion d'IMDb pour l'affiche, iTunes pour les films, Wikipédia pour le synopsis.
 
-Les résultats sont mis en cache dans `%APPDATA%\LyaranTV\artwork-cache.json` et les images dans `covers`. Les recherches partent en arrière-plan, à faible cadence, uniquement pour les contenus sans affiche. Si aucune source ne répond, une vignette dessinée (dégradé, initiales, titre) est affichée : une carte n'est jamais vide. Le cache se vide depuis **Paramètres → Métadonnées et sous-titres**.
+Trois sources facultatives prennent le relais lorsqu'une affiche manque encore. Elles demandent une clé personnelle, saisie dans **Paramètres → Métadonnées et sous-titres → Sources d'affiches** ou fournie par variable d'environnement :
+
+| Source | Variable | Apport |
+|---|---|---|
+| [OMDb](https://www.omdbapi.com/apikey.aspx) | `LYARANTV_OMDB_KEY` | Affiches et notes IMDb de secours. |
+| [Fanart.tv](https://fanart.tv/get-an-api-key/) | `LYARANTV_FANART_KEY` | Affiches et arrière-plans haute définition. |
+| [TheTVDB](https://thetvdb.com/api-information) | `LYARANTV_TVDB_KEY` | Séries anciennes ou peu référencées. |
+
+ThePosterDB, MoviePosterDB, IMP Awards et Cinematerial restent des sources de recherche manuelle : aucune clé n'est requise, mais aucun scraping fragile n'est effectué. Les résultats sont mis en cache dans `%APPDATA%\LyaranTV\artwork-cache.json` et les images dans `covers`. Les recherches partent en arrière-plan, à faible cadence, uniquement pour les contenus sans affiche. Si aucune source ne répond, une vignette dessinée (dégradé, initiales, titre) est affichée : une carte n'est jamais vide. Le cache se vide depuis **Paramètres → Métadonnées et sous-titres**.
 
 ## Mode langue
 
@@ -244,7 +263,7 @@ set LYARANTV_DATA_DIR=C:\temp\lyarantv-data
 LyaranTV.exe
 ```
 
-Les mots de passe Xtream et les adresses MAC sont protégés par DPAPI pour l'utilisateur Windows courant. L'export JSON portable omet volontairement les mots de passe, adresses MAC, codes PIN et clés TMDb/OpenSubtitles. La sauvegarde complète `.lyaran` conserve les identifiants chiffrés.
+Les mots de passe Xtream et les adresses MAC sont protégés par DPAPI pour l'utilisateur Windows courant. L'export JSON portable omet volontairement les mots de passe, adresses MAC, codes PIN et clés TMDb/OpenSubtitles/OMDb/Fanart.tv/TheTVDB. La sauvegarde complète `.lyaran` conserve les identifiants chiffrés.
 
 ## Documentation
 

@@ -731,6 +731,16 @@ namespace LyaranTV
                 ShowLaunchProfileError("Un profil porte déjà ce nom.");
                 return;
             }
+            // Comme à la création depuis les réglages : un compte IPTV est
+            // obligatoire et reste rattaché à ce profil.
+            var account = ShowAccountOnboarding(created);
+            if (account == null)
+            {
+                ShowLaunchProfileError("Création annulée : un compte IPTV est requis.");
+                return;
+            }
+            allSources.Add(account);
+            SaveSources();
             profiles.Add(created);
             ProfileStore.Save(profiles);
             ShowLaunchProfileError("");

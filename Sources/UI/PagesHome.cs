@@ -28,7 +28,8 @@ namespace LyaranTV
             var source = sources.FirstOrDefault(s => s.IsDemo || s.Type == "Démo");
             if (source == null)
             {
-                source = new PlaylistSource { Name = "Démo LyaranTV", Type = "Démo", IsDemo = true };
+                source = new PlaylistSource { Name = "Démo LyaranTV", Type = "Démo", IsDemo = true, Profile = activeProfile == null ? "" : activeProfile.Name };
+                allSources.Add(source);
                 sources.Add(source);
             }
             activeSource = source;
@@ -178,17 +179,12 @@ namespace LyaranTV
                 root.Children.Add(EmptyState(Glyphs.Library, "Aucune playlist pour le moment", "Importez un fichier M3U/M3U8, connectez un compte Xtream ou ajoutez un portail MAC. Vous pouvez aussi essayer la démonstration intégrée.", null));
                 root.Children.Add(emptyActions);
                 var steps = new WrapPanel { Margin = new Thickness(0, 16, 0, 0) };
-                string[] headings = { "1 · Ajoutez votre source", "2 · Parcourez la bibliothèque", "3 · Regardez et gardez vos favoris" };
+                string[] headings = { "Ajoutez votre source", "Parcourez la bibliothèque", "Regardez et gardez vos favoris" };
                 string[] descriptions = { "Fichier M3U, URL, Xtream Codes ou portail MAC.", "Catégories, recherche, films, séries et guide EPG.", "Lecture intégrée, reprise, favoris et réglages." };
                 string[] icons = { Glyphs.Add, Glyphs.Library, Glyphs.Play };
                 for (int i = 0; i < 3; i++)
-                {
-                    var stack = new StackPanel();
-                    var icon = Icon(icons[i], 22, Brush(Accent)); icon.Margin = new Thickness(0, 0, 0, 8); stack.Children.Add(icon);
-                    stack.Children.Add(Text(headings[i], 14, Brush(TextPrimary), true));
-                    stack.Children.Add(Text(descriptions[i], 11, Brush(Muted), false));
-                    var card = Card(stack, 16); card.Width = 250; card.Margin = new Thickness(0, 0, 12, 10); steps.Children.Add(card);
-                }
+                    steps.Children.Add(BuildFeatureTile((i + 1).ToString("00", CultureInfo.InvariantCulture),
+                        icons[i], headings[i], descriptions[i]));
                 root.Children.Add(steps);
             }
             else
@@ -212,7 +208,7 @@ namespace LyaranTV
             {
                 root.Children.Add(SectionHeader("À l’antenne", "Ce qui passe en ce moment.", TextAction("Guide TV", delegate { Nav("Guide EPG"); }, "Ouvrir le guide des programmes")));
                 var wrap = new WrapPanel();
-                foreach (var item in nowPrograms) wrap.Children.Add(NowProgramCard(item.Channel, item.Program));
+                foreach (var item in nowPrograms) wrap.Children.Add(BuildLiveProgramCard(item.Channel, item.Program));
                 root.Children.Add(wrap);
             }
             else if (loadedEpg.Count == 0 && channels.Count > 0)

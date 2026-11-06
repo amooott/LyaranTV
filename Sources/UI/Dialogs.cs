@@ -362,13 +362,13 @@ namespace LyaranTV
 
     public sealed partial class MainWindow
     {
-        PlaylistSource ShowSourceDialog(PlaylistSource existing)
+        PlaylistSource ShowSourceDialog(PlaylistSource existing, Window owner = null, string preferredType = null)
         {
             var dialog = new Window
             {
                 Title = existing == null ? "Ajouter une playlist" : "Modifier la playlist",
                 Width = 640, Height = 690, ResizeMode = ResizeMode.NoResize,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = owner ?? this,
                 WindowStyle = WindowStyle.None, Background = Brushes.Transparent, AllowsTransparency = true,
                 FontFamily = new FontFamily("Segoe UI"), ShowInTaskbar = false
             };
@@ -538,7 +538,7 @@ namespace LyaranTV
             }
             else
             {
-                type.SelectedIndex = 0;
+                type.SelectedIndex = preferredType == "Xtream" ? 1 : preferredType == "Portail MAC" ? 2 : 0;
                 device.Text = "MAG250";
             }
             updateVisibility();

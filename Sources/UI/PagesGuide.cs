@@ -192,49 +192,9 @@ namespace LyaranTV
                     foreach (var program in row.Programs.Take(10))
                     {
                         bool live = program.IsLive(now);
-                        var programRow = new Grid { Margin = new Thickness(0, 0, 0, 3), MinHeight = 42 };
-                        programRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(96) });
-                        programRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                        var time = Text(program.TimeRange, 11.5, live ? Brush(Success) : Brush(Accent), true);
-                        time.TextWrapping = TextWrapping.NoWrap;
-                        time.VerticalAlignment = VerticalAlignment.Center;
-                        Grid.SetColumn(time, 0);
-                        programRow.Children.Add(time);
-                        var titlePanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                        titlePanel.Children.Add(Text(program.Title, 12.5, Brush(TextPrimary), live));
-                        if (!String.IsNullOrWhiteSpace(program.Description))
-                        {
-                            var desc = Text(TextUtil.Ellipsis(program.Description, 220), 12, Brush(Muted), false);
-                            desc.TextWrapping = TextWrapping.NoWrap;
-                            desc.TextTrimming = TextTrimming.CharacterEllipsis;
-                            desc.Margin = new Thickness(0, 1, 0, 0);
-                            titlePanel.Children.Add(desc);
-                        }
-                        Grid.SetColumn(titlePanel, 1);
-                        programRow.Children.Add(titlePanel);
-                        var programBorder = new Border
-                        {
-                            Child = programRow, Background = live ? Brush(WithAlpha(Success, 18)) : Brush(Raised),
-                            BorderBrush = live ? Brush(WithAlpha(Success, 70)) : Brush(BorderColor), BorderThickness = new Thickness(1),
-                            CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 4, 10, 4), Cursor = row.Channel == null ? Cursors.Arrow : Cursors.Hand,
-                            ToolTip = String.IsNullOrWhiteSpace(program.Description) ? program.TimeRange : program.Description
-                        };
-                        if (row.Channel != null)
-                        {
-                            Channel captured = row.Channel;
-                            programBorder.MouseEnter += delegate
-                            {
-                                programBorder.Background = Brush(WithAlpha(Accent, 20));
-                                programBorder.BorderBrush = Brush(WithAlpha(Accent, 110));
-                            };
-                            programBorder.MouseLeave += delegate
-                            {
-                                programBorder.Background = live ? Brush(WithAlpha(Success, 18)) : Brush(Raised);
-                                programBorder.BorderBrush = live ? Brush(WithAlpha(Success, 70)) : Brush(BorderColor);
-                            };
-                            programBorder.MouseLeftButtonUp += delegate { Play(captured, null, 0, false); };
-                        }
-                        cardStack.Children.Add(programBorder);
+                        Channel captured = row.Channel;
+                        cardStack.Children.Add(BuildGuideProgramRow(captured, program, live,
+                            captured == null ? (Action)null : delegate { Play(captured, null, 0, false); }));
                     }
                     if (row.Programs.Count > 10)
                     {

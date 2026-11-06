@@ -83,9 +83,12 @@ Les textes principaux conservent un contraste élevé : `#F4F4F8` sur `#0A0A12` 
 
 Le logo LyaranTV est la piste **17 · Égaliseur** : un carré arrondi violet-bleu, cinq barres verticales blanches et lavande, puis un triangle de lecture cyan. Il est dessiné vectoriellement dans `UiKit.cs` (`DrawLyaranMark`), avec une variante simplifiée à trois barres sous 30 px pour rester lisible en 16 et 20 px. Le même dessin alimente la fenêtre, l'icône `.ico` multi-résolutions (16 à 256 px) et la page À propos. Le dessin est original et ne réutilise aucun logo existant.
 
+Vingt variantes sont proposées dans `Docs/logo-proposals.png`, générées par `LogoLab.cs` et la commande `--logogallery`. Le logo actuel reste en place tant que l'utilisateur n'a pas choisi explicitement une variante.
+
 ## Mise en page
 
-- Barre latérale fixe de 236 px : navigation, playlists, profil. Les compteurs et la version ne s'y affichent plus : ils restent dans les pages et la barre d'état. Le mode compact (`Ctrl+B`) la ramène à 76 px et ne garde que les icônes, avec infobulles.
+- Barre latérale de 236 px : navigation, playlists, profil. Les compteurs et la version ne s'y affichent plus : ils restent dans les pages et la barre d'état. Un **bouton hamburger** dessiné en trois traits, en haut à gauche, la fait glisser hors de l'écran avec une animation de largeur, de translation et d'opacité ; `Ctrl+B` produit le même effet et l'état est mémorisé.
+- **Rail de catégories** sous la barre supérieure : Accueil, Chaînes, Films, Séries, Ma liste et Guide, en libellés de 17 px. Au survol ou au focus, le texte s'agrandit légèrement et un soulignement d'accent se déploie.
 - Barre supérieure d'environ 72 px : recherche centrale, thème, actualisation, ajout, paramètres.
 - Zone de contenu avec marges de 28–38 px et largeur de lecture confortable.
 - Barre d'état discrète : page à gauche, source active à droite.
@@ -100,7 +103,7 @@ Le logo LyaranTV est la piste **17 · Égaliseur** : un carré arrondi violet-bl
 
 ### Boutons et surfaces
 
-- **Survol façon streaming** : un reflet diagonal traverse le bouton, qui remonte de 2,5 % ; à l'appui, il s'enfonce de 2,5 %. Les rangées de navigation, filtres et listes utilisent la même famille de modèles sans mise à l'échelle, pour rester calmes.
+- **Survol façon streaming** : chaque bouton s'approche de 2,8 % avec une animation douce, puis s'enfonce de 2,8 % à l'appui ; les cartes respirent de 1,2 %. Les rangées de navigation, filtres et listes utilisent la même famille de modèles sans mise à l'échelle, pour rester calmes.
 - **Boutons principaux** : dégradé accent → seconde teinte, encre choisie automatiquement pour le contraste, rayon 9 px.
 - **Barre supérieure** : filet inférieur en dégradé accent → seconde teinte → bordure.
 - **Barre latérale** : dégradé vertical sombre, plus clair en haut, l'indicateur de page actif restant en dégradé d'accent.
@@ -114,12 +117,13 @@ Le logo LyaranTV est la piste **17 · Égaliseur** : un carré arrondi violet-bl
 - **« Qui regarde ? »** : titre très espacé, sous-titre discret, puis une rangée de cartes centrées. Chaque carte fait 188 px de large et son avatar 148 px, avec coins arrondis de 15 px, dégradé de la couleur du profil, initiale blanche, reflet diagonal et anneau de focus. Les cartes entrent en cascade (90 ms d'écart) avec fondu, translation et léger rebond.
 - **Détails** : badge **ENFANT** en bas à gauche, cadenas rond en haut à droite pour un profil protégé, mention **DERNIER PROFIL** sous le nom. La carte « Ajouter un profil » reprend le même gabarit avec un carré en pointillés et un signe plus.
 - **Interaction** : le survol ou le focus agrandit l'avatar de 6,5 % et allume l'anneau ; le nom seul reste en texte clair, sans encadré. Un PIN incorrect fait trembler la carte horizontalement et affiche un message en rouge.
+- **Compte obligatoire** : la création d'un profil enchaîne sur une étape animée qui demande un compte IPTV (M3U, Xtream, portail MAC ou fichier local). Chaque profil possède ses propres comptes ; annuler l'étape annule le profil.
 - **Transition** : l'avatar choisi zoome à 1,16, le voile disparaît en 460 ms et l'accueil apparaît en fondu décalé. Le toast « Bienvenue, … » arrive après le voile.
 - **Réduction des animations** : toutes les entrées, dérives et secousses sont supprimées ; le générique dure 320 ms et les écrans apparaissent directement.
 
 ### Bibliothèque en mode découverte
 
-- **Hero** : image TMDb plein cadre ou dégradé d'accent, voile dégradé pour la lisibilité, filigrane du titre et logo de chaîne en repli. Le hero reste sombre dans tous les thèmes pour garantir le contraste des titres et des affiches.
+- **Hero** : image TMDb plein cadre ou dégradé d'accent, voile dégradé pour la lisibilité. Aucun titre ni logo en filigrane ne recouvre l'affiche : les bannières restent nettes et remplies, décodées en haute définition. Le hero reste sombre dans tous les thèmes pour garantir le contraste des titres et des affiches.
 - **Contenu du hero** : genre, année, note, programme en cours pour le direct, synopsis court, bouton principal, détails et favori.
 - **Rotation** : toutes les 8,5 s, avec pastilles de progression ; pause de 30 s au survol du hero et de 14 s après le survol d'une carte. Désactivée avec la réduction des animations.
 - **Étagères** : défilement horizontal à la molette et au trackpad, bords fondus, en-tête avec compteur et action « Tout voir ».
@@ -166,7 +170,7 @@ Le logo LyaranTV est la piste **17 · Égaliseur** : un carré arrondi violet-bl
 - **Fiche du contenu** : page intégrée à la navigation, avec image d'ambiance plein cadre, affiche, sur-titre (`FILM`, `SÉRIE`, `CHAÎNE`), titre, ligne méta, synopsis, métadonnées, programme EPG et actions (lecture, favori, TMDb, lecteur externe). Depuis le lecteur, « Informations » fait défiler la fiche sous la vidéo sans interrompre la lecture.
 - **Page de série** : en-tête cinématographique avec affiche et actions, onglets de saison et cartes d'épisodes interactives — survol et focus clavier, progression de reprise, états `EN COURS` et `À SUIVRE`, bouton de lecture. La rangée **Épisodes sous la vidéo** reprend les mêmes états en format horizontal.
 - **Tiroir des chaînes** : colonne de 348 px ancrée à gauche, fond presque opaque, liseré à droite, en-tête `CHAÎNES EN DIRECT` avec compteur et fermeture. Le filtre occupe une pastille arrondie, chaque ligne montre le logo, le nom, le programme EPG et une barre de progression ; la chaîne en cours porte un fond et un contour d'accent. Les lignes se survolent sans déplacer la vidéo, qui reste visible à droite.
-- **Fiche en superposition** : voile sombre sur la page, carte centrée de 1 120 px maximum, coins de 20 px et ombre profonde. Le hero interne fait 300 px, le contenu défile à l'intérieur et la croix, `Échap` ou un clic sur le voile referment la fiche.
+- **Fiche en panneau latéral** : voile presque transparent, panneau de 438 px ancré à gauche sous le rail de catégories, coins arrondis à droite et ombre portée. En-tête collant avec filet d'accent, type de contenu et fermeture ; le contenu défile à l'intérieur. Un clic à l'extérieur, la croix ou `Échap` referment le panneau sans perdre la page.
 - **Sous-titres** : texte centré sur un fond personnalisable, remonté au-dessus des contrôles lorsqu'ils sont visibles (122 px en fenêtré, 132 px en plein écran), puis reposé à 30 px. Le bouton `CC` indique le nombre de pistes détectées et ouvre le menu `S` : désactivation, pistes texte du fichier, fichiers à côté du média, ouverture manuelle et **Réglages des sous-titres** (taille, couleur du texte, couleur et opacité du fond, contour, aperçu en direct). Les pistes image (PGS/VobSub) restent listées comme non prises en charge.
 - **Pistes audio** : menu `A`, détection MKV/MP4 et libellés langue/codec. Le lecteur intégré utilise la première piste ; les autres s'ouvrent dans VLC à la même position.
 

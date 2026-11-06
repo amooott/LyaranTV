@@ -30,33 +30,66 @@ namespace LyaranTV
         }
 
         /// <summary>
-        /// Panneau de fiche : largeur confortable, hauteur bornée et défilement
-        /// interne. La page sous-jacente reste visible autour, ce qui donne le
-        /// rendu « quick view » de Netflix.
+        /// Aperçu intégré : la fiche ne recouvre que la colonne des
+        /// fonctionnalités, à gauche. Le reste de la page reste visible et
+        /// cliquable, comme un panneau de détail posé sur le rail de navigation.
         /// </summary>
         void ShowChannelDetailOverlay(Channel channel)
         {
             if (rootGrid == null || channel == null) return;
             CloseDetailOverlay();
 
-            var backdrop = new Grid { Background = Brush(Color.FromArgb(196, 3, 4, 9)) };
+            // Voile presque transparent : il ferme la fiche au clic à l'extérieur
+            // sans assombrir la bibliothèque.
+            var backdrop = new Grid { Background = Brush(Color.FromArgb(28, 2, 3, 8)) };
             backdrop.MouseLeftButtonUp += delegate(object sender, MouseButtonEventArgs e)
             {
                 if (e.OriginalSource == backdrop) CloseDetailOverlay();
             };
 
-            double windowWidth = ActualWidth > 200 ? ActualWidth : 1380;
-            double windowHeight = ActualHeight > 200 ? ActualHeight : 860;
-            var card = new Border
+            var panel = new Border
             {
-                Width = Math.Min(1020, Math.Max(640, windowWidth - 170)),
-                MaxHeight = Math.Max(440, windowHeight - 110),
-                CornerRadius = new CornerRadius(22),
-                Background = Brush(Panel), BorderBrush = Brush(WithAlpha(Accent, 60)),
-                BorderThickness = new Thickness(1), ClipToBounds = true,
-                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-                Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 46, ShadowDepth = 16, Opacity = 0.55, Color = Colors.Black }
+                Width = 438, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Stretch,
+                Margin = new Thickness(0, 128, 0, 40), CornerRadius = new CornerRadius(0, 22, 22, 0),
+                Background = new LinearGradientBrush(new GradientStopCollection
+                {
+                    new GradientStop(WithAlpha(Panel, 254), 0),
+                    new GradientStop(WithAlpha(Back, 250), 0.62),
+                    new GradientStop(WithAlpha(Panel, 246), 1)
+                }, new Point(0, 0), new Point(1, 1)),
+                BorderBrush = Brush(WithAlpha(Accent, 96)), BorderThickness = new Thickness(0, 1, 1, 1),
+                ClipToBounds = true,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    BlurRadius = 42, ShadowDepth = 16, Direction = 0, Opacity = 0.62, Color = Colors.Black
+                }
             };
+            var panelLayout = new Grid();
+            panelLayout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            panelLayout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            // En-tête collant : un filet d'accent, le type de contenu et la
+            // fermeture. Le titre reste dans l'image, pas dans une barre lourde.
+            var header = new Grid { Height = 54, Margin = new Thickness(18, 0, 12, 0) };
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var headerText = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            var headerLine = new Border
+            {
+                Width = 26, Height = 3, CornerRadius = new CornerRadius(2), HorizontalAlignment = HorizontalAlignment.Left,
+                Background = AccentGradientBrush(), Margin = new Thickness(0, 0, 0, 6)
+            };
+            headerText.Children.Add(headerLine);
+            headerText.Children.Add(Text(KindLabel(channel.Kind).ToUpperInvariant() + " · APERÇU", 10.5, Brush(Accent), true));
+            header.Children.Add(headerText);
+            var close = IconButton(Glyphs.Close, "Fermer la fiche · Échap", CloseDetailOverlay, false);
+            close.Width = 34; close.Height = 32; close.Margin = new Thickness(0);
+            close.Background = Brush(WithAlpha(Panel, 180));
+            close.BorderBrush = Brush(WithAlpha(Colors.White, 34));
+            Grid.SetColumn(close, 1);
+            header.Children.Add(close);
+            Grid.SetRow(header, 0);
+            panelLayout.Children.Add(header);
 
             var scroll = new ScrollViewer
             {
@@ -64,32 +97,33 @@ namespace LyaranTV
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 Content = BuildChannelDetailContent(channel, true)
             };
-            card.Child = scroll;
+            Grid.SetRow(scroll, 1);
+            panelLayout.Children.Add(scroll);
+            panel.Child = panelLayout;
 
-            var host = new Grid();
-            host.Children.Add(card);
-            var close = IconButton(Glyphs.Close, "Fermer la fiche · Échap", CloseDetailOverlay, false);
-            close.HorizontalAlignment = HorizontalAlignment.Right;
-            close.VerticalAlignment = VerticalAlignment.Top;
-            close.Margin = new Thickness(0, 14, 14, 0);
-            close.Background = Brush(Color.FromArgb(170, 8, 9, 14));
-            close.BorderBrush = Brush(WithAlpha(Colors.White, 40));
-            System.Windows.Controls.Panel.SetZIndex(close, 20);
-            host.Children.Add(close);
+            // Le panneau glisse depuis le rail ; le voile n'apparaît que très
+            // légèrement pour laisser la bibliothèque respirer.
+            if (!UiMotion.Reduced)
+            {
+                panel.Opacity = 0;
+                var slide = new TranslateTransform(-26, 0);
+                panel.RenderTransform = slide;
+                panel.BeginAnimation(UIElement.OpacityProperty,
+                    new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(210))
+                    {
+                        EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                    });
+                slide.BeginAnimation(TranslateTransform.XProperty,
+                    new System.Windows.Media.Animation.DoubleAnimation(-26, 0, TimeSpan.FromMilliseconds(320))
+                    {
+                        EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                    });
+            }
 
-            backdrop.Children.Add(host);
+            backdrop.Children.Add(panel);
             detailOverlay = backdrop;
             System.Windows.Controls.Panel.SetZIndex(backdrop, 700);
             rootGrid.Children.Add(backdrop);
-
-            if (!UiMotion.Reduced)
-            {
-                backdrop.Opacity = 0;
-                backdrop.BeginAnimation(UIElement.OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(1, TimeSpan.FromMilliseconds(170))
-                {
-                    EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
-                });
-            }
             SetStatus(channel.Name + " · " + KindLabel(channel.Kind) + ".");
         }
 
