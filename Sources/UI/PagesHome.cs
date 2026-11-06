@@ -463,7 +463,9 @@ namespace LyaranTV
         void RenderChannels(bool resetLimit)
         {
             if (channelList == null) return;
-            if (resetLimit) renderLimit = 150;
+            // Une recherche s'affiche en affiches : soixante-douze cartes est
+            // déjà une page pleine, et la suivante arrive d'un clic.
+            if (resetLimit) renderLimit = page == "Recherche" && !String.IsNullOrWhiteSpace(searchQuery) ? 72 : 150;
             double offset = resultsScroll == null ? 0 : resultsScroll.VerticalOffset;
             var baseView = BaseViewForMode(page).ToList();
             IEnumerable<Channel> view = baseView;
@@ -473,6 +475,11 @@ namespace LyaranTV
             if (query.Length > 0) view = view.Where(c => c.MatchesSearch(query));
             currentView = SortChannels(view).ToList();
             bool groupedSearch = page == "Recherche" && query.Length > 0 && activeKind == "Tous" && activeGroup == AllGroups;
+            // La recherche montre des affiches, comme la bibliothèque : la
+            // rangée compacte ne laissait voir qu'une vignette de 40 × 60. Les
+            // covers des premiers résultats sont demandées tout de suite.
+            bool coverResults = page == "Recherche" && query.Length > 0;
+            if (coverResults) StartCoverPrewarm(currentView, 120);
             List<Tuple<string, string, Channel>> people = groupedSearch ? SearchPeople(query, currentView) : new List<Tuple<string, string, Channel>>();
             if (resultCountText != null)
             {
@@ -497,7 +504,7 @@ namespace LyaranTV
             int limit = Math.Min(renderLimit, currentView.Count);
             if (groupedSearch)
                 RenderGroupedSearchResults(query, currentView, people, limit);
-            else if (gridView || collectionGrid)
+            else if (gridView || collectionGrid || coverResults)
             {
                 var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
                 for (int i = 0; i < limit; i++) wrap.Children.Add(RenderChannelCard(currentView[i]));
@@ -568,11 +575,25 @@ namespace LyaranTV
                 var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
                 foreach (var person in people)
                 {
-                    var content = new StackPanel();
+                    var row = new Grid();
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    var thumb = new Border
+                    {
+                        Width = 44, Height = 66, CornerRadius = new CornerRadius(8), ClipToBounds = true,
+                        Background = Brush(Raised), VerticalAlignment = VerticalAlignment.Center,
+                        Child = CoverArt(person.Item3, 44, 66, false)
+                    };
+                    RoundClip(thumb, 8);
+                    Grid.SetColumn(thumb, 0);
+                    row.Children.Add(thumb);
+                    var content = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
                     content.Children.Add(Text(person.Item1, 14, Brush(TextPrimary), true));
                     content.Children.Add(Text(person.Item2 + " · " + person.Item3.Name, 10.5, Brush(Muted), false));
-                    var card = Card(content, 13);
-                    card.Width = 240;
+                    Grid.SetColumn(content, 1);
+                    row.Children.Add(content);
+                    var card = Card(row, 13);
+                    card.Width = 268;
                     card.Margin = new Thickness(0, 0, 10, 9);
                     card.Cursor = Cursors.Hand;
                     card.Focusable = true;
@@ -593,13 +614,11 @@ namespace LyaranTV
                 if (remaining <= 0) break;
                 channelList.Children.Add(SectionHeader(group.Key, TextUtil.Count(group.Count(), "résultat"), null));
                 int take = Math.Min(remaining, group.Count());
-                if (gridView || collectionGrid)
-                {
-                    var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
-                    foreach (var channel in group.Take(take)) wrap.Children.Add(RenderChannelCard(channel));
-                    channelList.Children.Add(wrap);
-                }
-                else foreach (var channel in group.Take(take)) channelList.Children.Add(RenderChannelRow(channel));
+                // Sections de recherche : toujours des affiches, pour que
+                // chaque résultat se lise comme une vignette de bibliothèque.
+                var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
+                foreach (var channel in group.Take(take)) wrap.Children.Add(RenderChannelCard(channel));
+                channelList.Children.Add(wrap);
                 remaining -= take;
             }
             renderedCount = limit - remaining;
