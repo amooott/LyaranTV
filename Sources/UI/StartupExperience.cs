@@ -613,7 +613,8 @@ namespace LyaranTV
                 }
             };
 
-            button.MouseEnter += delegate { pointerOver = true; updateHover(); UiSound.Navigate(); };
+            // Le survol ne joue plus rien : seul un choix explicite sonne.
+            button.MouseEnter += delegate { pointerOver = true; updateHover(); };
             button.MouseLeave += delegate { pointerOver = false; updateHover(); };
             button.GotKeyboardFocus += delegate { keyboardFocus = true; updateHover(); };
             button.LostKeyboardFocus += delegate { keyboardFocus = false; updateHover(); };

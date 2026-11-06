@@ -1,13 +1,11 @@
-# LyaranTV 1.6.8
+# LyaranTV 1.6.9
 
-La carte « Préparation de votre playlist » ne se détache plus de l'application.
+Le survol ne fait plus de bruit.
 
-## Carte ancrée dans la fenêtre
+## Sons
 
-- **Elle appartient à la fenêtre** : la carte était une petite fenêtre séparée, plantée à une position d'écran. En déplaçant l'application, elle restait sur place, parfois hors du cadre. Elle est désormais dessinée dans la fenêtre, en bas à gauche, au-dessus de la page.
-- **Elle suit les déplacements et les redimensionnements** sans décalage : un seul élément visuel, plus deux fenêtres à synchroniser.
-- **Même comportement qu'avant** : la croix annule le chargement, la carte n'apparaît qu'après 320 ms, laisse l'application utilisable et se retire d'elle-même à la fin.
-- **La restauration d'une copie locale** utilise la même carte et en profite.
+- **Survol silencieux** : passer la souris sur les pastilles de profil à l'ouverture ne joue plus de note. Le son ne se déclenche plus qu'à un choix explicite (validation, navigation, lancement).
+- **Rien d'autre ne change** : le carillon d'ouverture, la confirmation de navigation et le bouton des sons d'interface dans les réglages restent identiques.
 
 ## Vérifications
 
