@@ -15,7 +15,13 @@ using System.Windows.Threading;
 
 namespace LyaranTV
 {
-    internal sealed class PlaylistLoadingWindow : Window
+    /// <summary>
+    /// Carte de progression du chargement d'une playlist. Ce n'est pas une
+    /// fenêtre : elle est posée dans la fenêtre principale, au-dessus de la
+    /// page. Elle suit donc les déplacements et les redimensionnements de
+    /// l'application, au lieu de rester figée à une position d'écran.
+    /// </summary>
+    internal sealed class PlaylistLoadingWindow : Border
     {
         readonly string[] labels;
         readonly TextBlock[] rows = new TextBlock[5];
@@ -77,27 +83,25 @@ namespace LyaranTV
                 "Préparation de la bibliothèque", "Chargement des affiches de films et séries"
             };
             this.accent = accent;
-            Title = "Chargement · LyaranTV";
-            // Carte compacte ancrée en bas à gauche : elle informe sans jamais
-            // couvrir l'application, qui reste utilisable pendant le chargement.
+            // Carte compacte en bas à gauche de la fenêtre : elle informe sans
+            // jamais couvrir l'application, qui reste utilisable pendant le
+            // chargement. Elle naît masquée et n'apparaît qu'au bout de 320 ms,
+            // pour ne pas clignoter sur une restauration instantanée.
             Width = 376;
             Height = 138;
-            ResizeMode = ResizeMode.NoResize;
-            WindowStartupLocation = WindowStartupLocation.Manual;
-            WindowStyle = WindowStyle.None;
-            AllowsTransparency = true;
+            HorizontalAlignment = HorizontalAlignment.Left;
+            VerticalAlignment = VerticalAlignment.Bottom;
+            Margin = new Thickness(18, 0, 0, 46);
             Background = Brushes.Transparent;
-            FontFamily = new FontFamily("Segoe UI");
-            ShowInTaskbar = false;
-            ShowActivated = false;
             Focusable = false;
+            Visibility = Visibility.Collapsed;
 
             var outer = new Border
             {
                 Margin = new Thickness(2), CornerRadius = new CornerRadius(14), BorderThickness = new Thickness(1),
                 BorderBrush = B(Color.FromArgb(64, 255, 255, 255)), Background = B(panel), Padding = new Thickness(14, 11, 14, 12)
             };
-            Content = outer;
+            Child = outer;
             var root = new Grid();
             outer.Child = root;
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -193,22 +197,32 @@ namespace LyaranTV
             ticker = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
             ticker.Tick += delegate { Animate(); };
             ticker.Start();
-            Closed += delegate { closed = true; if (ticker != null) ticker.Stop(); };
-            Loaded += delegate
-            {
-                // Ancrage en bas à gauche de la fenêtre principale.
-                try
-                {
-                    if (Owner != null)
-                    {
-                        Left = Owner.Left + 18;
-                        Top = Owner.Top + Math.Max(0, Owner.ActualHeight - ActualHeight - 46);
-                    }
-                }
-                catch { }
-                UpdateBar();
-                UpdateEta();
-            };
+            Loaded += delegate { UpdateBar(); UpdateEta(); };
+        }
+
+        public event EventHandler Closed;
+
+        /// <summary>Rend la carte visible, sans la sortir de la fenêtre.</summary>
+        public void Show()
+        {
+            if (closed || finished) return;
+            Visibility = Visibility.Visible;
+        }
+
+        /// <summary>
+        /// Retire la carte de la fenêtre et prévient les abonnés, qui coupent
+        /// alors le travail en cours exactement comme avec une fenêtre fermée.
+        /// </summary>
+        public void Close()
+        {
+            if (closed) return;
+            closed = true;
+            Visibility = Visibility.Collapsed;
+            if (ticker != null) ticker.Stop();
+            var parent = Parent as Panel;
+            if (parent != null) { try { parent.Children.Remove(this); } catch { } }
+            var handler = Closed;
+            if (handler != null) handler(this, EventArgs.Empty);
         }
 
         /// <summary>

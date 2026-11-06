@@ -45,6 +45,9 @@ namespace LyaranTV
         AppSettings settings = new AppSettings();
         PlaylistSource activeSource;
         PlaylistLoadingWindow loadingWindow;
+        // Couche de la carte de chargement : elle appartient à la fenêtre, donc
+        // elle ne peut pas être laissée en arrière-plan quand on la déplace.
+        Grid loadingCardLayer;
         volatile bool loadCancelled;
         /// <summary>Identifie le chargement en cours : seule la dernière
         /// tentative (manuelle ou silencieuse) peut appliquer son résultat.</summary>
@@ -505,6 +508,9 @@ namespace LyaranTV
             rootGrid.Children.Add(backdrop);
             shell = new DockPanel();
             rootGrid.Children.Add(shell);
+            loadingCardLayer = new Grid();
+            System.Windows.Controls.Panel.SetZIndex(loadingCardLayer, 940);
+            rootGrid.Children.Add(loadingCardLayer);
             Content = rootGrid;
 
             var topBorder = new Border
@@ -837,6 +843,10 @@ namespace LyaranTV
         void ShowLoadingCard(PlaylistLoadingWindow dialog)
         {
             if (dialog == null) return;
+            // La carte rejoint la fenêtre principale : elle se déplace avec
+            // elle et reste dans son cadre, quoi qu'il arrive.
+            if (loadingCardLayer != null && !loadingCardLayer.Children.Contains(dialog))
+                loadingCardLayer.Children.Add(dialog);
             if (!SplashPending) { dialog.ShowSoon(); return; }
             var watcher = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
             int ticks = 0;
@@ -2686,7 +2696,7 @@ namespace LyaranTV
             bool finished = false;
             if (!silent)
             {
-                dialog = new PlaylistLoadingWindow(source.Name, Back, Panel, Accent, Muted, TextPrimary) { Owner = this };
+                dialog = new PlaylistLoadingWindow(source.Name, Back, Panel, Accent, Muted, TextPrimary);
                 loadingWindow = dialog;
                 dialog.Closed += delegate { if (!finished) loadCancelled = true; if (loadingWindow == dialog) loadingWindow = null; };
                 dialog.CancelRequested += delegate { loadCancelled = true; finished = true; dialog.Close(); SetStatus("Chargement annulé."); ShowToast("Chargement annulé.", false, false); };
@@ -2834,7 +2844,7 @@ namespace LyaranTV
             {
                 "Lecture de la copie locale", "Indexation de la bibliothèque", "Guide des programmes · EPG",
                 "Ouverture de la bibliothèque", "Chargement des affiches de films et séries"
-            }) { Owner = this };
+            });
             loadingWindow = dialog;
             bool finished = false;
             dialog.Closed += delegate { if (!finished) loadCancelled = true; if (loadingWindow == dialog) loadingWindow = null; };
